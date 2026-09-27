@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "lunex:block/base_machine_side",
+    "north": "lunex:block/speaker_block",
+    "south": "lunex:block/base_machine_side",
+    "east": "lunex:block/base_machine_side",
+    "west": "lunex:block/base_machine_side",
+    "up": "lunex:block/base_machine_side",
+    "down": "lunex:block/base_machine_side"
+  }
+}

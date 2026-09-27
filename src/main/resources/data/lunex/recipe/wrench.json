@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "  I",
+    " I ",
+    "C  "
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "C": { "item": "minecraft:copper_ingot" }
+  },
+  "result": {
+    "id": "lunex:wrench",
+    "count": 1
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " N ",
+    " S ",
+    "CRB"
+  ],
+  "key": {
+    "N": { "item": "minecraft:yellow_dye" },
+    "S": { "item": "minecraft:slime_ball" },
+    "C": { "item": "minecraft:red_dye" },
+    "R": { "item": "minecraft:redstone" },
+    "B": { "item": "minecraft:blue_dye" }
+  },
+  "result": {
+    "id": "lunex:paintball",
+    "count": 1
+  }
+}

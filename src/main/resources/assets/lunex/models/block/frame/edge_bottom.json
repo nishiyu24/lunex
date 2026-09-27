@@ -1,0 +1,12 @@
+{
+  "render_type": "minecraft:cutout", "shade": false,
+  "textures": { "border": "lunex:block/machine_border", "front": "#border" },
+  "elements": [{
+    "from": [0, -0.002, -0.002], "to": [16, 1, 1],
+    "faces": {
+      "north": { "uv": [0, 15, 16, 16], "texture": "#front" },
+      "up":    { "uv": [0, 0, 16, 1], "texture": "#border" },
+      "down":  { "uv": [0, 15, 16, 16], "texture": "#border" }
+    }
+  }]
+}

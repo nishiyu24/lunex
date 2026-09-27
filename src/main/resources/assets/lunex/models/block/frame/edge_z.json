@@ -1,0 +1,20 @@
+{
+  "render_type": "minecraft:cutout",
+  "shade": false,
+  "textures": {
+    "border": "lunex:block/machine_border"
+  },
+  "elements": [
+    {
+      "from": [-0.002, 15, 0], "to": [1, 16.002, 16],
+      "faces": {
+        "up":    { "uv": [0, 0, 1, 16], "texture": "#border" },
+        "down":  { "uv": [0, 0, 1, 16], "texture": "#border" },
+        "north": { "uv": [0, 0, 1, 1], "texture": "#border" },
+        "south": { "uv": [0, 15, 1, 16], "texture": "#border" },
+        "east":  { "uv": [15, 0, 16, 16], "texture": "#border" },
+        "west":  { "uv": [0, 0, 1, 16], "texture": "#border" }
+      }
+    }
+  ]
+}

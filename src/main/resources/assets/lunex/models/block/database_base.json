@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "lunex:block/database_front",
+    "side": "lunex:block/simple_machine_side",
+    "top": "lunex:block/simple_machine_side",
+    "bottom": "lunex:block/simple_machine_side"
+  }
+}

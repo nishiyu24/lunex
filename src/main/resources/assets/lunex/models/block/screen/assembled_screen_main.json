@@ -1,0 +1,8 @@
+{
+  "parent": "lunex:block/screen/screen_main",
+  "textures": {
+    "top": "lunex:block/simple_machine_side",
+    "bottom": "lunex:block/simple_machine_side",
+    "side": "lunex:block/simple_machine_side"
+  }
+}

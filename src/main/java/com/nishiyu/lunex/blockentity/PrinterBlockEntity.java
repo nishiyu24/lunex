@@ -1,0 +1,270 @@
+package com.nishiyu.lunex.blockentity;
+
+import com.nishiyu.lunex.Lunex;
+import com.nishiyu.lunex.mcnet.IMCNetDevice;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.network.Filterable;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.WrittenBookContent;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.energy.EnergyStorage;
+import net.neoforged.neoforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
+
+public class PrinterBlockEntity extends BlockEntity implements IMCNetDevice {
+
+    // 【修正】型推論エラーを防ぐため、内部クラスとして定義
+    public class MyEnergyStorage extends EnergyStorage {
+        public MyEnergyStorage(int capacity, int maxReceive, int maxExtract, int energy) {
+            super(capacity, maxReceive, maxExtract, energy);
+        }
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            int received = super.receiveEnergy(maxReceive, simulate);
+            if (received > 0) setChanged();
+            return received;
+        }
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            int extracted = super.extractEnergy(maxExtract, simulate);
+            if (extracted > 0) setChanged();
+            return extracted;
+        }
+        public void setEnergy(int energyIn) {
+            this.energy = Math.clamp(energyIn, 0, this.capacity);
+        }
+    }
+
+    // 作成した MyEnergyStorage 型で変数を宣言
+    public final MyEnergyStorage energyStorage = new MyEnergyStorage(10000, 1000, 1000, 0);
+
+    public final ItemStackHandler itemHandler = new ItemStackHandler(4) {
+        @Override
+        protected void onContentsChanged(int slot) {
+            setChanged();
+            if (level != null && !level.isClientSide()) {
+                level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+            }
+        }
+    };
+
+    public int progress = 0;
+    public int maxProgress = 100; // 完了までのティック数 (100 = 5秒)
+
+    public final ContainerData dataAccess = new ContainerData() {
+        @Override
+        public int get(int index) {
+            return switch (index) {
+                case 0 -> energyStorage.getEnergyStored();
+                case 1 -> energyStorage.getMaxEnergyStored();
+                case 2 -> progress;
+                case 3 -> maxProgress;
+                default -> 0;
+            };
+        }
+        @Override
+        public void set(int index, int value) {
+            switch (index) {
+                case 0 -> energyStorage.setEnergy(value);
+                case 2 -> progress = value;
+                case 3 -> maxProgress = value;
+            }
+        }
+        @Override
+        public int getCount() {
+            return 4;
+        }
+    };
+
+    public PrinterBlockEntity(BlockPos pos, BlockState state) {
+        super(Lunex.PRINTER_BE.get(), pos, state);
+    }
+
+    public void tick() {
+        if (level == null || level.isClientSide()) return;
+
+        boolean hasChanged = false;
+        int energyPerTick = 10; // 1ティックに消費するエネルギー
+
+        // コピー可能で、かつ1ティック分のエネルギーがある場合
+        if (canCopyEnchantmentBook() && energyStorage.getEnergyStored() >= energyPerTick) {
+            progress++;
+            energyStorage.extractEnergy(energyPerTick, false);
+            hasChanged = true;
+
+            // 完了したらアイテムを生成
+            if (progress >= maxProgress) {
+                performCopyEnchantmentBook();
+                progress = 0;
+            }
+        } else {
+            // 素材やエネルギーが足りなくなったら進捗をリセット
+            if (progress > 0) {
+                progress = 0;
+                hasChanged = true;
+            }
+        }
+
+        if (hasChanged) {
+            setChanged();
+        }
+    }
+
+    private boolean hasIngredients(Object... requirements) {
+        int[] virtualConsumed = new int[3];
+        for (int i = 0; i < requirements.length; i += 2) {
+            Item requiredItem = (Item) requirements[i];
+            int requiredCount = (Integer) requirements[i + 1];
+            int foundCount = 0;
+
+            for (int slot = 0; slot < 3; slot++) {
+                ItemStack stack = itemHandler.getStackInSlot(slot);
+                if (stack.getItem() == requiredItem) {
+                    int available = stack.getCount() - virtualConsumed[slot];
+                    if (available > 0) {
+                        int take = Math.min(requiredCount - foundCount, available);
+                        foundCount += take;
+                        virtualConsumed[slot] += take;
+                    }
+                }
+                if (foundCount >= requiredCount) break;
+            }
+            if (foundCount < requiredCount) return false;
+        }
+        return true;
+    }
+
+    private boolean consumeIngredients(Object... requirements) {
+        int[] consumed = new int[3];
+        for (int i = 0; i < requirements.length; i += 2) {
+            Item requiredItem = (Item) requirements[i];
+            int requiredCount = (Integer) requirements[i + 1];
+            int foundCount = 0;
+            for (int slot = 0; slot < 3; slot++) {
+                ItemStack stack = itemHandler.getStackInSlot(slot);
+                if (stack.getItem() == requiredItem) {
+                    int available = stack.getCount() - consumed[slot];
+                    if (available > 0) {
+                        int take = Math.min(requiredCount - foundCount, available);
+                        foundCount += take;
+                        consumed[slot] += take;
+                    }
+                }
+                if (foundCount >= requiredCount) break;
+            }
+            if (foundCount < requiredCount) return false;
+        }
+        for (int slot = 0; slot < 3; slot++) {
+            if (consumed[slot] > 0) {
+                itemHandler.extractItem(slot, consumed[slot], false);
+            }
+        }
+        return true;
+    }
+
+    public boolean canCopyEnchantmentBook() {
+        if (!itemHandler.getStackInSlot(3).isEmpty()) return false;
+        boolean hasOriginal = false;
+        for (int i = 0; i < 3; i++) {
+            if (itemHandler.getStackInSlot(i).getItem() == Items.ENCHANTED_BOOK) {
+                hasOriginal = true;
+                break;
+            }
+        }
+        if (!hasOriginal) return false;
+        return hasIngredients(Items.INK_SAC, 10, Items.EXPERIENCE_BOTTLE, 10);
+    }
+
+    private void performCopyEnchantmentBook() {
+        ItemStack originalBook = ItemStack.EMPTY;
+        for (int i = 0; i < 3; i++) {
+            ItemStack stack = itemHandler.getStackInSlot(i);
+            if (stack.getItem() == Items.ENCHANTED_BOOK) {
+                originalBook = stack;
+                break;
+            }
+        }
+        if (consumeIngredients(Items.INK_SAC, 10, Items.EXPERIENCE_BOTTLE, 10)) {
+            ItemStack resultBook = new ItemStack(Lunex.INACTIVE_BOOK.get());
+            ItemEnchantments enchantments = originalBook.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
+            resultBook.set(DataComponents.STORED_ENCHANTMENTS, enchantments);
+            itemHandler.setStackInSlot(3, resultBook);
+        }
+    }
+
+    public boolean createDisc(String scriptName, String code) {
+        if (!itemHandler.getStackInSlot(3).isEmpty()) return false;
+        if (consumeIngredients(Items.IRON_INGOT, 2, Items.REDSTONE, 5, Items.GOLD_INGOT, 1)) {
+            ItemStack resultDisc = new ItemStack(Lunex.PROGRAM_DISK.get());
+            CustomData.update(DataComponents.CUSTOM_DATA, resultDisc, tag -> {
+                tag.putString("ProgramName", scriptName);
+                tag.putString("ProgramCode", code);
+            });
+            itemHandler.setStackInSlot(3, resultDisc);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean printBook(String title, String content) {
+        if (!itemHandler.getStackInSlot(3).isEmpty()) return false;
+        if (consumeIngredients(Items.INK_SAC, 5, Items.BOOK, 1)) {
+            ItemStack resultBook = new ItemStack(Items.WRITTEN_BOOK);
+            WrittenBookContent bookContent = new WrittenBookContent(
+                    Filterable.passThrough(title), "Printer", 0,
+                    List.of(Filterable.passThrough(Component.literal(content))), false
+            );
+            resultBook.set(DataComponents.WRITTEN_BOOK_CONTENT, bookContent);
+            itemHandler.setStackInSlot(3, resultBook);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    protected void saveAdditional(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
+        super.saveAdditional(tag, registries);
+        tag.put("Inventory", itemHandler.serializeNBT(registries));
+        tag.putInt("Energy", energyStorage.getEnergyStored());
+        tag.putInt("Progress", progress);
+        tag.putInt("MaxProgress", maxProgress);
+    }
+
+    @Override
+    protected void loadAdditional(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
+        super.loadAdditional(tag, registries);
+        if (tag.contains("Inventory")) itemHandler.deserializeNBT(registries, tag.getCompound("Inventory"));
+        if (tag.contains("Energy")) energyStorage.setEnergy(tag.getInt("Energy"));
+        if (tag.contains("Progress")) progress = tag.getInt("Progress");
+        if (tag.contains("MaxProgress")) maxProgress = tag.getInt("MaxProgress");
+    }
+
+    @Override
+    public @NotNull CompoundTag getUpdateTag(HolderLookup.@NotNull Provider registries) {
+        CompoundTag tag = super.getUpdateTag(registries);
+        saveAdditional(tag, registries);
+        return tag;
+    }
+
+    @Nullable
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+}

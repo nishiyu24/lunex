@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "lunex:block/turtle_bot_block"
+    },
+    "facing=east": {
+      "model": "lunex:block/turtle_bot_block",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "lunex:block/turtle_bot_block",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "lunex:block/turtle_bot_block",
+      "y": 270
+    }
+  }
+}

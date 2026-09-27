@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "IPI",
+    "SMS",
+    "IRI"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "P": { "item": "minecraft:paper" },
+    "S": { "item": "minecraft:ink_sac" },
+    "M": { "item": "lunex:machine_frame" },
+    "R": { "item": "minecraft:redstone" }
+  },
+  "result": {
+    "id": "lunex:printer",
+    "count": 1
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "lunex:block/bio_printer",
+      "y": 270
+    },
+    "facing=east": {
+      "model": "lunex:block/bio_printer"
+    },
+    "facing=south": {
+      "model": "lunex:block/bio_printer",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "lunex:block/bio_printer",
+      "y": 180
+    }
+  }
+}

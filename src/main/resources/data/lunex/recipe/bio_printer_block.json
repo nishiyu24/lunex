@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GBG",
+    "SMS",
+    "GDG"
+  ],
+  "key": {
+    "G": { "item": "minecraft:glass" },
+    "B": { "item": "minecraft:brewing_stand" },
+    "S": { "item": "minecraft:slime_ball" },
+    "M": { "item": "lunex:machine_frame" },
+    "D": { "item": "minecraft:diamond" }
+  },
+  "result": {
+    "id": "lunex:bio_printer_block",
+    "count": 1
+  }
+}

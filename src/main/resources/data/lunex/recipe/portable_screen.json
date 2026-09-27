@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " I ",
+    "ISI",
+    " R "
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "S": { "item": "lunex:screen_block" },
+    "R": { "item": "minecraft:redstone" }
+  },
+  "result": {
+    "id": "lunex:portable_screen",
+    "count": 1
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "lunex:block/router_block"
+    }
+  }
+}

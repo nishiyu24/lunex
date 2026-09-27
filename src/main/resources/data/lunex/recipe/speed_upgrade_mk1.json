@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " T ",
+    "XUX",
+    " S "
+  ],
+  "key": {
+    "T": { "item": "minecraft:redstone_torch" },
+    "X": { "item": "minecraft:gold_ingot" },
+    "U": { "item": "lunex:upgrade_base" },
+    "S": { "item": "minecraft:stone" }
+  },
+  "result": {
+    "id": "lunex:speed_upgrade_mk1",
+    "count": 1
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "particle": "lunex:block/base_machine_side",
+    "front": "lunex:block/advanced_machine_front",
+    "top": "lunex:block/advanced_machine_top",
+    "bottom": "lunex:block/base_machine_side",
+    "side": "lunex:block/base_machine_side"
+  }
+}

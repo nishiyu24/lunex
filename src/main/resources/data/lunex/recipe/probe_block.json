@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " I ",
+    "ROR",
+    "III"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "O": { "item": "minecraft:observer" },
+    "R": { "item": "minecraft:redstone" }
+  },
+  "result": {
+    "id": "lunex:probe_block",
+    "count": 1
+  }
+}

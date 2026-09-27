@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " T ",
+    "XUX",
+    " S "
+  ],
+  "key": {
+    "T": { "item": "minecraft:netherite_ingot" },
+    "X": { "item": "minecraft:chorus_fruit" },
+    "U": { "item": "lunex:distance_upgrade_mk3" },
+    "S": { "item": "minecraft:stone" }
+  },
+  "result": {
+    "id": "lunex:distance_upgrade_mk4",
+    "count": 1
+  }
+}

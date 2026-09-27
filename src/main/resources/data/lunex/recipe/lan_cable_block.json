@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "CCC",
+    "RRR",
+    "CCC"
+  ],
+  "key": {
+    "C": { "item": "minecraft:copper_ingot" },
+    "R": { "item": "minecraft:redstone" }
+  },
+  "result": {
+    "id": "lunex:lan_cable_block",
+    "count": 16
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "multipart": [
+
+    { "when": { "assembled": "false", "facing": "north" }, "apply": { "model": "lunex:block/database_base" } },
+    { "when": { "assembled": "false", "facing": "east" },  "apply": { "model": "lunex:block/database_base", "y": 90 } },
+    { "when": { "assembled": "false", "facing": "south" }, "apply": { "model": "lunex:block/database_base", "y": 180 } },
+    { "when": { "assembled": "false", "facing": "west" },  "apply": { "model": "lunex:block/database_base", "y": 270 } },
+
+    { "when": { "assembled": "false", "up": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "down": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "north": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "south": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "east": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "west": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+
+    { "when": { "assembled": "true" }, "apply": { "model": "lunex:block/assembled_machine_base" } },
+
+    { "when": { "assembled": "true", "up": "false", "north": "false" }, "apply": { "model": "lunex:block/frame/edge_top" } },
+    { "when": { "assembled": "true", "up": "false", "south": "false" }, "apply": { "model": "lunex:block/frame/edge_top", "y": 180 } },
+    { "when": { "assembled": "true", "down": "false", "north": "false" }, "apply": { "model": "lunex:block/frame/edge_bottom" } },
+    { "when": { "assembled": "true", "down": "false", "south": "false" }, "apply": { "model": "lunex:block/frame/edge_bottom", "y": 180 } },
+
+    { "when": { "assembled": "true", "north": "false", "west": "false" }, "apply": { "model": "lunex:block/frame/edge_right" } },
+    { "when": { "assembled": "true", "north": "false", "east": "false" }, "apply": { "model": "lunex:block/frame/edge_left" } },
+    { "when": { "assembled": "true", "south": "false", "east": "false" }, "apply": { "model": "lunex:block/frame/edge_right", "y": 180 } },
+    { "when": { "assembled": "true", "south": "false", "west": "false" }, "apply": { "model": "lunex:block/frame/edge_left", "y": 180 } },
+
+    { "when": { "assembled": "true", "up": "false", "west": "false" }, "apply": { "model": "lunex:block/frame/edge_z" } },
+    { "when": { "assembled": "true", "up": "false", "east": "false" }, "apply": { "model": "lunex:block/frame/edge_z", "y": 180 } },
+    { "when": { "assembled": "true", "down": "false", "west": "false" }, "apply": { "model": "lunex:block/frame/edge_z", "x": 180 } },
+    { "when": { "assembled": "true", "down": "false", "east": "false" }, "apply": { "model": "lunex:block/frame/edge_z", "x": 180, "y": 180 } }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "C C",
+    "GAG"
+  ],
+  "key": {
+    "C": { "item": "minecraft:copper_ingot" },
+    "G": { "item": "minecraft:glass_pane" },
+    "A": { "item": "minecraft:amethyst_shard" }
+  },
+  "result": {
+    "id": "lunex:ar_glasses",
+    "count": 1
+  }
+}

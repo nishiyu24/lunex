@@ -1,0 +1,15 @@
+{
+  "multipart": [
+    { "when": { "facing": "north" }, "apply": { "model": "lunex:block/speaker_base_model" } },
+    { "when": { "facing": "east" },  "apply": { "model": "lunex:block/speaker_base_model", "y": 90 } },
+    { "when": { "facing": "south" }, "apply": { "model": "lunex:block/speaker_base_model", "y": 180 } },
+    { "when": { "facing": "west" },  "apply": { "model": "lunex:block/speaker_base_model", "y": 270 } },
+
+    { "when": { "up": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "down": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "north": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "south": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "east": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "west": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } }
+  ]
+}

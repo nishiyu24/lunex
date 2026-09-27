@@ -1,0 +1,1 @@
+{ "parent": "lunex:block/frame/edge_left", "textures": { "front": "lunex:block/screen_border" } }

@@ -1,0 +1,191 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "north": "connected"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_arm"
+      }
+    },
+    {
+      "when": {
+        "east": "connected"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_arm",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "south": "connected"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_arm",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "west": "connected"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_arm",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "up": "connected"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_arm",
+        "x": 270
+      }
+    },
+    {
+      "when": {
+        "down": "connected"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_arm",
+        "x": 90
+      }
+    },
+    {
+      "when": {
+        "north": "connected",
+        "south": "connected",
+        "east": "none",
+        "west": "none",
+        "up": "none",
+        "down": "none"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_core_straight"
+      }
+    },
+    {
+      "when": {
+        "east": "connected",
+        "west": "connected",
+        "north": "none",
+        "south": "none",
+        "up": "none",
+        "down": "none"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_core_straight",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "up": "connected",
+        "down": "connected",
+        "north": "none",
+        "south": "none",
+        "east": "none",
+        "west": "none"
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_core_straight",
+        "x": 90
+      }
+    },
+    {
+      "when": {
+        "AND": [
+          {
+            "OR": [
+              {
+                "north": "none"
+              },
+              {
+                "north": "blocked"
+              },
+              {
+                "south": "none"
+              },
+              {
+                "south": "blocked"
+              },
+              {
+                "east": "connected"
+              },
+              {
+                "west": "connected"
+              },
+              {
+                "up": "connected"
+              },
+              {
+                "down": "connected"
+              }
+            ]
+          },
+          {
+            "OR": [
+              {
+                "east": "none"
+              },
+              {
+                "east": "blocked"
+              },
+              {
+                "west": "none"
+              },
+              {
+                "west": "blocked"
+              },
+              {
+                "north": "connected"
+              },
+              {
+                "south": "connected"
+              },
+              {
+                "up": "connected"
+              },
+              {
+                "down": "connected"
+              }
+            ]
+          },
+          {
+            "OR": [
+              {
+                "up": "none"
+              },
+              {
+                "up": "blocked"
+              },
+              {
+                "down": "none"
+              },
+              {
+                "down": "blocked"
+              },
+              {
+                "north": "connected"
+              },
+              {
+                "south": "connected"
+              },
+              {
+                "east": "connected"
+              },
+              {
+                "west": "connected"
+              }
+            ]
+          }
+        ]
+      },
+      "apply": {
+        "model": "lunex:block/cable/lan_cable_core_red"
+      }
+    }
+  ]
+}

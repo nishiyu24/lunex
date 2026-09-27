@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SIS",
+    "SRS",
+    "SIS"
+  ],
+  "key": {
+    "S": { "item": "minecraft:stone" },
+    "I": { "item": "minecraft:iron_ingot" },
+    "R": { "item": "minecraft:redstone" }
+  },
+  "result": {
+    "id": "lunex:simple_machine",
+    "count": 1
+  }
+}

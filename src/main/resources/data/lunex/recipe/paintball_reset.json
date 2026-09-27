@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "lunex:paintball"
+    }
+  ],
+  "result": {
+    "id": "lunex:paintball",
+    "count": 1
+  }
+}

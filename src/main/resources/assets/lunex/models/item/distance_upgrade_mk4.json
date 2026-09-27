@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "lunex:item/distance_upgrade_mk4"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " T ",
+    "XUX",
+    " S "
+  ],
+  "key": {
+    "T": { "item": "minecraft:emerald" },
+    "X": { "item": "minecraft:ender_chest" },
+    "U": { "item": "lunex:storage_upgrade_mk2" },
+    "S": { "item": "minecraft:stone" }
+  },
+  "result": {
+    "id": "lunex:storage_upgrade_mk3",
+    "count": 1
+  }
+}

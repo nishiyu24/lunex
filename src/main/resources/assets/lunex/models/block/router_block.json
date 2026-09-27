@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "lunex:block/router_vertical",
+    "side": "lunex:block/router_horizontal"
+  }
+}

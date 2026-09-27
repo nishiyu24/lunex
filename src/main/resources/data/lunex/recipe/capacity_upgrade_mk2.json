@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " T ",
+    "XUX",
+    " S "
+  ],
+  "key": {
+    "T": { "item": "minecraft:diamond" },
+    "X": { "item": "minecraft:copper_block" },
+    "U": { "item": "lunex:capacity_upgrade_mk1" },
+    "S": { "item": "minecraft:stone" }
+  },
+  "result": {
+    "id": "lunex:capacity_upgrade_mk2",
+    "count": 1
+  }
+}

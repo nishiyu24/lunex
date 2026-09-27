@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "III",
+    "IMI",
+    "IPI"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "M": { "item": "lunex:programmable_machine" },
+    "P": { "item": "minecraft:piston" }
+  },
+  "result": {
+    "id": "lunex:turtle_bot_block",
+    "count": 1
+  }
+}
