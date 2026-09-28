@@ -5,6 +5,7 @@ import com.nishiyu.lunex.menu.MachineSettings.GuiRenderUtils;
 import com.nishiyu.lunex.menu.utiles.EditorLauncher;
 import com.nishiyu.lunex.menu.utiles.IMachineTab;
 import com.nishiyu.lunex.network.LocalWebSocketServer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
@@ -270,6 +271,9 @@ public class BioFileManagerTab implements IMachineTab {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+
+        if (this.isLoadingFiles) return false;
+
         if (this.showModal) {
             int mx = this.leftPos + (this.screen.getImageWidth() - 150) / 2;
             int my = this.topPos + (this.screen.getImageHeight() - 80) / 2;
@@ -372,7 +376,7 @@ public class BioFileManagerTab implements IMachineTab {
         if (!val.isEmpty()) {
             // ★追加: クライアント側でも . から始まるファイル名の入力をブロック
             if (val.startsWith(".")) {
-                net.minecraft.client.Minecraft.getInstance().player.displayClientMessage(Component.literal("§c[Error] Name cannot start with '.'§r"), true);
+                Objects.requireNonNull(Minecraft.getInstance().player).displayClientMessage(Component.literal("§c[Error] Name cannot start with '.'§r"), true);
                 return;
             }
 

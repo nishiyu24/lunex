@@ -291,6 +291,9 @@ public class FileManagerTab implements IMachineTab {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+
+        if (this.isLoadingFiles) return false;
+
         if (this.showModal) {
             int mx = this.leftPos + (this.screen.getImageWidth() - 150) / 2;
             int my = this.topPos + (this.screen.getImageHeight() - 80) / 2;
