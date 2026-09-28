@@ -5,10 +5,12 @@ export const API = {
 
     connect() {
         return new Promise((resolve, reject) => {
-            this.socket = new WebSocket('ws://localhost:14321');
+            // ★変更: 開いているページによって接続先のURLパスを変える
+            const type = window.EDITOR_TYPE || 'machine';
+            this.socket = new WebSocket(`ws://localhost:14321/${type}`);
 
             this.socket.onopen = () => {
-                console.log("WebSocket connected to Minecraft!");
+                console.log(`WebSocket connected to Minecraft! (${type})`);
                 resolve();
             };
 

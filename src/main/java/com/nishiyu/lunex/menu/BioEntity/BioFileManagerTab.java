@@ -266,7 +266,7 @@ public class BioFileManagerTab implements IMachineTab {
         }
 
         LocalWebSocketServer.setActiveVm(vmId, workspaceId, "", targetFile);
-        EditorLauncher.launchEditor();
+        EditorLauncher.launchEditor("entity.html");
     }
 
     @Override

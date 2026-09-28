@@ -28,18 +28,31 @@ public class LocalWebSocketServer {
     private static final Gson GSON = new Gson();
     private static final Map<String, CompletableFuture<String>> pendingRequests = new ConcurrentHashMap<>();
 
+    // 他のパケットクラスとの互換性（フォールバック用）
     public static volatile String currentLoadedProgramName = "";
-    public static volatile String currentLoadedProgramData = "";
-    public static volatile String currentWorkspaceId = "default";
 
-    public static volatile String activeVmId = "none";
-    public static volatile String activeWorkspaceId = "default";
-    public static volatile String activeLockedFile = "";
-    public static volatile String activeDefaultFile = "";
+    // ★追加: セッションを独立して管理するためのクラス
+    public static class WsSession {
+        public String type;
+        public OutputStream out;
+        public String vmId = "none";
+        public String workspaceId = "default";
+        public String lockedFile = "";
+        public String defaultFile = "";
+
+        public WsSession(String type) {
+            this.type = type;
+        }
+    }
+
+    // "machine" と "entity" の2つのセッションを保持
+    private static final Map<String, WsSession> SESSIONS = new ConcurrentHashMap<>();
+    static {
+        SESSIONS.put("machine", new WsSession("machine"));
+        SESSIONS.put("entity", new WsSession("entity"));
+    }
 
     private static ServerSocket serverSocket;
-    private static Thread serverThread;
-    private static OutputStream activeClientOut;
 
     public static void handleProgramResponse(String name, String data) {
         CompletableFuture<String> future = pendingRequests.remove(name);
@@ -47,30 +60,40 @@ public class LocalWebSocketServer {
     }
 
     public static void setActiveVm(String vmId, String workspaceId, String lockedFile, String defaultFile) {
-        activeVmId = vmId;
-        activeWorkspaceId = workspaceId != null ? workspaceId : "default";
-        activeLockedFile = lockedFile != null ? lockedFile : "";
-        activeDefaultFile = defaultFile != null ? defaultFile : "";
+        // ★自動判定: biomob_ から始まるかどうかで Entity と Machine を振り分ける
+        String sessionType = (vmId != null && vmId.startsWith("biomob_")) ? "entity" : "machine";
+        WsSession session = SESSIONS.get(sessionType);
 
-        JsonObject json = new JsonObject();
-        json.addProperty("type", "linked_vm");
-        json.addProperty("vmId", activeVmId);
-        json.addProperty("workspaceId", activeWorkspaceId);
-        json.addProperty("lockedFile", activeLockedFile);
-        json.addProperty("defaultFile", activeDefaultFile);
+        if (session != null) {
+            session.vmId = vmId;
+            session.workspaceId = workspaceId != null ? workspaceId : "default";
+            session.lockedFile = lockedFile != null ? lockedFile : "";
+            session.defaultFile = defaultFile != null ? defaultFile : "";
 
-        boolean isEntity = activeVmId != null && activeVmId.startsWith("biomob_");
-        json.addProperty("isEntity", isEntity);
+            JsonObject json = new JsonObject();
+            json.addProperty("type", "linked_vm");
+            json.addProperty("vmId", session.vmId);
+            json.addProperty("workspaceId", session.workspaceId);
+            json.addProperty("lockedFile", session.lockedFile);
+            json.addProperty("defaultFile", session.defaultFile);
+            json.addProperty("isEntity", "entity".equals(sessionType));
 
-        broadcast(json);
+            sendWebSocketMessage(session, json.toString());
+        }
     }
 
     public static void sendVmError(String vmId, String errorMessage) {
-        JsonObject json = new JsonObject();
-        json.addProperty("type", "vm_error");
-        json.addProperty("vmId", vmId);
-        json.addProperty("error", errorMessage);
-        broadcast(json);
+        // vmIdから送信先のセッションを自動判定
+        String sessionType = (vmId != null && vmId.startsWith("biomob_")) ? "entity" : "machine";
+        WsSession session = SESSIONS.get(sessionType);
+
+        if (session != null) {
+            JsonObject json = new JsonObject();
+            json.addProperty("type", "vm_error");
+            json.addProperty("vmId", vmId);
+            json.addProperty("error", errorMessage);
+            sendWebSocketMessage(session, json.toString());
+        }
     }
 
     public static void start(boolean isEnabled) {
@@ -79,7 +102,7 @@ public class LocalWebSocketServer {
             return;
         }
 
-        serverThread = new Thread(() -> {
+        Thread serverThread = new Thread(() -> {
             try {
                 serverSocket = new ServerSocket(14321);
                 Lunex.LOGGER.info("MineFlow WebSocket Server started on port 14321");
@@ -102,24 +125,23 @@ public class LocalWebSocketServer {
     public static void stop() {
         try {
             if (serverSocket != null && !serverSocket.isClosed()) serverSocket.close();
-            if (activeClientOut != null) activeClientOut.close();
+            for (WsSession session : SESSIONS.values()) {
+                if (session.out != null) session.out.close();
+            }
         } catch (IOException e) {
             Lunex.LOGGER.error("Failed to stop WebSocket server", e);
         }
     }
 
-    public static void broadcast(JsonObject json) {
-        sendWebSocketMessage(json.toString());
-    }
-
     private static void handleClient(Socket socket) {
         new Thread(() -> {
-            try (InputStream in = socket.getInputStream();
-                 OutputStream out = socket.getOutputStream()) {
-
-                activeClientOut = out;
+            WsSession currentSession = null;
+            try {
+                InputStream in = socket.getInputStream();
+                OutputStream out = socket.getOutputStream();
 
                 String wsKey = null;
+                String requestPath = "";
                 StringBuilder headerBuilder = new StringBuilder();
                 int b;
                 while ((b = in.read()) != -1) {
@@ -131,6 +153,15 @@ public class LocalWebSocketServer {
                 }
 
                 String[] lines = headerBuilder.toString().split("\r\n");
+
+                // ★追加: WebSocketハンドシェイクのURLから接続パス（/machine 等）を解析
+                if (lines.length > 0) {
+                    String[] requestLine = lines[0].split(" ");
+                    if (requestLine.length >= 2) {
+                        requestPath = requestLine[1];
+                    }
+                }
+
                 for (String line : lines) {
                     if (line.toLowerCase().startsWith("sec-websocket-key:")) {
                         wsKey = line.substring(18).trim();
@@ -139,6 +170,11 @@ public class LocalWebSocketServer {
                 }
 
                 if (wsKey != null) {
+                    // ★追加: パスに応じて対応するセッションに紐付ける
+                    String sessionType = requestPath.contains("entity") ? "entity" : "machine";
+                    currentSession = SESSIONS.get(sessionType);
+                    currentSession.out = out;
+
                     String acceptKey = Base64.getEncoder().encodeToString(
                             MessageDigest.getInstance("SHA-1").digest((wsKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").getBytes(StandardCharsets.UTF_8))
                     );
@@ -149,37 +185,37 @@ public class LocalWebSocketServer {
                     out.write(response.getBytes(StandardCharsets.UTF_8));
                     out.flush();
 
-                    Lunex.LOGGER.info("MineFlow Editor connected via WebSocket!");
+                    Lunex.LOGGER.info("MineFlow Editor connected via WebSocket! Type: " + sessionType);
 
                     JsonObject linkJson = new JsonObject();
                     linkJson.addProperty("type", "linked_vm");
-                    linkJson.addProperty("vmId", activeVmId);
-                    linkJson.addProperty("workspaceId", activeWorkspaceId);
-                    linkJson.addProperty("lockedFile", activeLockedFile);
-                    linkJson.addProperty("defaultFile", activeDefaultFile);
+                    linkJson.addProperty("vmId", currentSession.vmId);
+                    linkJson.addProperty("workspaceId", currentSession.workspaceId);
+                    linkJson.addProperty("lockedFile", currentSession.lockedFile);
+                    linkJson.addProperty("defaultFile", currentSession.defaultFile);
+                    linkJson.addProperty("isEntity", "entity".equals(sessionType));
 
-                    boolean isEntity = activeVmId != null && activeVmId.startsWith("biomob_");
-                    linkJson.addProperty("isEntity", isEntity);
-
-                    broadcast(linkJson);
+                    sendWebSocketMessage(currentSession, linkJson.toString());
 
                     while (true) {
                         String payload = readWebSocketFrame(in);
                         if (payload == null) break;
-                        processMessage(payload);
+                        processMessage(currentSession, payload);
                     }
                 }
 
             } catch (Exception e) {
                 Lunex.LOGGER.error("Error in WebSocket connection", e);
             } finally {
-                activeClientOut = null;
-                Lunex.LOGGER.info("Editor disconnected.");
+                if (currentSession != null) {
+                    currentSession.out = null;
+                    Lunex.LOGGER.info("Editor disconnected: " + currentSession.type);
+                }
             }
         }).start();
     }
 
-    private static void processMessage(String payload) {
+    private static void processMessage(WsSession session, String payload) {
         try {
             JsonObject req = GSON.fromJson(payload, JsonObject.class);
             String action = req.has("action") ? req.get("action").getAsString() : "";
@@ -191,7 +227,7 @@ public class LocalWebSocketServer {
             switch (action) {
                 case "get_api_data" -> {
                     res.addProperty("type", "api_data");
-                    APIRegistry registry = APIRegistry.getRegistryFor(activeVmId);
+                    APIRegistry registry = APIRegistry.getRegistryFor(session.vmId);
                     res.add("suggestions", GSON.toJsonTree(registry.getSuggestions()));
 
                     JsonArray actions = new JsonArray();
@@ -227,7 +263,7 @@ public class LocalWebSocketServer {
                     String mcLang = "en_us";
                     try {
                         mcLang = net.minecraft.client.Minecraft.getInstance().options.languageCode;
-                    } catch (Throwable t) {
+                    } catch (Throwable ignored) {
                     }
                     res.addProperty("mcLang", mcLang);
 
@@ -247,7 +283,7 @@ public class LocalWebSocketServer {
 
                     res.add("registries", registries);
 
-                    sendWebSocketMessage(res.toString());
+                    sendWebSocketMessage(session, res.toString());
                 }
                 case "get_files" -> {
                     res.addProperty("type", "file_list");
@@ -261,16 +297,12 @@ public class LocalWebSocketServer {
                         workspacesJson.add(ws, filesArray);
                     }
                     res.add("workspaces", workspacesJson);
-                    sendWebSocketMessage(res.toString());
+                    sendWebSocketMessage(session, res.toString());
                 }
                 case "load_file" -> {
-                    // ★修正: カット処理を完全に廃止し、フロントからの名前をそのまま使用
                     String fullName = req.get("programName").getAsString();
-
-                    String wsId = fullName.contains("/") ? fullName.substring(0, fullName.indexOf("/")) : "default";
                     String progName = fullName.contains("/") ? fullName.substring(fullName.indexOf("/") + 1) : fullName;
 
-                    currentWorkspaceId = wsId;
                     currentLoadedProgramName = progName;
 
                     CompletableFuture<String> future = new CompletableFuture<>();
@@ -290,19 +322,14 @@ public class LocalWebSocketServer {
                     res.addProperty("type", "file_data");
                     res.addProperty("programName", fullName);
                     res.addProperty("content", programData);
-                    sendWebSocketMessage(res.toString());
+                    sendWebSocketMessage(session, res.toString());
                 }
                 case "save_file" -> {
-                    // ★修正: カット処理を完全に廃止し、フロントからの名前をそのまま使用
                     String fullName = req.get("programName").getAsString();
-
-                    String wsId = fullName.contains("/") ? fullName.substring(0, fullName.indexOf("/")) : "default";
                     String progName = fullName.contains("/") ? fullName.substring(fullName.indexOf("/") + 1) : fullName;
                     String code = req.get("content").getAsString();
 
-                    currentWorkspaceId = wsId;
                     currentLoadedProgramName = progName;
-                    currentLoadedProgramData = code;
 
                     CompoundTag tag = new CompoundTag();
                     tag.putString("programName", fullName);
@@ -311,42 +338,38 @@ public class LocalWebSocketServer {
 
                     res.addProperty("type", "saved");
                     res.addProperty("programName", fullName);
-                    sendWebSocketMessage(res.toString());
+                    sendWebSocketMessage(session, res.toString());
                 }
                 case "delete_file" -> {
-                    // ★修正: カット処理を完全に廃止し、フロントからの名前をそのまま使用
                     String fullName = req.get("programName").getAsString();
-
                     CompoundTag tag = new CompoundTag();
                     tag.putString("programName", fullName);
                     PacketDistributor.sendToServer(new AppMessageC2SPacket("global", "delete_program", tag));
 
                     res.addProperty("type", "deleted");
                     res.addProperty("programName", fullName);
-                    sendWebSocketMessage(res.toString());
+                    sendWebSocketMessage(session, res.toString());
                 }
                 case "get_link_info" -> {
                     res.addProperty("type", "linked_vm");
-                    res.addProperty("vmId", activeVmId);
-                    res.addProperty("workspaceId", activeWorkspaceId);
-                    res.addProperty("lockedFile", activeLockedFile);
-                    res.addProperty("defaultFile", activeDefaultFile);
-
-                    boolean isEntity = activeVmId != null && activeVmId.startsWith("biomob_");
-                    res.addProperty("isEntity", isEntity);
-
-                    sendWebSocketMessage(res.toString());
+                    res.addProperty("vmId", session.vmId);
+                    res.addProperty("workspaceId", session.workspaceId);
+                    res.addProperty("lockedFile", session.lockedFile);
+                    res.addProperty("defaultFile", session.defaultFile);
+                    res.addProperty("isEntity", "entity".equals(session.type));
+                    sendWebSocketMessage(session, res.toString());
                 }
                 default -> Lunex.LOGGER.warn("Unknown action from editor: " + action);
             }
         } catch (Exception e) {
-            Lunex.LOGGER.error("Error processing message", e);
+            Lunex.LOGGER.error("Error processing message for " + session.type, e);
         }
     }
 
-    private static void sendWebSocketMessage(String message) {
-        if (activeClientOut == null) return;
+    private static void sendWebSocketMessage(WsSession session, String message) {
+        if (session == null || session.out == null) return;
         try {
+            OutputStream activeClientOut = session.out;
             byte[] payload = message.getBytes(StandardCharsets.UTF_8);
             activeClientOut.write(0x81);
             if (payload.length <= 125) {

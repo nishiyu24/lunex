@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Entity Editor</title>
+    <link href="./css/style.css" rel="stylesheet">
+</head>
+<body>
+
+<div id="top-bar">
+    <div id="vm-status-label">🖥️ VM: Disconnected | 📁 -</div>
+
+    <div class="program-settings">
+        <label>Program : </label>
+        <input id="program-name-input" placeholder="Enter file name..." type="text" value="boot">
+    </div>
+    <div class="header-actions">
+        <button class="btn-orange" id="explorer-btn">Explorer 📁</button>
+        <button class="btn-primary" id="send-btn">Send 🚀</button>
+    </div>
+</div>
+
+<div id="main-container">
+    <div id="node-editor-area" style="flex: 1; position: relative; display: block; background: #1e1e1e; overflow: hidden;">
+        <div id="node-toolbar" style="position: absolute; top: 10px; left: 10px; z-index: 100; display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;">
+            <!-- Toolbar is dynamically generated in JS -->
+        </div>
+        <div id="node-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2;"></div>
+    </div>
+</div>
+
+<div class="hidden" id="file-explorer-overlay">
+    <div id="file-explorer-modal">
+        <div class="explorer-header">
+            <h3>📂 Workspace Explorer</h3>
+            <div class="explorer-toolbar">
+                <button class="btn-secondary" id="explorer-new-btn">New 📄</button>
+                <button class="btn-secondary" id="explorer-delete-btn">Delete 🗑️</button>
+            </div>
+        </div>
+        <div id="file-tree"></div>
+        <div class="modal-footer">
+            <button class="btn-secondary" id="explorer-close-btn">Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- JS側でモードを判定するためのグローバル変数 -->
+<script>window.EDITOR_TYPE = 'entity';</script>
+
+<script src="js/main.js" type="module"></script>
+</body>
+</html>

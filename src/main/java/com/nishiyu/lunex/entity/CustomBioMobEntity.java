@@ -1,29 +1,23 @@
 package com.nishiyu.lunex.entity;
 
-import com.mojang.authlib.GameProfile;
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsMenu;
 import com.nishiyu.lunex.program.server.entity.EntityServerLuaVM;
 import com.nishiyu.lunex.server.ServerProgramData;
-import com.nishiyu.lunex.util.WorkspaceManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -32,25 +26,22 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.npc.VillagerTrades;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ChestMenu;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.Merchant;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CustomBioMobEntity extends PathfinderMob implements Merchant {
 
@@ -62,13 +53,17 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
     public final Set<String> traits = new HashSet<>();
     public final Set<String> abilities = new HashSet<>();
     public final List<String> behaviors = new ArrayList<>();
+
+    public final MobTraitManager traitManager = new MobTraitManager(this);
+    public final MobFakePlayerContext fakePlayerContext = new MobFakePlayerContext(this);
+
+    public final Map<String, Object> aiBlackboard = new ConcurrentHashMap<>();
+
     public SimpleContainer inventory;
     public int inventorySize = 0;
     public EntityServerLuaVM vm = null;
 
-    // ★ 変更点: 起動状態を保存・復元するためのフラグを追加
     public boolean wasRunning = false;
-
     public BlockPos targetPos = null;
     public net.minecraft.world.entity.Entity targetEntity = null;
 
@@ -77,18 +72,9 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
 
     public int shearCooldown = 0;
     public boolean isSaddled = false;
-    private boolean hasWallClimbing, isPhotosensitive, hasFireCore, hasVoidCore, hasEnderBlood, hasAbsorbent;
-    private boolean isAmphibious, hasRegeneration, hasWings, hasExtraEyes, hasBlindness, isGlowing;
-    private boolean hasEcholocation, hasFragrance, hasLuminousLure, isNoisy, isMagnetic, hasPhotosynthesis;
-    private boolean isBuoyant, isBouncy, hasLightCore, hasIceCore, hasElectricCore, isVolatile;
-    private boolean hasDrySkin, hasVenomCore, hasDarkCore, isSticky, hasThornsSkin, hasTeleportation;
-    private boolean isMount, isMerchant, isEquipable, isMilkable, isShearable, isPackMule, hasExplosiveDeath;
-    private boolean isMechanical;
     private Player tradingPlayer;
     private MerchantOffers offers;
     private String customSkinName = "default";
-
-    private FakePlayer fakePlayer;
 
     public CustomBioMobEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -97,10 +83,10 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
 
     public static AttributeSupplier.Builder createBaseAttributes() {
         return PathfinderMob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 20.0D)
+                .add(Attributes.MAX_HEALTH, 10.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.ARMOR, 0.0D)
-                .add(Attributes.ATTACK_DAMAGE, 2.0D)
+                .add(Attributes.ATTACK_DAMAGE, 0.5D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.0D)
                 .add(Attributes.STEP_HEIGHT, 0.6D)
                 .add(Attributes.SCALE, 1.0D);
@@ -139,12 +125,11 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
                 this.traits.clear();
                 String data = this.entityData.get(SYNCED_TRAITS);
                 if (!data.isEmpty()) this.traits.addAll(Arrays.asList(data.split(",")));
-                updateCaches();
+                this.traitManager.updateTraits(this.traits);
             } else if (SYNCED_BEHAVIORS.equals(key)) {
                 this.behaviors.clear();
                 String data = this.entityData.get(SYNCED_BEHAVIORS);
                 if (!data.isEmpty()) this.behaviors.addAll(Arrays.asList(data.split(",")));
-                updateCaches();
             } else if (SYNCED_ABILITIES.equals(key)) {
                 this.abilities.clear();
                 String data = this.entityData.get(SYNCED_ABILITIES);
@@ -153,53 +138,14 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
         }
     }
 
-    private void updateCaches() {
-        this.hasWallClimbing = this.traits.contains("wall_climbing");
-        this.isPhotosensitive = this.traits.contains("photosensitive");
-        this.hasFireCore = this.traits.contains("fire_core");
-        this.hasVoidCore = this.traits.contains("void_core");
-        this.hasEnderBlood = this.traits.contains("ender_blood");
-        this.hasAbsorbent = this.traits.contains("absorbent");
-        this.isAmphibious = this.traits.contains("amphibious");
-        this.hasRegeneration = this.traits.contains("regeneration");
-        this.hasWings = this.traits.contains("wings");
-        this.hasExtraEyes = this.traits.contains("extra_eyes");
-        this.hasBlindness = this.traits.contains("blindness");
-        this.isGlowing = this.traits.contains("glowing");
-        this.hasEcholocation = this.traits.contains("echolocation");
-        this.hasFragrance = this.traits.contains("fragrance");
-        this.hasLuminousLure = this.traits.contains("luminous_lure");
-        this.isNoisy = this.traits.contains("noisy");
-        this.isMagnetic = this.traits.contains("magnetic");
-        this.hasPhotosynthesis = this.traits.contains("photosynthesis");
-        this.isBuoyant = this.traits.contains("buoyant");
-        this.isBouncy = this.traits.contains("bouncy");
-        this.hasLightCore = this.traits.contains("light_core");
-        this.hasIceCore = this.traits.contains("ice_core");
-        this.hasElectricCore = this.traits.contains("electric_core");
-        this.isVolatile = this.traits.contains("volatile");
-        this.hasDrySkin = this.traits.contains("dry_skin");
-        this.hasVenomCore = this.traits.contains("venom_core");
-        this.hasDarkCore = this.traits.contains("dark_core");
-        this.isSticky = this.traits.contains("sticky");
-        this.hasThornsSkin = this.traits.contains("thorns_skin");
-        this.hasTeleportation = this.traits.contains("teleportation");
-        this.isMount = this.traits.contains("mount");
-        this.isMerchant = this.traits.contains("merchant");
-        this.isEquipable = this.traits.contains("equipable");
-        this.isMilkable = this.traits.contains("milkable");
-        this.isShearable = this.traits.contains("shearable");
-        this.isPackMule = this.traits.contains("pack_mule");
-        this.hasExplosiveDeath = this.traits.contains("explosive_death");
-        this.isMechanical = this.behaviors.contains("mechanical");
-    }
-
     public void initializeMob(List<String> traits, List<String> abilities, List<String> behaviors,
                               int invSize, BioMobGenerator.MobStatus status) {
         this.traits.addAll(traits);
         this.abilities.addAll(abilities);
         this.behaviors.addAll(behaviors);
-        updateCaches();
+
+        this.traitManager.updateTraits(this.traits);
+        this.traitManager.applyStatus(status);
 
         if (invSize > 0) {
             int rows = (int) Math.ceil(invSize / 9.0);
@@ -215,13 +161,17 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
         Objects.requireNonNull(this.getAttribute(Attributes.MOVEMENT_SPEED)).setBaseValue(status.speed());
         Objects.requireNonNull(this.getAttribute(Attributes.ATTACK_DAMAGE)).setBaseValue(status.attackDamage());
         Objects.requireNonNull(this.getAttribute(Attributes.SCALE)).setBaseValue(status.scale());
+        Objects.requireNonNull(this.getAttribute(Attributes.STEP_HEIGHT)).setBaseValue(status.stepHeight());
 
-        if (this.traits.contains("long_legs")) {
-            Objects.requireNonNull(this.getAttribute(Attributes.STEP_HEIGHT)).setBaseValue(1.5D);
-        }
-
+        this.applyTraitAttributes();
         setupAI();
         syncDataToClient();
+    }
+
+    public void applyTraitAttributes() {
+        if (this.getAttribute(Attributes.KNOCKBACK_RESISTANCE) != null) {
+            Objects.requireNonNull(this.getAttribute(Attributes.KNOCKBACK_RESISTANCE)).setBaseValue(this.traitManager.getKnockbackResistance());
+        }
     }
 
     private void setupAI() {
@@ -229,7 +179,7 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
         this.goalSelector.removeAllGoals(goal -> true);
         this.targetSelector.removeAllGoals(goal -> true);
 
-        if (this.isMechanical) {
+        if (this.isMechanical()) {
             if (this.vm == null) this.vm = new EntityServerLuaVM(this);
         }
 
@@ -241,6 +191,10 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
                 priority += 10;
             }
         }
+    }
+
+    public boolean isMechanical() {
+        return this.behaviors.contains("mechanical");
     }
 
     @Nullable
@@ -271,7 +225,7 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
             return;
         }
 
-        if (this.isAlive() && this.hasWallClimbing && this.horizontalCollision) {
+        if (this.isAlive() && this.traitManager.hasWallClimbing && this.horizontalCollision) {
             travelVector = new Vec3(travelVector.x, 0.2D, travelVector.z);
         }
         super.travel(travelVector);
@@ -280,103 +234,31 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
     @Override
     public void tick() {
         super.tick();
-        if (!this.level().isClientSide()) {
 
+        if (this.level().isClientSide() && this.swinging) {
+            this.updateSwingTime();
+        }
+
+        if (!this.level().isClientSide()) {
             if (this.shearCooldown > 0) this.shearCooldown--;
             int staggeredTick = this.tickCount + this.getId();
 
-            if (this.isPhotosensitive) {
-                if (this.level().isDay() && !this.level().isRaining() && this.level().canSeeSky(this.blockPosition())) {
-                    this.igniteForSeconds(8.0F);
-                }
-            }
-            if (this.hasFireCore || this.hasVoidCore || this.hasEnderBlood) {
-                if (staggeredTick % 20 == 0 && this.isInWaterRainOrBubble()) {
-                    this.hurt(this.damageSources().drown(), 1.0F);
-                }
-            }
-            if (this.hasAbsorbent) {
-                if (staggeredTick % 40 == 0 && this.isInWaterRainOrBubble()) {
-                    this.heal(1.0F);
-                }
-            }
-            if (this.isAmphibious) {
-                this.setAirSupply(this.getMaxAirSupply());
-            }
-            if (this.hasRegeneration && staggeredTick % 100 == 0) {
-                this.heal(1.0F);
-            }
-            if (staggeredTick % 20 == 0) {
-                if (this.hasWings) this.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 40, 0, false, false));
-                if (this.hasExtraEyes)
-                    this.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 220, 0, false, false));
-                if (this.hasBlindness)
-                    this.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 220, 0, false, false));
-                if (this.isGlowing) this.addEffect(new MobEffectInstance(MobEffects.GLOWING, 220, 0, false, false));
-            }
-            if (this.hasEcholocation && staggeredTick % 20 == 0) {
-                this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(16.0D), e -> e != this)
-                        .forEach(e -> e.addEffect(new MobEffectInstance(MobEffects.GLOWING, 40, 0, false, false)));
-            }
-            if (this.hasFragrance && staggeredTick % 40 == 0) {
-                if (this.level() instanceof ServerLevel sl) {
-                    sl.sendParticles(net.minecraft.core.particles.ParticleTypes.HAPPY_VILLAGER, this.getX(), this.getY() + 1.0, this.getZ(), 3, 0.5, 0.5, 0.5, 0);
-                }
-                this.level().getEntitiesOfClass(net.minecraft.world.entity.animal.Bee.class, this.getBoundingBox().inflate(16.0D))
-                        .forEach(bee -> {
-                            if (bee.getTarget() == null && bee.getNavigation().isDone())
-                                bee.getNavigation().moveTo(this, 1.0D);
-                        });
-            }
-            if (this.hasLuminousLure && staggeredTick % 40 == 0) {
-                this.level().getEntitiesOfClass(net.minecraft.world.entity.animal.Animal.class, this.getBoundingBox().inflate(16.0D))
-                        .forEach(animal -> {
-                            if (animal.getTarget() == null && animal.getNavigation().isDone())
-                                animal.getNavigation().moveTo(this, 1.0D);
-                        });
-            }
-            if (this.isNoisy && staggeredTick % 40 == 0) {
-                this.level().getEntitiesOfClass(net.minecraft.world.entity.monster.Monster.class, this.getBoundingBox().inflate(16.0D))
-                        .forEach(monster -> {
-                            if (monster.getTarget() == null) monster.setTarget(this);
-                        });
-            }
-            if (this.isMechanical && this.vm != null) {
+            this.traitManager.tick(staggeredTick);
+            if (this.isMechanical() && this.vm != null) {
                 this.vm.tick();
-            }
-            if (this.isMagnetic && staggeredTick % 4 == 0) {
-                List<ItemEntity> items = this.level().getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(4.0D));
-                for (ItemEntity item : items) {
-                    Vec3 vec3 = new Vec3(this.getX() - item.getX(), this.getY() + (double) this.getEyeHeight() / 2.0D - item.getY(), this.getZ() - item.getZ());
-                    if (vec3.lengthSqr() < 16.0D) {
-                        item.setDeltaMovement(item.getDeltaMovement().add(vec3.normalize().scale(0.08D)));
-                    }
-                }
-            }
-            if (this.hasPhotosynthesis && staggeredTick % 600 == 0) {
-                if (this.level().isDay() && !this.level().isRaining() && this.level().canSeeSky(this.blockPosition())) {
-                    if (this.random.nextBoolean()) {
-                        this.spawnAtLocation(Items.WHEAT_SEEDS);
-                    }
-                }
-            }
-            if (this.isBuoyant && this.isInWater()) {
-                Vec3 vec3 = this.getDeltaMovement();
-                if (vec3.y < 0.1D) {
-                    this.setDeltaMovement(vec3.x, 0.1D, vec3.z);
-                }
             }
         }
     }
 
     @Override
     public boolean causeFallDamage(float fallDistance, float multiplier, @NotNull DamageSource source) {
-        if (this.hasWings || this.isBouncy) {
-            if (this.isBouncy && fallDistance > 2.0F) {
-                this.playSound(SoundEvents.SLIME_SQUISH, 1.0F, 1.0F);
-                Vec3 vec3 = this.getDeltaMovement();
-                this.setDeltaMovement(vec3.x, fallDistance * 0.2F, vec3.z);
-            }
+        multiplier *= this.traitManager.getFallDamageMultiplier();
+        if (multiplier <= 0.0f) return false;
+
+        if (this.traitManager.isBouncy && fallDistance > 2.0F) {
+            this.playSound(SoundEvents.SLIME_SQUISH, 1.0F, 1.0F);
+            Vec3 vec3 = this.getDeltaMovement();
+            this.setDeltaMovement(vec3.x, fallDistance * 0.2F, vec3.z);
             return false;
         }
         return super.causeFallDamage(fallDistance, multiplier, source);
@@ -384,8 +266,13 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
 
     @Override
     public boolean doHurtTarget(@NotNull net.minecraft.world.entity.Entity target) {
+        var attr = this.getAttribute(Attributes.ATTACK_DAMAGE);
+        double originalDamage = attr != null ? attr.getBaseValue() : 2.0;
+
         boolean flag = super.doHurtTarget(target);
-        if (flag && this.hasLightCore && target instanceof LivingEntity le) {
+
+        // ★修正: ここでのスイング処理は削除し、GoalActions の攻撃AI側でコントロールする
+        if (flag && this.traitManager.hasLightCore && target instanceof LivingEntity le) {
             if (le.isInvertedHealAndHarm()) {
                 le.hurt(this.damageSources().magic(), 4.0F);
             }
@@ -395,41 +282,43 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
 
     @Override
     public boolean hurt(@NotNull DamageSource source, float amount) {
-        if (this.hasFireCore && source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)) return false;
-        if (this.hasIceCore && source.is(net.minecraft.tags.DamageTypeTags.IS_FREEZING)) return false;
-        if (this.hasElectricCore && source.is(net.minecraft.tags.DamageTypeTags.IS_LIGHTNING)) return false;
-        if (this.hasVoidCore && source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) return false;
-        if (this.isVolatile && source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION)) amount *= 2.0F;
-        if (this.hasDrySkin && source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)) amount *= 2.0F;
+        amount *= this.traitManager.getDamageTakenMultiplier();
+
+        if (this.traitManager.hasFireCore && source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)) return false;
+        if (this.traitManager.hasIceCore && source.is(net.minecraft.tags.DamageTypeTags.IS_FREEZING)) return false;
+        if (this.traitManager.hasElectricCore && source.is(net.minecraft.tags.DamageTypeTags.IS_LIGHTNING)) return false;
+        if (this.traitManager.hasVoidCore && source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) return false;
+        if (this.traitManager.isVolatile && source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION)) amount *= 2.0F;
+        if (this.traitManager.hasDrySkin && source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE)) amount *= 2.0F;
 
         boolean wasHurt = super.hurt(source, amount);
 
         if (wasHurt && source.getEntity() instanceof LivingEntity attacker) {
-            if (this.hasFireCore) attacker.igniteForSeconds(5);
-            if (this.hasIceCore) attacker.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 1));
-            if (this.hasVenomCore) {
+            if (this.traitManager.hasFireCore) attacker.igniteForSeconds(5);
+            if (this.traitManager.hasIceCore) attacker.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 1));
+            if (this.traitManager.hasVenomCore) {
                 attacker.hurt(this.damageSources().thorns(this), 2.0F);
                 attacker.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0));
             }
-            if (this.hasDarkCore) attacker.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 100, 0));
-            if (this.isSticky) attacker.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1));
-            if (this.hasThornsSkin && !this.hasVenomCore) {
+            if (this.traitManager.hasDarkCore) attacker.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 100, 0));
+            if (this.traitManager.isSticky) attacker.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 1));
+            if (this.traitManager.hasThornsSkin && !this.traitManager.hasVenomCore) {
                 attacker.hurt(this.damageSources().thorns(this), 2.0F);
             }
-            if (this.hasElectricCore) {
+            if (this.traitManager.hasElectricCore) {
                 List<LivingEntity> nearby = this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(3.0D), e -> e != this && e != attacker);
                 attacker.hurt(this.damageSources().lightningBolt(), 2.0F);
                 for (LivingEntity e : nearby) e.hurt(this.damageSources().lightningBolt(), 1.0F);
             }
         }
 
-        if (!this.level().isClientSide && (this.hasVoidCore || this.hasTeleportation) && source.getEntity() != null) {
+        if (!this.level().isClientSide && (this.traitManager.hasVoidCore || this.traitManager.hasTeleportation) && source.getEntity() != null) {
             if (this.random.nextFloat() < 0.25f) {
                 this.randomTeleport(this.getX() + (random.nextDouble() - 0.5) * 16, this.getY() + (random.nextDouble() - 0.5) * 8, this.getZ() + (random.nextDouble() - 0.5) * 16, true);
             }
         }
 
-        if (!this.level().isClientSide() && this.isMechanical && this.vm != null) {
+        if (!this.level().isClientSide() && this.isMechanical() && this.vm != null) {
             String sourceName = source.getEntity() != null ? source.getEntity().getName().getString() : "unknown";
             this.vm.triggerEvent("hurt", amount, sourceName);
         }
@@ -521,21 +410,23 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
     }
 
     public boolean canSeeEntity(net.minecraft.world.entity.Entity entity) {
-        if (this.hasEcholocation) {
-            return true;
-        }
+        if (entity == null) return false;
+        double maxDist = this.traitManager.getSensingRangeMax();
+        if (this.distanceToSqr(entity) > maxDist * maxDist) return false;
+        if (this.traitManager.hasEcholocation) return true;
         return this.getSensing().hasLineOfSight(entity);
     }
 
     public double getSensingRange(double requestedRadius) {
-        if (this.hasBlindness) {
-            return Math.min(requestedRadius, 4.0);
-        }
-        return requestedRadius;
+        return Math.min(requestedRadius, this.traitManager.getSensingRangeMax());
     }
 
     public double getSafeSpeed(double requestedSpeed) {
-        return Math.min(requestedSpeed, 2.0);
+        return Math.min(requestedSpeed, this.traitManager.getMaxMovementSpeed());
+    }
+
+    public double getSafeInteractRange(double requestedRange) {
+        return Math.min(requestedRange, this.traitManager.getInteractRange());
     }
 
     public float getSafeHealAmount(float requestedAmount) {
@@ -547,148 +438,20 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
         return Math.min(requestedPower, 5.0F);
     }
 
+    public boolean tickMining(BlockPos pos) {
+        return this.fakePlayerContext.tickMining(pos);
+    }
+
     @Override
-    protected @NotNull InteractionResult mobInteract(Player player, @NotNull InteractionHand hand) {
-        ItemStack stackInHand = player.getItemInHand(hand);
-
-        if (stackInHand.getItem() instanceof com.nishiyu.lunex.item.TabletItem) {
-            if (!player.isShiftKeyDown()) {
-                if (!this.level().isClientSide) {
-                    if (player instanceof ServerPlayer serverPlayer) {
-                        if (this.workspaceId == null || this.workspaceId.isEmpty()) {
-                            this.workspaceId = "biomob_" + this.getUUID().toString().substring(0, 8);
-                            WorkspaceManager.initializeWorkspace(this.level().getServer(), this.workspaceId);
-                        }
-                        serverPlayer.openMenu(new SimpleMenuProvider(
-                                (id, inventory, p) -> new BioEntitySettingsMenu(id, inventory, this.getId()),
-                                Component.literal("Bio Mob Settings")
-                        ), buf -> buf.writeInt(this.getId()));
-                    }
-                }
-                return InteractionResult.sidedSuccess(this.level().isClientSide);
-            }
-        }
-
-        if (this.isMechanical) {
-            if (this.vm != null && this.vm.isRunning && !player.isShiftKeyDown() && stackInHand.isEmpty()) {
-                if (hand == InteractionHand.MAIN_HAND) {
-                    if (!this.level().isClientSide) {
-                        this.vm.triggerEvent("on_click");
-                    }
-                    return InteractionResult.sidedSuccess(this.level().isClientSide);
-                }
-            }
-        }
-
-        if (this.isMount) {
-            if (stackInHand.is(Items.SADDLE) && !this.isSaddled) {
-                if (!this.level().isClientSide) {
-                    this.isSaddled = true;
-                    this.playSound(SoundEvents.HORSE_SADDLE, 1.0F, 1.0F);
-                    if (!player.isCreative()) stackInHand.shrink(1);
-                }
-                return InteractionResult.sidedSuccess(this.level().isClientSide);
-            } else if (this.isSaddled && stackInHand.isEmpty() && !player.isShiftKeyDown()) {
-                if (!this.level().isClientSide) {
-                    player.startRiding(this);
-                }
-                return InteractionResult.sidedSuccess(this.level().isClientSide);
-            }
-        }
-
-        if (this.isMerchant) {
-            if (stackInHand.isEmpty() && !player.isShiftKeyDown() && this.getTradingPlayer() == null) {
-                if (hand == InteractionHand.MAIN_HAND) {
-                    if (!this.level().isClientSide) {
-                        this.setTradingPlayer(player);
-                        this.openTradingScreen(player, this.getDisplayName(), 1);
-                    }
-                    return InteractionResult.sidedSuccess(this.level().isClientSide);
-                }
-            }
-        }
-
-        if (this.isEquipable) {
-            if (player.isShiftKeyDown() && stackInHand.isEmpty()) {
-                if (hand == InteractionHand.MAIN_HAND) {
-                    boolean removedAny = false;
-                    if (!this.level().isClientSide) {
-                        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
-                            if (slot.isArmor() && !this.getItemBySlot(slot).isEmpty()) {
-                                this.spawnAtLocation(this.getItemBySlot(slot));
-                                this.setItemSlot(slot, ItemStack.EMPTY);
-                                removedAny = true;
-                            }
-                        }
-                    } else {
-                        for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
-                            if (slot.isArmor() && !this.getItemBySlot(slot).isEmpty()) {
-                                removedAny = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (removedAny) return InteractionResult.sidedSuccess(this.level().isClientSide);
-                }
-            }
-            if (!stackInHand.isEmpty() && stackInHand.getItem() instanceof net.minecraft.world.item.Equipable equipable) {
-                net.minecraft.world.entity.EquipmentSlot slot = equipable.getEquipmentSlot();
-                if (slot.isArmor()) {
-                    if (!this.level().isClientSide) {
-                        ItemStack currentArmor = this.getItemBySlot(slot);
-                        this.setItemSlot(slot, stackInHand.copyWithCount(1));
-                        this.setDropChance(slot, 1.0F);
-                        if (!player.isCreative()) stackInHand.shrink(1);
-                        if (!currentArmor.isEmpty()) this.spawnAtLocation(currentArmor);
-                    }
-                    return InteractionResult.sidedSuccess(this.level().isClientSide);
-                }
-            }
-        }
-
-        if (this.isMilkable && stackInHand.is(Items.BUCKET)) {
-            if (!this.level().isClientSide) {
-                player.playSound(SoundEvents.COW_MILK, 1.0F, 1.0F);
-                ItemStack milk = net.minecraft.world.item.ItemUtils.createFilledResult(stackInHand, player, Items.MILK_BUCKET.getDefaultInstance());
-                player.setItemInHand(hand, milk);
-            }
-            return InteractionResult.sidedSuccess(this.level().isClientSide);
-        }
-
-        if (this.isShearable && stackInHand.is(Items.SHEARS) && this.shearCooldown == 0) {
-            if (!this.level().isClientSide) {
-                player.playSound(SoundEvents.SHEEP_SHEAR, 1.0F, 1.0F);
-                this.spawnAtLocation(Items.WHITE_WOOL, 1);
-                stackInHand.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
-                this.shearCooldown = 6000;
-            }
-            return InteractionResult.sidedSuccess(this.level().isClientSide);
-        }
-
-        if (this.isPackMule && this.inventorySize > 0 && player.isShiftKeyDown()) {
-            if (hand == InteractionHand.MAIN_HAND) {
-                if (!this.level().isClientSide) {
-                    player.openMenu(new SimpleMenuProvider(
-                            (id, playerInv, p) -> switch (this.inventorySize) {
-                                case 18 -> new ChestMenu(MenuType.GENERIC_9x2, id, playerInv, this.inventory, 2);
-                                case 27 -> new ChestMenu(MenuType.GENERIC_9x3, id, playerInv, this.inventory, 3);
-                                case 36 -> new ChestMenu(MenuType.GENERIC_9x4, id, playerInv, this.inventory, 4);
-                                case 45 -> new ChestMenu(MenuType.GENERIC_9x5, id, playerInv, this.inventory, 5);
-                                case 54 -> new ChestMenu(MenuType.GENERIC_9x6, id, playerInv, this.inventory, 6);
-                                default -> new ChestMenu(MenuType.GENERIC_9x1, id, playerInv, this.inventory, 1);
-                            },
-                            Component.literal("Bio Mob Inventory")
-                    ));
-                }
-                return InteractionResult.sidedSuccess(this.level().isClientSide);
-            }
-        }
+    protected @NotNull InteractionResult mobInteract(@NotNull Player player, @NotNull InteractionHand hand) {
+        InteractionResult result = MobInteractHandler.handleInteract(this, player, hand);
+        if (result != InteractionResult.PASS) return result;
         return super.mobInteract(player, hand);
     }
 
     @Override
     public void die(@NotNull DamageSource cause) {
-        if (this.hasExplosiveDeath && !this.level().isClientSide) {
+        if (this.traitManager.hasExplosiveDeath && !this.level().isClientSide) {
             this.level().explode(this, this.getX(), this.getY(), this.getZ(), 3.0F, Level.ExplosionInteraction.MOB);
         }
         super.die(cause);
@@ -725,14 +488,12 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
         if (this.programName != null) tag.putString("ProgramName", this.programName);
 
         tag.putString("Appearance", this.getAppearance());
-
-        // ★変更点: 現在のVMの稼働状態、もしくは以前保存された稼働状態を記録する
         tag.putBoolean("WasRunning", (this.vm != null && this.vm.isRunning) || this.wasRunning);
     }
 
     public void resetForProgram() {
         if (this.level().isClientSide) return;
-        
+
         this.goalSelector.getAvailableGoals().forEach(net.minecraft.world.entity.ai.goal.WrappedGoal::stop);
         this.targetSelector.getAvailableGoals().forEach(net.minecraft.world.entity.ai.goal.WrappedGoal::stop);
 
@@ -742,6 +503,8 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
         this.targetPos = null;
         this.targetEntity = null;
 
+        this.aiBlackboard.clear();
+        this.fakePlayerContext.resetMining();
         this.getNavigation().stop();
         this.setTarget(null);
     }
@@ -761,7 +524,12 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
             for (int i = 0; i < b.size(); i++) this.behaviors.add(b.getString(i));
         }
 
-        updateCaches();
+        this.traitManager.updateTraits(this.traits);
+
+        BioMobGenerator.MobStatus status = BioMobGenerator.calculateStatus(Collections.emptyMap(), new ArrayList<>(this.traits));
+        this.traitManager.applyStatus(status);
+
+        this.applyTraitAttributes();
 
         if (tag.contains("InventorySize")) {
             int rawSize = tag.getInt("InventorySize");
@@ -783,14 +551,12 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
 
         if (tag.contains("Appearance")) this.setAppearance(tag.getString("Appearance"));
 
-        // ★変更点: セーブデータから前回の起動状態を読み込む
         this.wasRunning = tag.getBoolean("WasRunning");
 
         setupAI();
         syncDataToClient();
 
-        // ★変更点: 無条件起動ではなく、前回の起動状態 (wasRunning) が true だった場合のみ再ロード時に起動を再開する
-        if (!this.level().isClientSide && this.isMechanical && this.programName != null && !this.programName.isEmpty() && this.wasRunning) {
+        if (!this.level().isClientSide && this.isMechanical() && this.programName != null && !this.programName.isEmpty() && this.wasRunning) {
             if (this.vm != null && !this.vm.isRunning) {
                 try {
                     String wsId = this.workspaceId != null && !this.workspaceId.isEmpty() ? this.workspaceId : "biomob_" + this.getUUID().toString().substring(0, 8);
@@ -815,19 +581,38 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
     }
 
     public FakePlayer getFakePlayer() {
-        if (this.level() instanceof ServerLevel serverLevel) {
-            if (this.fakePlayer == null) {
-                GameProfile profile = new GameProfile(this.getUUID(), "[Bot]" + this.getName().getString());
-                this.fakePlayer = FakePlayerFactory.get(serverLevel, profile);
-            }
-            this.fakePlayer.setPos(this.getX(), this.getY(), this.getZ());
-            this.fakePlayer.setYRot(this.getYRot());
-            this.fakePlayer.setXRot(this.getXRot());
-            this.fakePlayer.setYHeadRot(this.getYHeadRot());
-            this.fakePlayer.setItemInHand(InteractionHand.MAIN_HAND, this.getItemInHand(InteractionHand.MAIN_HAND));
-            this.fakePlayer.setItemInHand(InteractionHand.OFF_HAND, this.getItemInHand(InteractionHand.OFF_HAND));
-            return this.fakePlayer;
+        return this.fakePlayerContext.getFakePlayer();
+    }
+
+    @Nullable
+    @Override
+    protected SoundEvent getAmbientSound() {
+        return this.isMechanical() ? SoundEvents.COPPER_GRATE_STEP : SoundEvents.COW_AMBIENT;
+    }
+
+    @Nullable
+    @Override
+    protected SoundEvent getHurtSound(@NotNull DamageSource source) {
+        return SoundEvents.GENERIC_HURT;
+    }
+
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.GENERIC_DEATH;
+    }
+
+    @Override
+    protected void playStepSound(@NotNull BlockPos pos, @NotNull BlockState state) {
+        if (!state.liquid()) {
+            net.minecraft.world.level.block.SoundType soundtype = state.getSoundType(this.level(), pos, this);
+            this.playSound(soundtype.getStepSound(), soundtype.getVolume() * 0.15F, soundtype.getPitch());
         }
-        return null;
+    }
+
+    public void startConsumingItem(InteractionHand hand) {
+        ItemStack stack = this.getItemInHand(hand);
+        if (!stack.isEmpty()) {
+            this.startUsingItem(hand);
+        }
     }
 }

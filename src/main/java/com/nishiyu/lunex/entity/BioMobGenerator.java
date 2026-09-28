@@ -30,8 +30,25 @@ public class BioMobGenerator {
     );
 
     public static MobStatus calculateStatus(Map<String, Integer> materialCounts, List<String> traits) {
-        // アイテムによる基礎ステータスボーナスを廃止し、固定の初期値を設定（インベントリサイズ0を追加）
-        MobStatus baseStatus = new MobStatus(2.0D, 0.0D, 0.5D, 1.0D, 1.0D, 0);
+        // 体力・防御・攻撃をプレイヤーの半分に設定し、それ以外をプレイヤー同等に調整
+        MobStatus baseStatus = new MobStatus(
+                10.0D, // maxHealth: プレイヤー(20.0)の半分
+                0.0D,  // armor: プレイヤー(0.0)の半分
+                0.25D, // speed: プレイヤーと同等の移動速度 (Mobの標準値)
+                0.5D,  // attackDamage: プレイヤーの素手攻撃力(1.0)の半分
+                1.0D,  // scale: プレイヤーと同じ大きさ
+                0,     // inventorySize: 初期インベントリなし
+                0.6D,  // stepHeight: プレイヤーと同じ段差乗り越え高さ
+                1.0f,  // miningSpeed: プレイヤーと同じ採掘速度
+                4.5D,  // interactRange: プレイヤーの標準的なブロック操作距離
+                16.0D, // sensingRange: 標準的な索敵距離
+                1.0D,  // maxMovementSpeed: 速度上限の倍率
+                1.0f,  // damageTaken: 被ダメージ倍率 (100%)
+                1.0f,  // fallDamage: 落下ダメージ倍率 (100%)
+                0.0D,  // knockbackResistance: プレイヤーと同じノックバック耐性 (0.0)
+                1.0f   // stealth: ステルス倍率 (1.0)
+        );
+
         return TraitRegistry.applyTraitModifiers(traits, baseStatus);
     }
 
@@ -42,12 +59,11 @@ public class BioMobGenerator {
         double spawnY = pos.getY() + 1.0;
         double spawnZ = pos.getZ() + 0.5;
 
-        // ブロックの向きを取得してエンティティのYaw（Y軸回転）に変換
         float yRot = 0.0f;
         BlockState blockState = level.getBlockState(pos);
         if (blockState.hasProperty(BioPrinterBlock.FACING)) {
             Direction facing = blockState.getValue(BioPrinterBlock.FACING);
-            yRot = facing.toYRot(); // Directionから角度を取得
+            yRot = facing.toYRot();
         }
 
         if (level.random.nextFloat() < failureRate) {
@@ -55,7 +71,6 @@ public class BioMobGenerator {
 
             Slime slime = EntityType.SLIME.create(level);
             if (slime != null) {
-                // setPosの代わりにmoveToを使用して向きも設定
                 slime.moveTo(spawnX, spawnY, spawnZ, yRot, 0.0F);
                 slime.yHeadRot = yRot;
                 slime.yBodyRot = yRot;
@@ -98,14 +113,12 @@ public class BioMobGenerator {
 
         List<String> traits = getTraits(materialCounts, selectedTraits, level.random);
 
-        // calculateStatus によって Traits からインベントリサイズを含めた全ステータスを取得
         MobStatus status = calculateStatus(materialCounts, traits);
         int inventorySize = status.inventorySize();
 
         CustomBioMobEntity mob = Lunex.CUSTOM_BIO_MOB.get().create(level);
 
         if (mob != null) {
-            // setPosの代わりにmoveToを使用して向きも設定
             mob.moveTo(spawnX, spawnY, spawnZ, yRot, 0.0F);
             mob.yHeadRot = yRot;
             mob.yBodyRot = yRot;
@@ -154,8 +167,10 @@ public class BioMobGenerator {
         return 0;
     }
 
-    // inventorySize を追加
+    // ★修正: 全ての強化パラメータを格納
     public record MobStatus(double maxHealth, double armor, double speed, double attackDamage, double scale,
-                            int inventorySize) {
+                            int inventorySize, double stepHeight,
+                            float miningSpeed, double interactRange, double sensingRange, double maxMovementSpeed,
+                            float damageTaken, float fallDamage, double knockbackResistance, float stealth) {
     }
 }

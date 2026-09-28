@@ -6,9 +6,10 @@ import {NodeEditor} from './node-editor.js';
 let currentWorkspace = "default";
 let activeLockedFile = "";
 let selectedFileInExplorer = null;
-let currentIsEntity = false;
-let currentEditorMode = "node";
 let isEditorInitialized = false;
+
+// 現在のページがEntityモードかどうか
+const isEntityMode = window.EDITOR_TYPE === 'entity';
 
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
@@ -39,9 +40,10 @@ function clearSessionData() {
 function createNewFile() {
     if (activeLockedFile) return;
 
-    TextEditor.setCode(Templates.defaultCode);
-    if (currentIsEntity) {
+    if (isEntityMode) {
         NodeEditor.loadLua("");
+    } else {
+        TextEditor.setCode(Templates.defaultCode);
     }
 
     const nameInput = document.getElementById('program-name-input');
@@ -49,14 +51,14 @@ function createNewFile() {
         nameInput.value = "untitled";
         nameInput.focus();
         nameInput.select();
-        TextEditor.updateLanguage(nameInput.value);
+        if (!isEntityMode) TextEditor.updateLanguage(nameInput.value);
     }
 
     clearSessionData();
 }
 
 async function bootstrap() {
-    setupTemplates();
+    if (!isEntityMode) setupTemplates();
     bindEditorEvents();
     bindVmEvents();
     bindExplorerEvents();
@@ -71,8 +73,11 @@ async function bootstrap() {
 
     const payload = await API.fetchSuggestions();
     if (payload && payload.suggestions) {
-        await TextEditor.init(payload.suggestions, payload.mcLang || "en_us");
-        NodeEditor.init(payload);
+        if (isEntityMode) {
+            NodeEditor.init(payload);
+        } else {
+            await TextEditor.init(payload.suggestions, payload.mcLang || "en_us");
+        }
     }
 
     isEditorInitialized = true;
@@ -94,54 +99,6 @@ function setupTemplates() {
     });
 }
 
-function updateEditorVisibility() {
-    const toggleGroup = document.getElementById('editor-mode-toggle');
-    const areaText = document.getElementById('editor-area');
-    const areaNode = document.getElementById('node-editor-area');
-    const btnModeNode = document.getElementById('btn-mode-node');
-    const btnModeText = document.getElementById('btn-mode-text');
-
-    if (currentIsEntity) {
-        toggleGroup.classList.remove('hidden');
-        if (currentEditorMode === 'node') {
-            areaText.style.display = 'none';
-            areaNode.style.display = 'block';
-            btnModeText.classList.remove('active');
-            btnModeNode.classList.add('active');
-        } else {
-            areaText.style.display = 'block';
-            areaNode.style.display = 'none';
-            btnModeNode.classList.remove('active');
-            btnModeText.classList.add('active');
-        }
-    } else {
-        toggleGroup.classList.add('hidden');
-        areaText.style.display = 'block';
-        areaNode.style.display = 'none';
-    }
-}
-
-function switchEditorMode(mode) {
-    if (!currentIsEntity || currentEditorMode === mode) return;
-
-    if (mode === 'text') {
-        try {
-            const luaCode = NodeEditor.generateLua();
-            TextEditor.setCode(luaCode);
-        } catch (e) {
-            console.error("Node to Lua Error:", e);
-            showToast(e.message, "error");
-            return;
-        }
-    } else {
-        const currentCode = TextEditor.getCode();
-        NodeEditor.loadLua(currentCode);
-    }
-
-    currentEditorMode = mode;
-    updateEditorVisibility();
-}
-
 function bindEditorEvents() {
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -151,11 +108,8 @@ function bindEditorEvents() {
         }
     });
 
-    document.getElementById('btn-mode-node').onclick = () => switchEditorMode('node');
-    document.getElementById('btn-mode-text').onclick = () => switchEditorMode('text');
-
     const nameInput = document.getElementById('program-name-input');
-    if (nameInput) {
+    if (nameInput && !isEntityMode) {
         nameInput.addEventListener('input', (e) => {
             TextEditor.updateLanguage(e.target.value);
         });
@@ -165,7 +119,7 @@ function bindEditorEvents() {
     if (templateSelect) {
         templateSelect.onchange = (e) => {
             const val = e.target.value;
-            if (!val || activeLockedFile || currentIsEntity) {
+            if (!val || activeLockedFile || isEntityMode) {
                 e.target.value = "";
                 return;
             }
@@ -203,7 +157,7 @@ function bindEditorEvents() {
             }
 
             let code = "";
-            if (currentIsEntity && currentEditorMode === 'node') {
+            if (isEntityMode) {
                 try {
                     code = NodeEditor.generateLua();
                 } catch (err) {
@@ -251,12 +205,9 @@ function bindVmEvents() {
         currentWorkspace = data.workspaceId || "default";
         activeLockedFile = data.lockedFile || "";
         const defaultFile = data.defaultFile || "";
-        currentIsEntity = !!data.isEntity;
-
-        updateEditorVisibility();
 
         let statusText = `🖥️ VM: ${data.vmId !== "none" ? data.vmId : "Disconnected"} | 📁 ${currentWorkspace}`;
-        if (currentIsEntity) statusText += " (BioMob)";
+        if (isEntityMode) statusText += " (BioMob)";
 
         const lastVmId = sessionStorage.getItem('lastVmId');
         const isSameVm = (lastVmId === data.vmId);
@@ -288,12 +239,12 @@ function bindVmEvents() {
 
             if (!isSameVm || !hasDraft) {
                 await loadSpecificProgram(`${currentWorkspace}/${activeLockedFile}`);
-            } else if (nameInput) {
+            } else if (nameInput && !isEntityMode) {
                 TextEditor.updateLanguage(nameInput.value);
             }
         } else {
             if (explorerBtn) explorerBtn.disabled = false;
-            if (templateSelect) templateSelect.disabled = currentIsEntity;
+            if (templateSelect) templateSelect.disabled = false;
             if (nameInput) nameInput.disabled = false;
 
             if (isSameVm && savedPath && savedPath.startsWith(`${currentWorkspace}/`)) {
@@ -310,13 +261,14 @@ function bindVmEvents() {
                 if (nameInput && nameInput.value) {
                     await loadSpecificProgram(`${currentWorkspace}/${nameInput.value}`);
                 }
-            } else if (nameInput) {
+            } else if (nameInput && !isEntityMode) {
                 TextEditor.updateLanguage(nameInput.value);
             }
         }
     });
 
     document.addEventListener('VmError', (e) => {
+        if (isEntityMode) return;
         const data = e.detail;
         const lastVmId = sessionStorage.getItem('lastVmId');
 
@@ -502,14 +454,12 @@ async function loadSpecificProgram(fullName) {
         const data = await API.loadProgram(fullName);
 
         if (data.content !== undefined) {
-            if (currentIsEntity) {
-                TextEditor.setCode(data.content);
+            if (isEntityMode) {
                 NodeEditor.loadLua(data.content);
             } else {
                 TextEditor.setCode(data.content);
+                TextEditor.updateLanguage(fullName);
             }
-
-            TextEditor.updateLanguage(fullName);
 
             sessionStorage.setItem("currentFilePath", fullName);
             console.log(`[Load] Loaded file: ${fullName}`);

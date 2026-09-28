@@ -15,6 +15,8 @@ import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.ModList;
 import org.jetbrains.annotations.NotNull;
 
@@ -35,7 +37,6 @@ public class CustomBioMobRenderer extends MobRenderer<CustomBioMobEntity, Humano
         this.zombieRenderer = new ZombieRendererDelegate(context);
         this.skeletonRenderer = new SkeletonRendererDelegate(context);
 
-        // スティーブ（デフォルト）用のレイヤー
         this.addLayer(new HumanoidArmorLayer<>(this, new HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER_INNER_ARMOR)), new HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER_OUTER_ARMOR)), context.getModelManager()));
         this.addLayer(new ItemInHandLayer<>(this, context.getItemInHandRenderer()));
         this.addLayer(new CustomHeadLayer<>(this, context.getModelSet(), context.getItemInHandRenderer()));
@@ -51,7 +52,6 @@ public class CustomBioMobRenderer extends MobRenderer<CustomBioMobEntity, Humano
             return;
         }
 
-        // バニラ標準モデルの切り替え（専用レンダラーに処理を委譲）
         if ("zombie".equals(appearance)) {
             this.zombieRenderer.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
             return;
@@ -60,25 +60,69 @@ public class CustomBioMobRenderer extends MobRenderer<CustomBioMobEntity, Humano
             return;
         }
 
-        // 一致しない場合はスティーブを描画
+        // ★追加: レンダリングの直前にモデルの腕のポーズ（採掘・食事など）を更新する
+        updateModelPoses(entity, this.getModel());
         super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
     }
 
-    // ★修正: スティーブモデル（デフォルト）側の描画時に動的スキンを読み込む
+    // ★追加: エンティティのアイテム使用状態からモデルのポーズを決定する処理
+    public static void updateModelPoses(CustomBioMobEntity entity, HumanoidModel<?> model) {
+        model.rightArmPose = getArmPose(entity, InteractionHand.MAIN_HAND);
+        model.leftArmPose = getArmPose(entity, InteractionHand.OFF_HAND);
+        model.crouching = entity.isCrouching();
+        model.riding = entity.isPassenger();
+    }
+
+    // ★追加: 左右の手に持っているアイテムから対応するモーション(食べる、弓、クロスボウ等)を算出する
+    private static HumanoidModel.ArmPose getArmPose(CustomBioMobEntity entity, InteractionHand hand) {
+        ItemStack itemstack = entity.getItemInHand(hand);
+        if (itemstack.isEmpty()) {
+            return HumanoidModel.ArmPose.EMPTY;
+        }
+
+        // アイテム使用中の場合のアニメーション処理
+        if (entity.getUsedItemHand() == hand && entity.getUseItemRemainingTicks() > 0) {
+            net.minecraft.world.item.UseAnim useanim = itemstack.getUseAnimation();
+            if (useanim == net.minecraft.world.item.UseAnim.BLOCK) {
+                return HumanoidModel.ArmPose.BLOCK;
+            } else if (useanim == net.minecraft.world.item.UseAnim.BOW) {
+                return HumanoidModel.ArmPose.BOW_AND_ARROW;
+            } else if (useanim == net.minecraft.world.item.UseAnim.SPEAR) {
+                return HumanoidModel.ArmPose.THROW_SPEAR;
+            } else if (useanim == net.minecraft.world.item.UseAnim.CROSSBOW && hand == entity.getUsedItemHand()) {
+                return HumanoidModel.ArmPose.CROSSBOW_CHARGE;
+            } else if (useanim == net.minecraft.world.item.UseAnim.SPYGLASS) {
+                return HumanoidModel.ArmPose.SPYGLASS;
+            } else if (useanim == net.minecraft.world.item.UseAnim.TOOT_HORN) {
+                return HumanoidModel.ArmPose.TOOT_HORN;
+            } else if (useanim == net.minecraft.world.item.UseAnim.BRUSH) {
+                return HumanoidModel.ArmPose.BRUSH;
+            }
+        } else if (!entity.swinging && itemstack.getItem() instanceof net.minecraft.world.item.CrossbowItem && net.minecraft.world.item.CrossbowItem.isCharged(itemstack)) {
+            return HumanoidModel.ArmPose.CROSSBOW_HOLD;
+        }
+
+        // 通常のアイテム持ち・食事アニメーション等の標準ポーズ
+        return HumanoidModel.ArmPose.ITEM;
+    }
+
     @Override
     public @NotNull ResourceLocation getTextureLocation(@NotNull CustomBioMobEntity entity) {
         return com.nishiyu.lunex.util.SkinLoader.getSkinLocation(entity.getCustomSkinName());
     }
 
-    // =====================================================================
-    // キャッシュ汚染を防ぐための独立デリゲートクラス群
-    // =====================================================================
     private static class ZombieRendererDelegate extends MobRenderer<CustomBioMobEntity, HumanoidModel<CustomBioMobEntity>> {
         public ZombieRendererDelegate(EntityRendererProvider.Context context) {
             super(context, new BioZombieModel(context.bakeLayer(ModelLayers.ZOMBIE)), 0.5f);
             this.addLayer(new HumanoidArmorLayer<>(this, new HumanoidModel<>(context.bakeLayer(ModelLayers.ZOMBIE_INNER_ARMOR)), new HumanoidModel<>(context.bakeLayer(ModelLayers.ZOMBIE_OUTER_ARMOR)), context.getModelManager()));
             this.addLayer(new ItemInHandLayer<>(this, context.getItemInHandRenderer()));
             this.addLayer(new CustomHeadLayer<>(this, context.getModelSet(), context.getItemInHandRenderer()));
+        }
+
+        @Override
+        public void render(@NotNull CustomBioMobEntity entity, float entityYaw, float partialTicks, @NotNull PoseStack poseStack, @NotNull MultiBufferSource buffer, int packedLight) {
+            CustomBioMobRenderer.updateModelPoses(entity, this.getModel());
+            super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
         }
 
         @Override
@@ -95,16 +139,18 @@ public class CustomBioMobRenderer extends MobRenderer<CustomBioMobEntity, Humano
             this.addLayer(new CustomHeadLayer<>(this, context.getModelSet(), context.getItemInHandRenderer()));
         }
 
-        // ★修正: スケルトンは通常のテクスチャを返すように戻す
+        @Override
+        public void render(@NotNull CustomBioMobEntity entity, float entityYaw, float partialTicks, @NotNull PoseStack poseStack, @NotNull MultiBufferSource buffer, int packedLight) {
+            CustomBioMobRenderer.updateModelPoses(entity, this.getModel());
+            super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
+        }
+
         @Override
         public @NotNull ResourceLocation getTextureLocation(@NotNull CustomBioMobEntity entity) {
             return SKELETON_TEXTURE;
         }
     }
 
-    // =====================================================================
-    // 型制約エラーを回避するカスタムモデルクラス
-    // =====================================================================
     private static class BioZombieModel extends HumanoidModel<CustomBioMobEntity> {
         public BioZombieModel(ModelPart root) {
             super(root);

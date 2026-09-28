@@ -44,9 +44,9 @@ public class LocalWebServer {
         public void handle(HttpExchange exchange) throws IOException {
             String uriPath = exchange.getRequestURI().getPath();
 
-            // ルートアクセス時は index.html にルーティング
+            // ★ 変更箇所：ルートアクセス時は index.html ではなく machine.html にルーティング
             if (uriPath == null || uriPath.equals("/")) {
-                uriPath = "/index.html";
+                uriPath = "/machine.html";
             }
 
             // ディレクトリトラバーサル対策
@@ -55,7 +55,7 @@ public class LocalWebServer {
                 return;
             }
 
-            // ★ 変更箇所：src/main/resources/web 配下のリソースを読み込む
+            // src/main/resources/web 配下のリソースを読み込む
             String resourcePath = "/web" + uriPath;
             try (InputStream is = Lunex.class.getResourceAsStream(resourcePath)) {
                 if (is == null) {

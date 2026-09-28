@@ -1,14 +1,26 @@
 export const NodeEditor = {
     actionDefs: [],
     conditionDefs: [],
-    goals: {},
-    nextGoalId: 1,
+    nodes: {},
+    edges: {},
+    nextNodeId: 1,
+    nextEdgeId: 1,
 
     container: null,
+    transform: { x: 0, y: 0, scale: 1 },
+
+    isPanning: false,
+    draggedNode: null,
+    isDraggingEdge: false,
+    edgeSourceId: null,
+    mousePos: { x: 0, y: 0 },
+    mouseLocalPos: { x: 0, y: 0 },
 
     init(payload) {
         this.actionDefs = payload.actions || [];
         this.conditionDefs = payload.conditions || [];
+
+        const outer = document.getElementById('node-editor-area');
         this.container = document.getElementById('node-container');
 
         if (payload.registries) {
@@ -17,24 +29,29 @@ export const NodeEditor = {
             this.createDataList("dl-items", payload.registries.items);
         }
 
-        this.container.style.display = "flex";
-        this.container.style.flexDirection = "column";
-        this.container.style.gap = "24px";
-        this.container.style.padding = "70px 32px 100px 32px";
-        this.container.style.boxSizing = "border-box";
-        this.container.style.overflowY = "auto";
-        this.container.style.overflowX = "auto";
-        this.container.style.alignItems = "stretch";
-        this.container.style.fontFamily = "Consolas, 'Courier New', monospace";
+        this.container.style.position = "absolute";
+        this.container.style.transformOrigin = "0 0";
+        this.container.style.width = "100%";
+        this.container.style.height = "100%";
+        this.container.innerHTML = `
+            <svg id="edges-svg" style="position:absolute; top:0; left:0; width:100%; height:100%; overflow:visible; pointer-events:none; z-index:1;"></svg>
+            <div id="nodes-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:2;"></div>
+            <div id="edges-ui-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:3; pointer-events:none;"></div>
+        `;
+
+        outer.style.backgroundImage = 'radial-gradient(circle, #444 1px, transparent 1px)';
+        outer.style.cursor = 'grab';
 
         const toolbar = document.getElementById('node-toolbar');
         if (toolbar) {
             toolbar.innerHTML = `
-                <button class="btn-primary" id="btn-add-goal" style="background:#0e639c; border:none; padding:6px 16px; border-radius:4px; color:white; cursor:pointer; font-weight:bold; font-size:13px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">+ Add Branch</button>
+                <button class="btn-primary" id="btn-add-node" style="background:#0e639c; border:none; padding:6px 16px; border-radius:4px; color:white; cursor:pointer; font-weight:bold; font-size:13px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">+ Add State</button>
+                <button class="btn-secondary" id="btn-reset-view" style="margin-left: 5px; padding:6px 12px; font-size:13px;">Reset View</button>
             `;
         }
 
-        this.bindEvents();
+        this.bindWorkspaceEvents(outer);
+        this.updateTransform();
         this.loadLua("");
     },
 
@@ -48,28 +65,170 @@ export const NodeEditor = {
         dl.innerHTML = items.map(i => `<option value="${i}"></option>`).join("");
     },
 
-    bindEvents() {
-        const btnAddGoal = document.getElementById('btn-add-goal');
-        if (btnAddGoal) {
-            btnAddGoal.onclick = () => {
-                this.addGoal();
-                this.updateRuleIndices();
-            };
+    getCanvasPos(clientX, clientY) {
+        const outerRect = document.getElementById('node-editor-area').getBoundingClientRect();
+        return {
+            x: (clientX - outerRect.left - this.transform.x) / this.transform.scale,
+            y: (clientY - outerRect.top - this.transform.y) / this.transform.scale
+        };
+    },
+
+    bindWorkspaceEvents(outer) {
+        document.getElementById('btn-add-node').onclick = () => this.addNode();
+        document.getElementById('btn-reset-view').onclick = () => {
+            this.transform = { x: 0, y: 0, scale: 1 };
+            this.updateTransform();
+        };
+
+        outer.addEventListener('mousedown', (e) => {
+            const portOut = e.target.closest('.port-out');
+            if (portOut) {
+                this.isDraggingEdge = true;
+                this.edgeSourceId = portOut.closest('.node-block').id.replace('node-', '');
+                this.mouseLocalPos = this.getCanvasPos(e.clientX, e.clientY);
+                e.stopPropagation();
+                return;
+            }
+
+            if (e.target.closest('.node-block') || e.target.closest('.edge-panel')) return;
+
+            this.isPanning = true;
+            outer.style.cursor = 'grabbing';
+            this.mousePos = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            this.mouseLocalPos = this.getCanvasPos(e.clientX, e.clientY);
+
+            if (this.isDraggingEdge) {
+                this.updateEdges();
+            } else if (this.isPanning) {
+                const dx = e.clientX - this.mousePos.x;
+                const dy = e.clientY - this.mousePos.y;
+                this.transform.x += dx;
+                this.transform.y += dy;
+                this.mousePos = { x: e.clientX, y: e.clientY };
+                this.updateTransform();
+            } else if (this.draggedNode) {
+                const dx = (e.clientX - this.mousePos.x) / this.transform.scale;
+                const dy = (e.clientY - this.mousePos.y) / this.transform.scale;
+                this.draggedNode.x += dx;
+                this.draggedNode.y += dy;
+                const el = document.getElementById(`node-${this.draggedNode.id}`);
+                if (el) {
+                    el.style.left = this.draggedNode.x + 'px';
+                    el.style.top = this.draggedNode.y + 'px';
+                }
+                this.mousePos = { x: e.clientX, y: e.clientY };
+                this.updateEdges();
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (this.isDraggingEdge) {
+                this.isDraggingEdge = false;
+                const portIn = e.target.closest('.port-in');
+                if (portIn) {
+                    const targetId = portIn.closest('.node-block').id.replace('node-', '');
+                    if (this.edgeSourceId !== targetId) {
+                        this.addEdge(this.edgeSourceId, targetId);
+                    }
+                }
+                this.edgeSourceId = null;
+                this.updateEdges();
+            }
+
+            if (this.isPanning) {
+                this.isPanning = false;
+                outer.style.cursor = 'grab';
+            }
+            if (this.draggedNode) {
+                this.draggedNode = null;
+            }
+        });
+
+        outer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = -e.deltaY * 0.001;
+            const newScale = Math.min(Math.max(0.2, this.transform.scale + delta), 3);
+
+            const rect = outer.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const xs = (mouseX - this.transform.x) / this.transform.scale;
+            const ys = (mouseY - this.transform.y) / this.transform.scale;
+
+            this.transform.scale = newScale;
+            this.transform.x = mouseX - xs * newScale;
+            this.transform.y = mouseY - ys * newScale;
+
+            this.updateTransform();
+        });
+    },
+
+    updateTransform() {
+        this.container.style.transform = `translate(${this.transform.x}px, ${this.transform.y}px) scale(${this.transform.scale})`;
+        const outer = document.getElementById('node-editor-area');
+        if (outer) {
+            outer.style.backgroundPosition = `${this.transform.x}px ${this.transform.y}px`;
+            outer.style.backgroundSize = `${20 * this.transform.scale}px ${20 * this.transform.scale}px`;
         }
+        this.updateEdges();
+    },
+
+    updateEdges() {
+        const svg = document.getElementById('edges-svg');
+        if (!svg) return;
+
+        let paths = "";
+
+        Object.values(this.edges).forEach(edge => {
+            const srcEl = document.getElementById(`node-${edge.sourceId}`);
+            const tgtEl = document.getElementById(`node-${edge.targetId}`);
+            const uiPanel = document.getElementById(`edge-ui-${edge.id}`);
+
+            if (srcEl && tgtEl) {
+                const x1 = this.nodes[edge.sourceId].x + 300;
+                const y1 = this.nodes[edge.sourceId].y + 20;
+
+                const x2 = this.nodes[edge.targetId].x;
+                const y2 = this.nodes[edge.targetId].y + 20;
+
+                const cp = Math.max(Math.abs(x2 - x1) / 2, 50);
+                paths += `<path d="M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}" fill="none" stroke="#569cd6" stroke-width="3" opacity="0.8"/>`;
+
+                if (uiPanel) {
+                    uiPanel.style.left = `${(x1 + x2) / 2}px`;
+                    uiPanel.style.top = `${(y1 + y2) / 2}px`;
+                }
+            }
+        });
+
+        if (this.isDraggingEdge && this.edgeSourceId && this.nodes[this.edgeSourceId]) {
+            const x1 = this.nodes[this.edgeSourceId].x + 300;
+            const y1 = this.nodes[this.edgeSourceId].y + 20;
+            const x2 = this.mouseLocalPos.x;
+            const y2 = this.mouseLocalPos.y;
+            const cp = Math.max(Math.abs(x2 - x1) / 2, 50);
+            paths += `<path d="M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}" fill="none" stroke="#4fc1ff" stroke-width="3" stroke-dasharray="5,5" opacity="0.8"/>`;
+        }
+
+        svg.innerHTML = paths;
     },
 
     clear() {
-        this.goals = {};
-        this.nextGoalId = 1;
-        this.container.innerHTML = "";
+        this.nodes = {};
+        this.edges = {};
+        this.nextNodeId = 1;
+        this.nextEdgeId = 1;
+        document.getElementById('nodes-layer').innerHTML = "";
+        document.getElementById('edges-ui-layer').innerHTML = "";
+        document.getElementById('edges-svg').innerHTML = "";
     },
 
     formatComboString(def) {
-        let desc = def.descEn;
-        if (!desc || desc.trim() === "") {
-            desc = def.name;
-        }
-        return `${desc} [${def.name}]`;
+        return `${def.desc || def.descEn || def.name} [${def.name}]`;
     },
 
     extractName(val) {
@@ -79,292 +238,319 @@ export const NodeEditor = {
     },
 
     formatArgValue(v) {
-        return (isNaN(v) && v !== "true" && v !== "false") ? `"${v}"` : v;
+        if (v === "" || v === undefined || v === null) return `""`;
+        if (v === "true" || v === "false") return v;
+        if (!isNaN(v)) return v;
+        return `"${v}"`;
     },
 
     generateOptions(defsArray, selectedName, defaultLabel = "None") {
         let options = `<option value="None">${defaultLabel}</option>`;
-        options += defsArray.map(def => {
-            const displayStr = this.formatComboString(def);
-            const isSelected = selectedName === def.name ? "selected" : "";
-            return `<option value="${displayStr}" ${isSelected}>${displayStr}</option>`;
-        }).join("");
+
+        const groups = {};
+        defsArray.forEach(def => {
+            if ((def.desc && def.desc.includes("(内部処理用)")) || (def.descEn && def.descEn.includes("(Internal)"))) {
+                return;
+            }
+
+            const parts = def.name.split('.');
+            const category = parts.length > 1 ? parts[0] : "General";
+            if (!groups[category]) groups[category] = [];
+            groups[category].push(def);
+        });
+
+        for (const [category, defs] of Object.entries(groups)) {
+            const label = category.replace(/([A-Z])/g, ' $1').trim();
+            options += `<optgroup label="■ ${label}">`;
+
+            defs.forEach(def => {
+                const isSelected = selectedName === def.name ? "selected" : "";
+                options += `<option value="${def.name}" ${isSelected}>${this.formatComboString(def)}</option>`;
+            });
+
+            options += `</optgroup>`;
+        }
+
         return options;
     },
 
-    updateRuleIndices() {
-        const ruleNodes = Array.from(this.container.querySelectorAll('.rule-line'));
+    addNode(x = null, y = null, id = null, dataOverride = null) {
+        if (x === null || y === null) {
+            const rect = document.getElementById('node-editor-area').getBoundingClientRect();
+            x = (rect.width / 2 - this.transform.x) / this.transform.scale - 150;
+            y = (rect.height / 2 - this.transform.y) / this.transform.scale;
+        }
 
-        ruleNodes.forEach((nodeEl, index) => {
-            const label = nodeEl.querySelector('.rule-if-label');
-            if (label) {
-                if (index === 0) {
-                    label.textContent = "if";
-                    label.style.color = "#c586c0";
-                } else {
-                    label.textContent = "elseif";
-                    label.style.color = "#c586c0";
-                }
-            }
-        });
-    },
-
-    addGoal(x = 0, y = 0, id = null, dataOverride = null) {
-        const goalId = id || `goal_${this.nextGoalId++}`;
-        const goal = {
-            id: goalId,
-            x: 0, y: 0,
+        const nodeId = id || `node_${this.nextNodeId++}`;
+        const node = {
+            id: nodeId,
+            x: x, y: y,
             data: {
+                name: `State_${this.nextNodeId - 1}`,
+                nodeType: "Normal",
                 priority: 5,
-                isTarget: false,
-                conditions: [],
-                actions: []
+                isAlwaysActive: false,
+                action: { actName: "None", actArgs: {} },
+                clearConditions: [] // 追加: Goal時のクリア条件を保持
             }
         };
 
-        if (dataOverride) {
-            goal.data = JSON.parse(JSON.stringify({...goal.data, ...dataOverride}));
-
-            if (goal.data.canUseName && goal.data.canUseName !== "None") {
-                goal.data.conditions = [{
-                    id: `cond_${Date.now()}_migrated`,
-                    condName: goal.data.canUseName,
-                    condArgs: goal.data.canUseArgs || {},
-                    isNot: false
-                }];
-                delete goal.data.canUseName;
-                delete goal.data.canUseArgs;
-            }
-            if (!goal.data.conditions) goal.data.conditions = [];
-        }
-        this.goals[goalId] = goal;
+        if (dataOverride) node.data = JSON.parse(JSON.stringify({...node.data, ...dataOverride}));
+        this.nodes[nodeId] = node;
 
         const el = document.createElement('div');
-        el.className = `rule-line`;
-        el.id = `goal-${goal.id}`;
+        el.className = `node-block`;
+        el.id = `node-${node.id}`;
 
-        el.style.width = "100%";
-        el.style.boxSizing = "border-box";
-        el.style.minWidth = "fit-content";
-        el.style.marginBottom = "8px";
+        el.style.position = "absolute";
+        el.style.left = `${node.x}px`;
+        el.style.top = `${node.y}px`;
+        el.style.width = "300px";
+        el.style.background = "#1e1e1e";
+        el.style.border = "1px solid #3c3c3c";
+        el.style.borderRadius = "6px";
+        el.style.boxShadow = "0 6px 12px rgba(0,0,0,0.5)";
+
+        this.renderNodeHtml(nodeId, el);
+        document.getElementById('nodes-layer').appendChild(el);
+        this.bindNodeEvents(nodeId, el);
+
+        return node;
+    },
+
+    renderNodeHtml(nodeId, el) {
+        const node = this.nodes[nodeId];
+
+        const inDisplay = node.data.nodeType === "Start" ? "none" : "block";
+        const outDisplay = node.data.nodeType === "Goal" ? "none" : "block";
+
+        let headerColor = "#252526";
+        if (node.data.nodeType === "Start") headerColor = "#1e3a29";
+        if (node.data.nodeType === "Goal") headerColor = "#4a2121";
+
+        const actOptions = this.generateOptions(this.actionDefs, node.data.action.actName, "Select Action...");
+        const showPriority = node.data.nodeType === "Start" || node.data.isAlwaysActive;
+
+        // ★追加: Goalノード用のクリア条件表示ブロック
+        let goalCondHtml = "";
+        if (node.data.nodeType === "Goal") {
+            goalCondHtml = `
+                <div style="font-size:11px; color:#858585; font-weight:bold; border-bottom:1px solid #333; padding-bottom:2px; margin-top:8px;">▶ CLEAR CONDITIONS (Wait for...)</div>
+                <div class="goal-cond-list" style="display:flex; flex-direction:column; gap:4px; background: #161616; border: 1px solid #333; padding: 6px; border-radius: 4px;"></div>
+                <button class="btn-add-goal-cond" style="background:none; border:none; color:#dcdcaa; cursor:pointer; font-size:10px; margin-top:4px; text-align:left;">+ Add Clear Condition</button>
+            `;
+        }
 
         el.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; box-sizing: border-box; width: 100%;">
-                <span class="rule-if-label" style="font-weight: bold; width: 60px; text-align: right; font-size: 14px; flex-shrink: 0;"></span>
+            <div class="port-in" style="display:${inDisplay}; position:absolute; left:-6px; top:14px; width:12px; height:12px; background:#4fc1ff; border-radius:50%; cursor:crosshair; border:2px solid #1e1e1e;" title="Input Condition (Drop here)"></div>
+            <div class="port-out" style="display:${outDisplay}; position:absolute; right:-6px; top:14px; width:12px; height:12px; background:#4fc1ff; border-radius:50%; cursor:crosshair; border:2px solid #1e1e1e;" title="Next Action (Drag from here)"></div>
+            
+            <div class="node-header" style="background: ${headerColor}; padding: 6px 10px; border-bottom: 1px solid #3c3c3c; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; cursor: grab;">
+                <input type="text" class="bind-node-name" value="${node.data.name}" style="background:transparent; border:none; color:#dcdcaa; font-weight:bold; font-size:13px; width:100px; outline:none;">
                 
-                <span style="color: #6a9955; font-size: 13px; margin-left: 8px; flex-shrink: 0;">-- Execute the following every tick</span>
-                
-                <div style="margin-left: auto; display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
-                    <div style="display: flex; align-items: center; gap: 4px;" title="AI execution lane (multitasking) settings.&#10;Target: Always actively scanning for targets in parallel.&#10;Action: Performing actual movements or attacks.">
-                        <span style="color: #9cdcfe; font-size: 12px; cursor: help;">Execution Lane:</span>
-                        <select class="bind-istarget" style="background: #252526; color: #ccc; border: 1px solid #3c3c3c; padding: 2px 6px; border-radius: 3px; font-size: 12px; outline: none; cursor: help;">
-                            <option value="false" ${!goal.data.isTarget ? "selected" : ""}>🏃 Action</option>
-                            <option value="true" ${goal.data.isTarget ? "selected" : ""}>🧠 Target</option>
-                        </select>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    <div style="display:${showPriority ? 'flex' : 'none'}; align-items:center; gap:2px; background:#1e1e1e; padding:1px 4px; border-radius:3px; border:1px solid #3c3c3c;" title="Priority (Lower is higher priority)">
+                        <span style="font-size:10px; color:#858585;">Pri:</span>
+                        <input type="number" class="bind-priority" value="${node.data.priority !== undefined ? node.data.priority : 5}" min="1" max="10" style="background:transparent; border:none; color:#4fc1ff; font-size:11px; width:24px; outline:none; text-align:center;">
                     </div>
-                    <button class="btn-move-up" title="Move Up" style="background: none; border: none; color: #858585; cursor: pointer; font-size: 14px; padding: 2px 6px;">▲</button>
-                    <button class="btn-move-down" title="Move Down" style="background: none; border: none; color: #858585; cursor: pointer; font-size: 14px; padding: 2px 6px;">▼</button>
-                    <button class="node-delete" title="Delete" style="background: none; border: none; color: #f48771; cursor: pointer; margin-left: 8px; font-size: 14px; padding: 2px 6px;">✖</button>
+
+                    <select class="bind-node-type" style="background: #1e1e1e; color: #ccc; border: 1px solid #3c3c3c; padding: 2px 4px; border-radius: 3px; font-size: 11px; outline: none; cursor: pointer;">
+                        <option value="Start" ${node.data.nodeType === "Start" ? "selected" : ""}>🟢 Start</option>
+                        <option value="Normal" ${node.data.nodeType === "Normal" ? "selected" : ""}>⚪ Normal</option>
+                        <option value="Goal" ${node.data.nodeType === "Goal" ? "selected" : ""}>🔴 Goal</option>
+                    </select>
+                    <button class="node-delete" style="background: none; border: none; color: #f48771; cursor: pointer; font-size: 14px; padding: 0 4px;">✖</button>
                 </div>
             </div>
             
-            <div style="margin-left: 72px; padding-left: 20px; border-left: 1px solid #404040; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;">
-                
-                <!-- CanUse condition list -->
-                <div class="cond-list-container" style="display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;"></div>
-                <button class="btn-add-cond" style="align-self: flex-start; background: none; border: none; color: #dcdcaa; cursor: pointer; font-size: 13px; padding: 4px 8px; margin-left: -8px;">+ Add Condition (CanUse)</button>
-                
-                <div style="width: 100%; height: 1px; background: #3c3c3c; margin: 4px 0;"></div>
-
-                <!-- Action list -->
-                <div class="action-list-container" style="display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;"></div>
-                <button class="btn-add-action" style="align-self: flex-start; background: none; border: none; color: #3794ff; cursor: pointer; font-size: 13px; padding: 4px 8px; margin-left: -8px;">+ Add Action</button>
+            <div class="node-body" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                <label style="display:flex; align-items:center; gap:4px; font-size:11px; color:#c586c0; cursor:pointer;" title="If checked, this action runs independently without waiting for previous links.">
+                    <input type="checkbox" class="bind-always-active" ${node.data.isAlwaysActive ? "checked" : ""}> Always Active (Independent)
+                </label>
+            
+                <div style="font-size:11px; color:#858585; font-weight:bold; border-bottom:1px solid #333; padding-bottom:2px;">▶ ACTION (Max: 1)</div>
+                <div style="display: flex; flex-direction: column; gap: 4px; background: #161616; border: 1px solid #333; padding: 6px; border-radius: 4px;">
+                    <select class="bind-act" style="border: 1px solid #3c3c3c; background: #252526; color: #4fc1ff; padding: 2px 4px; border-radius: 3px; font-family: inherit; font-size: 11px; outline: none; width: 100%;">${actOptions}</select>
+                    <div class="dynamic-args act-args" style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;"></div>
+                </div>
+                ${goalCondHtml}
             </div>
         `;
-
-        this.container.appendChild(el);
-        this.bindGoalEvents(goal.id, el);
-
-        const condListContainer = el.querySelector('.cond-list-container');
-        goal.data.conditions.forEach(cond => {
-            this.renderConditionRow(goal.id, cond, condListContainer);
-        });
-
-        const actionListContainer = el.querySelector('.action-list-container');
-        goal.data.actions.forEach(act => {
-            this.renderActionRow(goal.id, act, actionListContainer);
-        });
-
-        return goal;
     },
 
-    bindGoalEvents(goalId, el) {
-        const goal = this.goals[goalId];
+    bindNodeEvents(nodeId, el) {
+        const node = this.nodes[nodeId];
+        const header = el.querySelector('.node-header');
 
-        el.querySelector('.node-delete').addEventListener('click', () => {
-            this.removeGoal(goalId);
-            this.updateRuleIndices();
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+            this.draggedNode = node;
+            this.mousePos = { x: e.clientX, y: e.clientY };
+            el.parentNode.appendChild(el);
+            e.stopPropagation();
         });
 
-        el.querySelector('.btn-move-up').addEventListener('click', () => {
-            if (el.previousElementSibling) {
-                el.parentNode.insertBefore(el, el.previousElementSibling);
-                this.updateRuleIndices();
+        el.querySelector('.bind-node-name').onchange = (e) => node.data.name = e.target.value;
+
+        const priInput = el.querySelector('.bind-priority');
+        if (priInput) {
+            priInput.onchange = (e) => {
+                node.data.priority = parseInt(e.target.value) || 5;
+            };
+        }
+
+        el.querySelector('.bind-node-type').onchange = (e) => {
+            node.data.nodeType = e.target.value;
+            if (node.data.nodeType === "Goal") {
+                Object.values(this.edges).forEach(edge => {
+                    if (edge.sourceId === nodeId) this.removeEdge(edge.id);
+                });
             }
-        });
-
-        el.querySelector('.btn-move-down').addEventListener('click', () => {
-            if (el.nextElementSibling) {
-                el.parentNode.insertBefore(el.nextElementSibling, el);
-                this.updateRuleIndices();
+            if (node.data.nodeType === "Start") {
+                Object.values(this.edges).forEach(edge => {
+                    if (edge.targetId === nodeId) this.removeEdge(edge.id);
+                });
             }
-        });
-
-        el.querySelector('.bind-istarget').onchange = (e) => {
-            goal.data.isTarget = (e.target.value === "true");
+            this.renderNodeHtml(nodeId, el);
+            this.bindNodeEvents(nodeId, el);
+            this.updateEdges();
         };
 
-        el.querySelector('.btn-add-cond').onclick = () => {
-            const condId = `cond_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-            const condData = {id: condId, condName: "None", condArgs: {}, isNot: false};
-            goal.data.conditions.push(condData);
-            this.renderConditionRow(goalId, condData, el.querySelector('.cond-list-container'));
+        el.querySelector('.bind-always-active').onchange = (e) => {
+            node.data.isAlwaysActive = e.target.checked;
+            this.renderNodeHtml(nodeId, el);
+            this.bindNodeEvents(nodeId, el);
+            this.updateEdges();
         };
 
-        el.querySelector('.btn-add-action').onclick = () => {
-            const actId = `act_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-            const actData = {id: actId, actName: "None", actArgs: {}, condName: "None", condArgs: {}, isNot: false};
-            goal.data.actions.push(actData);
-            this.renderActionRow(goalId, actData, el.querySelector('.action-list-container'));
+        el.querySelector('.node-delete').onclick = () => {
+            el.remove();
+            delete this.nodes[nodeId];
+            Object.values(this.edges).forEach(edge => {
+                if (edge.sourceId === nodeId || edge.targetId === nodeId) this.removeEdge(edge.id);
+            });
+            this.updateEdges();
         };
+
+        el.querySelector('.bind-act').onchange = (e) => {
+            node.data.action.actName = this.extractName(e.target.value);
+            node.data.action.actArgs = {};
+            this.buildArgsUI(el.querySelector('.act-args'), this.actionDefs, node.data.action.actName, node.data.action.actArgs);
+        };
+        this.buildArgsUI(el.querySelector('.act-args'), this.actionDefs, node.data.action.actName, node.data.action.actArgs);
+
+        // ★追加: Goalノードのクリア条件イベントバインド
+        if (node.data.nodeType === "Goal") {
+            if (!node.data.clearConditions) node.data.clearConditions = [];
+            const btnAdd = el.querySelector('.btn-add-goal-cond');
+            const listContainer = el.querySelector('.goal-cond-list');
+            if (btnAdd && listContainer) {
+                btnAdd.onclick = () => {
+                    const condData = {id: `cond_${Date.now()}`, condName: "None", condArgs: {}, isNot: false};
+                    node.data.clearConditions.push(condData);
+                    this.renderConditionRow(node.data.clearConditions, condData, listContainer);
+                };
+                node.data.clearConditions.forEach(c => this.renderConditionRow(node.data.clearConditions, c, listContainer));
+            }
+        }
     },
 
-    renderConditionRow(goalId, condData, listContainer) {
+    addEdge(sourceId, targetId, id = null, conditionsOverride = null) {
+        const edgeId = id || `edge_${this.nextEdgeId++}`;
+        const edge = {
+            id: edgeId,
+            sourceId,
+            targetId,
+            conditions: conditionsOverride || []
+        };
+        this.edges[edgeId] = edge;
+
+        const panel = document.createElement('div');
+        panel.className = "edge-panel";
+        panel.id = `edge-ui-${edgeId}`;
+        panel.style.position = "absolute";
+        panel.style.transform = "translate(-50%, -50%)";
+        panel.style.background = "rgba(30, 30, 30, 0.95)";
+        panel.style.border = "1px solid #569cd6";
+        panel.style.borderRadius = "4px";
+        panel.style.padding = "6px";
+        panel.style.minWidth = "160px";
+        panel.style.pointerEvents = "auto";
+        panel.style.boxShadow = "0 4px 8px rgba(0,0,0,0.5)";
+
+        panel.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; border-bottom:1px solid #444; padding-bottom:2px;">
+                <span style="font-size:11px; color:#569cd6; font-weight:bold;">Condition (Wait for...)</span>
+                <button class="edge-delete" style="background:none; border:none; color:#f48771; cursor:pointer; font-size:12px;">✖</button>
+            </div>
+            <div class="edge-cond-list" style="display:flex; flex-direction:column; gap:4px;"></div>
+            <button class="btn-add-edge-cond" style="background:none; border:none; color:#dcdcaa; cursor:pointer; font-size:10px; margin-top:4px;">+ Add Condition</button>
+        `;
+
+        document.getElementById('edges-ui-layer').appendChild(panel);
+
+        panel.addEventListener('mousedown', (e) => e.stopPropagation());
+
+        panel.querySelector('.edge-delete').onclick = () => this.removeEdge(edgeId);
+
+        panel.querySelector('.btn-add-edge-cond').onclick = () => {
+            const condData = {id: `cond_${Date.now()}`, condName: "None", condArgs: {}, isNot: false};
+            edge.conditions.push(condData);
+            this.renderConditionRow(edge.conditions, condData, panel.querySelector('.edge-cond-list'));
+        };
+
+        const listContainer = panel.querySelector('.edge-cond-list');
+        edge.conditions.forEach(cond => this.renderConditionRow(edge.conditions, cond, listContainer));
+
+        this.updateEdges();
+        return edge;
+    },
+
+    removeEdge(edgeId) {
+        const panel = document.getElementById(`edge-ui-${edgeId}`);
+        if (panel) panel.remove();
+        delete this.edges[edgeId];
+        this.updateEdges();
+    },
+
+    // ★修正: EdgeとGoalの両方で使える共通の条件UI生成関数
+    renderConditionRow(conditionsArray, condData, container) {
         const row = document.createElement('div');
-        row.className = "cond-row";
-        row.id = `row-${condData.id}`;
-        row.style.boxSizing = "border-box";
-        row.style.width = "100%";
-
-        if (condData.isNot === undefined) condData.isNot = false;
         const condOptions = this.generateOptions(this.conditionDefs, condData.condName, "Select Condition...");
 
         row.innerHTML = `
-            <div style="display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; background: #1e1e1e; border: 1px dashed #3c3c3c; padding: 10px 12px; border-radius: 4px; box-sizing: border-box; width: 100%; position: relative;">
-                
-                <button class="cond-row-delete" title="Delete" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: #f48771; cursor: pointer; padding: 2px 6px; z-index: 10;">✖</button>
-                
-                <span style="color: #c586c0; font-size: 13px; font-weight: bold; width: 65px; text-align: right; margin-top: 4px; flex-shrink: 0;">Require</span>
-                <select class="bind-cond" style="border: 1px solid #3c3c3c; background: #252526; color: #dcdcaa; padding: 4px 8px; border-radius: 3px; font-family: inherit; font-size: 13px; outline: none; flex-shrink: 0;">${condOptions}</select>
-                
-                <label style="display: flex; align-items: center; gap: 4px; color: #dcdcaa; font-size: 12px; margin-top: 4px; cursor: pointer;" title="Invert condition (e.g., In water -> Not in water)">
+            <div style="background: #252526; border: 1px dashed #444; padding: 4px; border-radius: 3px; position: relative; margin-bottom: 2px;">
+                <button class="cond-delete" style="position: absolute; top: 4px; right: 2px; background: none; border: none; color: #f48771; cursor: pointer; font-size:9px;">✖</button>
+                <select class="bind-cond" style="border: 1px solid #3c3c3c; background: #1e1e1e; color: #dcdcaa; padding: 1px 2px; border-radius: 2px; font-family: inherit; font-size: 10px; outline: none; width: calc(100% - 15px);">${condOptions}</select>
+                <label style="display: flex; align-items: center; gap: 2px; color: #dcdcaa; font-size: 10px; margin-top: 2px;">
                     <input type="checkbox" class="bind-cond-not" ${condData.isNot ? "checked" : ""}> 🚫 NOT
                 </label>
-
-                <div class="dynamic-args cond-args" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"></div>
+                <div class="dynamic-args cond-args" style="display: flex; gap: 2px; flex-wrap: wrap; margin-top: 2px;"></div>
             </div>
         `;
+        container.appendChild(row);
 
-        listContainer.appendChild(row);
-
-        row.querySelector('.cond-row-delete').onclick = () => {
-            const goal = this.goals[goalId];
-            goal.data.conditions = goal.data.conditions.filter(c => c.id !== condData.id);
+        row.querySelector('.cond-delete').onclick = () => {
+            const index = conditionsArray.findIndex(c => c.id === condData.id);
+            if (index > -1) conditionsArray.splice(index, 1);
             row.remove();
         };
-
         row.querySelector('.bind-cond').onchange = (e) => {
-            const actualName = this.extractName(e.target.value);
-            condData.condName = actualName;
+            condData.condName = this.extractName(e.target.value);
             condData.condArgs = {};
-            this.buildArgsUI(row.querySelector('.cond-args'), this.conditionDefs, actualName, condData.condArgs);
+            this.buildArgsUI(row.querySelector('.cond-args'), this.conditionDefs, condData.condName, condData.condArgs);
         };
-
         row.querySelector('.bind-cond-not').onchange = (e) => {
             condData.isNot = e.target.checked;
         };
-
         this.buildArgsUI(row.querySelector('.cond-args'), this.conditionDefs, condData.condName, condData.condArgs);
-    },
-
-    renderActionRow(goalId, actData, listContainer) {
-        const row = document.createElement('div');
-        row.className = "action-row";
-        row.id = `row-${actData.id}`;
-        row.style.boxSizing = "border-box";
-        row.style.width = "100%";
-
-        if (actData.isNot === undefined) actData.isNot = false;
-        const actOptions = this.generateOptions(this.actionDefs, actData.actName, "Select Action...");
-        const condOptions = this.generateOptions(this.conditionDefs, actData.condName, "None (Unconditional)");
-
-        row.innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 8px; background: #1e1e1e; border: 1px solid #3c3c3c; padding: 12px; border-radius: 4px; box-sizing: border-box; width: 100%; position: relative;">
-                
-                <button class="action-row-delete" title="Delete" style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: #f48771; cursor: pointer; padding: 2px 6px; z-index: 10;">✖</button>
-
-                <!-- Upper: Condition -->
-                <div style="display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; width: calc(100% - 30px);">
-                    <span style="color: #c586c0; font-size: 13px; font-weight: bold; width: 65px; text-align: right; margin-top: 4px; flex-shrink: 0;">Condition</span>
-                    <select class="bind-action-cond" style="border: 1px solid #3c3c3c; background: #252526; color: #dcdcaa; padding: 4px 8px; border-radius: 3px; font-family: inherit; font-size: 13px; outline: none; flex-shrink: 0;"></select>
-                    
-                    <label style="display: flex; align-items: center; gap: 4px; color: #dcdcaa; font-size: 12px; margin-top: 4px; cursor: pointer;" title="Invert condition">
-                        <input type="checkbox" class="bind-action-cond-not" ${actData.isNot ? "checked" : ""}> 🚫 NOT
-                    </label>
-
-                    <div class="dynamic-args action-cond-args" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"></div>
-                </div>
-                
-                <div style="width: 100%; height: 1px; background: #333; margin: 4px 0;"></div>
-                
-                <!-- Lower: Execute -->
-                <div style="display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; width: 100%;">
-                    <span style="color: #569cd6; font-size: 13px; font-weight: bold; width: 65px; text-align: right; margin-top: 4px; flex-shrink: 0;">Execute</span>
-                    <select class="bind-act" style="border: 1px solid #3c3c3c; background: #252526; color: #4fc1ff; padding: 4px 8px; border-radius: 3px; font-family: inherit; font-size: 13px; outline: none; flex-shrink: 0;"></select>
-                    <div class="dynamic-args act-args" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"></div>
-                </div>
-                
-            </div>
-        `;
-
-        row.querySelector('.bind-act').innerHTML = actOptions;
-        row.querySelector('.bind-action-cond').innerHTML = condOptions;
-
-        listContainer.appendChild(row);
-
-        row.querySelector('.action-row-delete').onclick = () => {
-            const goal = this.goals[goalId];
-            goal.data.actions = goal.data.actions.filter(a => a.id !== actData.id);
-            row.remove();
-        };
-
-        const setupSelect = (selector, defsArray, nameKey, argsKey, containerClass) => {
-            row.querySelector(selector).onchange = (e) => {
-                const actualName = this.extractName(e.target.value);
-                actData[nameKey] = actualName;
-                actData[argsKey] = {};
-                this.buildArgsUI(row.querySelector(containerClass), defsArray, actualName, actData[argsKey]);
-            };
-        };
-
-        setupSelect('.bind-act', this.actionDefs, 'actName', 'actArgs', '.act-args');
-        setupSelect('.bind-action-cond', this.conditionDefs, 'condName', 'condArgs', '.action-cond-args');
-
-        row.querySelector('.bind-action-cond-not').onchange = (e) => {
-            actData.isNot = e.target.checked;
-        };
-
-        this.buildArgsUI(row.querySelector('.act-args'), this.actionDefs, actData.actName, actData.actArgs);
-        this.buildArgsUI(row.querySelector('.action-cond-args'), this.conditionDefs, actData.condName, actData.condArgs);
     },
 
     buildArgsUI(containerEl, defsArray, targetName, targetArgsObj) {
         containerEl.innerHTML = "";
-        if (targetName !== "None" && targetName !== "Select Action...") {
+        if (targetName !== "None" && targetName !== "Select...") {
             const def = defsArray.find(d => d.name === targetName);
-            if (def && def.args) {
-                this.generateInputs(containerEl, def.args, targetArgsObj);
-            }
+            if (def && def.args) this.generateInputs(containerEl, def.args, targetArgsObj);
         }
     },
 
@@ -387,143 +573,157 @@ export const NodeEditor = {
             const div = document.createElement('div');
             div.style.display = "flex";
             div.style.alignItems = "center";
-            div.style.gap = "4px";
+            div.style.gap = "2px";
 
             let inputHtml = "";
             let isSelect = false;
 
-            const width = (type === 'num') ? '60px' : '140px';
-            const style = `width: ${width}; padding: 3px 6px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 2px; font-family: inherit; font-size: 13px; outline: none; transition: border-color 0.2s;`;
+            const width = (type === 'num') ? '35px' : '65px';
+            const style = `width: ${width}; padding: 1px 2px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 2px; font-family: inherit; font-size: 10px; outline: none;`;
 
             if (name === "handType") {
                 isSelect = true;
-                inputHtml = `<select style="${style}">
-                    <option value="mainhand" ${val === "mainhand" ? "selected" : ""}>Main hand</option>
-                    <option value="offhand" ${val === "offhand" ? "selected" : ""}>Off hand</option>
-                </select>`;
+                inputHtml = `<select style="${style}"><option value="mainhand" ${val === "mainhand" ? "selected" : ""}>Main</option><option value="offhand" ${val === "offhand" ? "selected" : ""}>Off</option></select>`;
             } else if (name === "slotType") {
                 isSelect = true;
-                inputHtml = `<select style="${style}">
-                    <option value="input" ${val === "input" ? "selected" : ""}>Ingredient (Top)</option>
-                    <option value="fuel" ${val === "fuel" ? "selected" : ""}>Fuel (Bottom)</option>
-                </select>`;
+                inputHtml = `<select style="${style}"><option value="input" ${val === "input" ? "selected" : ""}>Top</option><option value="fuel" ${val === "fuel" ? "selected" : ""}>Btm</option></select>`;
             } else if (type === 'bool' || name === "isSneaking" || name === "open") {
                 isSelect = true;
-                inputHtml = `<select style="${style}">
-                    <option value="true" ${String(val) === "true" ? "selected" : ""}>Yes (true)</option>
-                    <option value="false" ${String(val) === "false" ? "selected" : ""}>No (false)</option>
-                </select>`;
+                inputHtml = `<select style="${style}"><option value="true" ${String(val) === "true" ? "selected" : ""}>Yes</option><option value="false" ${String(val) === "false" ? "selected" : ""}>No</option></select>`;
             } else if (name === "entityId") {
-                inputHtml = `<input type="text" list="dl-entities" value="${val}" style="${style}" placeholder="e.g. minecraft:player">`;
+                inputHtml = `<input type="text" list="dl-entities" value="${val}" style="${style}">`;
             } else if (name === "blockId") {
-                inputHtml = `<input type="text" list="dl-blocks" value="${val}" style="${style}" placeholder="e.g. minecraft:stone">`;
+                inputHtml = `<input type="text" list="dl-blocks" value="${val}" style="${style}">`;
             } else if (name === "itemId") {
-                inputHtml = `<input type="text" list="dl-items" value="${val}" style="${style}" placeholder="e.g. minecraft:apple">`;
+                inputHtml = `<input type="text" list="dl-items" value="${val}" style="${style}">`;
             } else {
                 inputHtml = `<input type="text" value="${val}" style="${style}">`;
             }
 
-            const labelMap = {
-                "entityId": "Entity", "blockId": "Block", "itemId": "Item",
-                "handType": "Hand", "slotType": "Slot", "isSneaking": "Sneaking",
-                "open": "Open", "distance": "Distance", "radius": "Radius", "reach": "Reach",
-                "speed": "Speed", "count": "Count", "minCount": "Min Count", "chance": "Chance",
-                "percent": "Percent(%)", "ticks": "Ticks", "timerId": "Timer Name", "key": "Memory Key",
-                "volume": "Volume", "pitch": "Pitch", "effectId": "Effect ID",
-                "resultId": "Result", "resultCount": "Result Count", "ingredients": "Ingredients"
-            };
+            const labelMap = { "entityId": "Ent", "blockId": "Blk", "itemId": "Itm", "distance": "Dist", "radius": "Rad", "reach": "Rch", "speed": "Spd", "count": "Cnt", "minCount": "Min", "chance": "Chnc", "percent": "Pct", "ticks": "Tk", "timerId": "Tmr", "resultId": "Res" };
+            let label = labelMap[name] || name.substring(0, 4);
 
-            let label = labelMap[name] || name;
-
-            div.innerHTML = `<span style="font-size:13px; color:#9cdcfe; margin-left:4px;">${label}=</span>${inputHtml}`;
+            div.innerHTML = `<span style="font-size:9px; color:#9cdcfe;">${label}:</span>${inputHtml}`;
 
             const inputEl = div.querySelector(isSelect ? 'select' : 'input');
             inputEl.onchange = (e) => dataObj[name] = e.target.value;
             inputEl.oninput = (e) => dataObj[name] = e.target.value;
-            inputEl.onfocus = () => inputEl.style.borderColor = "#007acc";
-            inputEl.onblur = () => inputEl.style.borderColor = "#3c3c3c";
 
             containerEl.appendChild(div);
         });
     },
 
-    removeGoal(goalId) {
-        const el = document.getElementById(`goal-${goalId}`);
-        if (el) el.remove();
-        delete this.goals[goalId];
+    getFlowPriority(nodeId, visited = new Set()) {
+        const node = this.nodes[nodeId];
+        if (!node) return 5;
+        if (node.data.nodeType === "Start" || node.data.isAlwaysActive) {
+            return node.data.priority !== undefined ? node.data.priority : 5;
+        }
+
+        if (visited.has(nodeId)) return 5;
+        visited.add(nodeId);
+
+        const incomingEdges = Object.values(this.edges).filter(e => e.targetId === nodeId);
+        for (const edge of incomingEdges) {
+            const p = this.getFlowPriority(edge.sourceId, visited);
+            if (p !== null) return p;
+        }
+        return 5;
     },
 
     generateLua() {
-        const nodeEls = Array.from(this.container.querySelectorAll('.rule-line'));
-        if (nodeEls.length === 0) throw new Error("There are no branches.");
+        const allNodes = Object.values(this.nodes);
+        if (allNodes.length === 0) throw new Error("There are no Action Nodes.");
 
-        let luaCode = `-- AI system generated in Minecraft standard format\nmob.clearGoals()\n\n`;
+        const targetLaneActions = [
+            "TargetEntity.FindAndTarget",
+            "TargetEntity.TargetAttacker",
+            "TargetBlock.FindAndTarget"
+        ];
 
-        nodeEls.forEach((el, index) => {
-            const goalId = el.id.replace('goal-', '');
-            const goal = this.goals[goalId];
+        let luaCode = `-- AI Hidden State Machine generated in Minecraft standard format\nmob.clearGoals()\n\n`;
 
-            goal.data.priority = index + 1;
+        allNodes.forEach((node, index) => {
+            const goalVar = `goalDef_${index + 1}`;
+            const actName = node.data.action.actName;
+            const isTargetNode = targetLaneActions.includes(actName);
+            const computedPriority = this.getFlowPriority(node.id);
 
-            let canUseStr = "{}";
-            if (goal.data.conditions && goal.data.conditions.length > 0) {
+            luaCode += `-- [State: ${node.data.name}] ${isTargetNode ? "Target Lane (Auto)" : "Action Lane"}\n`;
+            luaCode += `local ${goalVar} = {\n`;
+            luaCode += `    priority = ${computedPriority},\n`;
+            luaCode += `    isTarget = ${isTargetNode},\n`;
+
+            if (node.data.isAlwaysActive) {
+                luaCode += `    canUse = {},\n`;
+            } else if (node.data.nodeType === "Start") {
+                luaCode += `    canUse = { GoalCondition.System.IsInitialState({ key = "state_${node.id}" }) },\n`;
+            } else {
+                luaCode += `    canUse = { GoalCondition.System.HasStateKey({ key = "state_${node.id}" }) },\n`;
+            }
+
+            const tickList = [];
+
+            if (actName !== "None" && actName !== "Select Action...") {
+                const actProps = [];
+                for (const [k, v] of Object.entries(node.data.action.actArgs)) {
+                    actProps.push(`${k} = ${this.formatArgValue(v)}`);
+                }
+                const argsStr = actProps.length > 0 ? `{ ${actProps.join(", ")} }` : "";
+                tickList.push(`GoalAction.${actName}(${argsStr})`);
+            }
+
+            if (node.data.nodeType === "Goal") {
+                // ★修正: Goalノードのクリア条件を出力
                 const condList = [];
-                for (const cond of goal.data.conditions) {
-                    if (cond.condName !== "None" && cond.condName !== "Select Condition...") {
-                        const argsMap = [`type = "${cond.condName}"`];
-                        if (cond.isNot) argsMap.push(`isNot = true`);
-                        for (const [k, v] of Object.entries(cond.condArgs)) {
-                            argsMap.push(`${k} = ${this.formatArgValue(v)}`);
+                if (node.data.clearConditions) {
+                    for (const cond of node.data.clearConditions) {
+                        if (cond.condName !== "None" && cond.condName !== "Select Condition...") {
+                            const argsMap = [];
+                            if (cond.isNot) argsMap.push(`isNot = true`);
+                            for (const [k, v] of Object.entries(cond.condArgs)) {
+                                argsMap.push(`${k} = ${this.formatArgValue(v)}`);
+                            }
+                            const argsStr = argsMap.length > 0 ? `{ ${argsMap.join(", ")} }` : "";
+                            condList.push(`GoalCondition.${cond.condName}(${argsStr})`);
                         }
-                        condList.push(`{ ${argsMap.join(", ")} }`);
                     }
                 }
-                if (condList.length > 0) {
-                    canUseStr = `{ ${condList.join(", ")} }`;
-                }
+                const conditionStr = condList.length > 0 ? `{ ${condList.join(", ")} }` : "{}";
+                tickList.push(`GoalAction.System.ClearStateKey({ condition = ${conditionStr} })`);
+            } else {
+                Object.values(this.edges).filter(e => e.sourceId === node.id).forEach(edge => {
+                    const condList = [];
+                    // ★修正: StartやAlwaysActiveの暴走(他ステート上書き)を防ぐIsInitialStateを自動追加
+                    if (node.data.nodeType === "Start" || node.data.isAlwaysActive) {
+                        condList.push(`GoalCondition.System.IsInitialState({ key = "state_${edge.targetId}" })`);
+                    }
+
+                    for (const cond of edge.conditions) {
+                        if (cond.condName !== "None" && cond.condName !== "Select Condition...") {
+                            const argsMap = [];
+                            if (cond.isNot) argsMap.push(`isNot = true`);
+                            for (const [k, v] of Object.entries(cond.condArgs)) {
+                                argsMap.push(`${k} = ${this.formatArgValue(v)}`);
+                            }
+                            const argsStr = argsMap.length > 0 ? `{ ${argsMap.join(", ")} }` : "";
+                            condList.push(`GoalCondition.${cond.condName}(${argsStr})`);
+                        }
+                    }
+                    const conditionStr = condList.length > 0 ? `{ ${condList.join(", ")} }` : "{}";
+                    tickList.push(`GoalAction.System.SetStateKey({ key = "state_${edge.targetId}", condition = ${conditionStr} })`);
+                });
             }
 
             let tickArrayStr = "{}";
-            if (goal.data.actions.length > 0) {
-                const tickList = [];
-                for (const act of goal.data.actions) {
-                    if (act.actName !== "None" && act.actName !== "Select Action...") {
-                        const actProps = [`type = "${act.actName}"`];
-                        for (const [k, v] of Object.entries(act.actArgs)) {
-                            actProps.push(`${k} = ${this.formatArgValue(v)}`);
-                        }
+            if (tickList.length > 0) tickArrayStr = `{\n        ${tickList.join(",\n        ")}\n    }`;
 
-                        if (act.condName !== "None") {
-                            const condProps = [`type = "${act.condName}"`];
-                            if (act.isNot) condProps.push(`isNot = true`);
-                            for (const [k, v] of Object.entries(act.condArgs)) {
-                                condProps.push(`${k} = ${this.formatArgValue(v)}`);
-                            }
-                            actProps.push(`condition = { ${condProps.join(", ")} }`);
-                        }
-                        tickList.push(`        { ${actProps.join(", ")} }`);
-                    }
-                }
-                if (tickList.length > 0) {
-                    tickArrayStr = `{\n${tickList.join(",\n")}\n    }`;
-                }
-            }
-
-            const goalVar = `goalDef${index + 1}`;
-            luaCode += `-- [Priority: ${goal.data.priority}] ${goal.data.isTarget ? "Target" : "Action"}\n`;
-            luaCode += `local ${goalVar} = {\n`;
-            luaCode += `    priority = ${goal.data.priority},\n`;
-            luaCode += `    isTarget = ${goal.data.isTarget},\n`;
-            luaCode += `    canUse = ${canUseStr},\n`;
             luaCode += `    tick = ${tickArrayStr}\n`;
             luaCode += `}\n`;
             luaCode += `mob.buildGoal(${goalVar})\n\n`;
         });
 
-        const graphJson = JSON.stringify({
-            goals: this.goals,
-            nextGoalId: this.nextGoalId
-        });
+        const graphJson = JSON.stringify({ nodes: this.nodes, edges: this.edges, nextNodeId: this.nextNodeId, nextEdgeId: this.nextEdgeId });
         luaCode += `--[[@NODE_GRAPH_DATA\n${graphJson}\n]]`;
 
         return luaCode;
@@ -531,26 +731,38 @@ export const NodeEditor = {
 
     loadLua(code) {
         this.clear();
+        this.transform = { x: 0, y: 0, scale: 1 };
+        this.updateTransform();
 
         const match = code.match(/--\[\[@NODE_GRAPH_DATA\s*([\s\S]*?)\]\]/);
         if (match) {
             try {
                 const data = JSON.parse(match[1]);
-                this.nextGoalId = data.nextGoalId;
+                this.nextNodeId = data.nextNodeId;
+                this.nextEdgeId = data.nextEdgeId || 1;
 
-                const loadedGoals = Object.entries(data.goals).sort((a, b) => a[1].data.priority - b[1].data.priority);
-
-                for (const [id, goal] of loadedGoals) {
-                    this.addGoal(0, 0, id, goal.data);
+                for (const [id, node] of Object.entries(data.nodes)) {
+                    if (!node.data.nodeType) node.data.nodeType = "Normal";
+                    if (node.data.priority === undefined) node.data.priority = 5;
+                    if (node.data.actions && node.data.actions.length > 0) {
+                        node.data.action = node.data.actions[0];
+                    } else if (!node.data.action) {
+                        node.data.action = { actName: "None", actArgs: {} };
+                    }
+                    if (!node.data.clearConditions) node.data.clearConditions = [];
+                    this.addNode(node.x, node.y, id, node.data);
                 }
-                this.updateRuleIndices();
+                if (data.edges) {
+                    for (const [id, edge] of Object.entries(data.edges)) {
+                        this.addEdge(edge.sourceId, edge.targetId, id, edge.conditions);
+                    }
+                }
                 return;
             } catch (e) {
                 console.error("Failed to restore the graph", e);
             }
         }
 
-        this.addGoal();
-        this.updateRuleIndices();
+        this.addNode(null, null, null, { nodeType: "Start" });
     }
 };

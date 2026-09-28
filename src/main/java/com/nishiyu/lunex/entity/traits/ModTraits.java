@@ -162,6 +162,7 @@ public class ModTraits implements ITranslationGatherer {
                 builder -> {
                     builder.addSpeed(0.1D);
                     builder.multiplySpeed(1.3D);
+                    builder.addMaxMovementSpeed(0.5D);
                 }
         ));
 
@@ -185,6 +186,7 @@ public class ModTraits implements ITranslationGatherer {
                 builder -> {
                     builder.addHealth(10.0D);
                     builder.multiplyHealth(1.5D);
+                    builder.addKnockbackResistance(0.5D);
                 }
         ));
 
@@ -250,6 +252,16 @@ public class ModTraits implements ITranslationGatherer {
                 builder -> {
                     builder.addAttack(5.0D);
                     builder.multiplyAttack(1.5D);
+                }
+        ));
+
+        registerTrait(new TraitDef(
+                "glass_cannon", "Glass Cannon", "ガラスの大砲", "Extreme attack power, but takes much more damage.", "超攻撃力を持つが、受けるダメージも激増する。",
+                TraitCategory.BASE_ENHANCEMENT, List.of("lethal_claws"),
+                List.of(new TraitDef.ItemRequirement(Items.TNT, 2)),
+                builder -> {
+                    builder.multiplyAttack(2.0D);
+                    builder.multiplyDamageTaken(1.5f);
                 }
         ));
 
@@ -381,6 +393,13 @@ public class ModTraits implements ITranslationGatherer {
         ));
 
         registerTrait(new TraitDef(
+                "sensor_core", "Sensor Core", "センサーコア", "Greatly expands sensing range.", "感知範囲が大幅に広がる。",
+                TraitCategory.ELEMENTAL_CORE, List.of("void_core"),
+                List.of(new TraitDef.ItemRequirement(Items.OBSERVER, 2), new TraitDef.ItemRequirement(Items.REDSTONE_BLOCK, 2)),
+                builder -> builder.addSensingRange(24.0D)
+        ));
+
+        registerTrait(new TraitDef(
                 "energy_leak", "Energy Leak", "エネルギー漏出", "Leaking energy decreases all stats.", "エネルギーが漏れ出し、全ステータスが低下する。",
                 TraitCategory.WEAKNESS_STAT, List.of("core_fragment"),
                 List.of(),
@@ -411,6 +430,7 @@ public class ModTraits implements ITranslationGatherer {
                     builder.multiplyHealth(1.6D);
                     builder.multiplyArmor(1.6D);
                     builder.multiplySpeed(0.8D);
+                    builder.multiplyDamageTaken(0.8f);
                 }
         ));
 
@@ -494,7 +514,8 @@ public class ModTraits implements ITranslationGatherer {
         registerTrait(new TraitDef(
                 "wings", "Wings", "翼", "Negates fall damage and grants slow falling.", "落下ダメージを無効化し、ゆっくり落下する。",
                 TraitCategory.MORPHOLOGY, List.of("hollow_bones"),
-                List.of(new TraitDef.ItemRequirement(Items.PHANTOM_MEMBRANE, 2))
+                List.of(new TraitDef.ItemRequirement(Items.PHANTOM_MEMBRANE, 2)),
+                builder -> builder.setFallDamage(0.0f)
         ));
 
         registerTrait(new TraitDef(
@@ -510,6 +531,13 @@ public class ModTraits implements ITranslationGatherer {
         ));
 
         registerTrait(new TraitDef(
+                "camouflage", "Camouflage", "保護色", "Blends into the environment, increasing stealth.", "周囲の環境に溶け込み、敵から見つかりにくくなる。",
+                TraitCategory.MORPHOLOGY, List.of("extra_eyes"),
+                List.of(new TraitDef.ItemRequirement(Items.VINE, 4), new TraitDef.ItemRequirement(Items.LEATHER, 2)),
+                builder -> builder.setStealth(1.5f)
+        ));
+
+        registerTrait(new TraitDef(
                 "blindness", "Blindness", "盲目", "Greatly reduces vision range.", "目が退化し、視界が極端に狭まる。",
                 TraitCategory.WEAKNESS_TRAIT, List.of("extra_eyes"),
                 List.of()
@@ -518,7 +546,8 @@ public class ModTraits implements ITranslationGatherer {
         registerTrait(new TraitDef(
                 "echolocation", "Echolocation", "反響定位", "Senses nearby entities using sound.", "音で周囲を感知し、見えない敵も捕捉する。",
                 TraitCategory.COMBAT_ABILITY, List.of("blindness"),
-                List.of(new TraitDef.ItemRequirement(Items.SCULK_SENSOR, 1), new TraitDef.ItemRequirement(Items.ECHO_SHARD, 2))
+                List.of(new TraitDef.ItemRequirement(Items.SCULK_SENSOR, 1), new TraitDef.ItemRequirement(Items.ECHO_SHARD, 2)),
+                builder -> builder.addSensingRange(16.0D)
         ));
 
         registerTrait(new TraitDef(
@@ -557,7 +586,8 @@ public class ModTraits implements ITranslationGatherer {
         registerTrait(new TraitDef(
                 "bouncy", "Bouncy", "弾力", "Negates fall damage and bounces upon landing.", "落下ダメージを無効化し、着地時に弾む。",
                 TraitCategory.ENVIRONMENTAL, List.of("soft_body"),
-                List.of(new TraitDef.ItemRequirement(Items.SLIME_BLOCK, 2))
+                List.of(new TraitDef.ItemRequirement(Items.SLIME_BLOCK, 2)),
+                builder -> builder.setFallDamage(0.0f)
         ));
 
         registerTrait(new TraitDef(
@@ -587,7 +617,8 @@ public class ModTraits implements ITranslationGatherer {
         registerTrait(new TraitDef(
                 "magnetic", "Magnetic", "磁力", "Automatically pulls nearby dropped items.", "周囲に落ちているアイテムを自動で引き寄せる。",
                 TraitCategory.UTILITY, List.of(),
-                List.of(new TraitDef.ItemRequirement(Items.IRON_BLOCK, 1))
+                List.of(new TraitDef.ItemRequirement(Items.IRON_BLOCK, 1)),
+                builder -> builder.addInteractRange(4.0D)
         ));
 
         registerTrait(new TraitDef(
@@ -663,6 +694,16 @@ public class ModTraits implements ITranslationGatherer {
                 TraitCategory.UTILITY, List.of("pack_mule"),
                 List.of(new TraitDef.ItemRequirement(Items.CHEST, 2)),
                 builder -> builder.addInventorySize(2)
+        ));
+
+        registerTrait(new TraitDef(
+                "excavator", "Excavator", "掘削器官", "Greatly increases mining speed.", "採掘速度が大幅に向上する。",
+                TraitCategory.UTILITY, List.of("expanded_storage"),
+                List.of(new TraitDef.ItemRequirement(Items.IRON_PICKAXE, 1), new TraitDef.ItemRequirement(Items.DIAMOND, 2)),
+                builder -> {
+                    builder.addMiningSpeed(3.0f);
+                    builder.multiplyMiningSpeed(1.5f);
+                }
         ));
 
         registerTrait(new TraitDef(

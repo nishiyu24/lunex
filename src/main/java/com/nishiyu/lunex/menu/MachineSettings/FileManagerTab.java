@@ -286,7 +286,7 @@ public class FileManagerTab implements IMachineTab {
         }
 
         LocalWebSocketServer.setActiveVm(vmId, ctx.getWorkspaceId(), "", targetFile);
-        EditorLauncher.launchEditor();
+        EditorLauncher.launchEditor("machine.html");
     }
 
     @Override

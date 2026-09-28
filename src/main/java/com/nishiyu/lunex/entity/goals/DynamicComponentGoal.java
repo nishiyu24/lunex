@@ -12,21 +12,18 @@ public class DynamicComponentGoal extends Goal {
     private final CustomBioMobEntity mob;
     private final List<ConfiguredCondition> conditions = new ArrayList<>();
     private final List<ConfiguredAction> actions = new ArrayList<>();
-    private final Map<String, Object> state = new HashMap<>();
     private final boolean isTargetGoal;
 
     public DynamicComponentGoal(CustomBioMobEntity mob, LuaTable definition) {
         this.mob = mob;
 
-        // ★最重要修正: isTarget かどうかで占有するAIフラグを分ける
         this.isTargetGoal = !definition.get("isTarget").isnil() && definition.get("isTarget").toboolean();
         if (this.isTargetGoal) {
-            this.setFlags(EnumSet.of(Goal.Flag.TARGET)); // 思考・ターゲット用
+            this.setFlags(EnumSet.of(Goal.Flag.TARGET));
         } else {
-            this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK)); // 実際の行動用
+            this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
         }
 
-        // 1. Goal自体の開始条件
         LuaValue canUseList = definition.get("canUse");
         if (canUseList.istable()) {
             for (int i = 1; i <= canUseList.length(); i++) {
@@ -41,7 +38,16 @@ public class DynamicComponentGoal extends Goal {
             }
         }
 
-        // 2. 毎フレーム実行するアクションリスト
+        conditions.sort((c1, c2) -> {
+            String t1 = c1.args().get("type").checkjstring();
+            String t2 = c2.args().get("type").checkjstring();
+            boolean isState1 = t1.equals("System.HasStateKey") || t1.equals("System.IsInitialState");
+            boolean isState2 = t2.equals("System.HasStateKey") || t2.equals("System.IsInitialState");
+            if (isState1 && !isState2) return -1;
+            if (!isState1 && isState2) return 1;
+            return 0;
+        });
+
         LuaValue tickList = definition.get("tick");
         if (tickList.istable()) {
             for (int i = 1; i <= tickList.length(); i++) {
@@ -80,9 +86,8 @@ public class DynamicComponentGoal extends Goal {
 
     private boolean evaluateCondition(ConfiguredCondition c) {
         try {
-            boolean result = c.component().test(mob, state, c.args());
+            boolean result = c.component().test(mob, mob.aiBlackboard, c.args());
             LuaValue isNotVal = c.args().get("isNot");
-            // isNot = true が指定されている場合は結果を反転させる
             if (!isNotVal.isnil() && isNotVal.toboolean()) {
                 result = !result;
             }
@@ -96,7 +101,6 @@ public class DynamicComponentGoal extends Goal {
     @Override
     public boolean canUse() {
         if (conditions.isEmpty()) return true;
-
         for (ConfiguredCondition c : conditions) {
             if (!evaluateCondition(c)) return false;
         }
@@ -109,12 +113,18 @@ public class DynamicComponentGoal extends Goal {
     }
 
     @Override
+    public void start() {
+        super.start();
+        mob.aiBlackboard.put("goal_start_time", mob.tickCount);
+    }
+
+    @Override
     public void stop() {
         super.stop();
-        // ★追加: ゴールの条件を満たさなくなった時に、慣性で滑り続けるのを防ぐ
         if (!this.isTargetGoal) {
             mob.getNavigation().stop();
         }
+        mob.fakePlayerContext.resetMining();
     }
 
     @Override
@@ -129,7 +139,7 @@ public class DynamicComponentGoal extends Goal {
             }
             if (canRun) {
                 try {
-                    a.component().execute(mob, state, a.args());
+                    a.component().execute(mob, mob.aiBlackboard, a.args());
                 } catch (Exception e) {
                     Lunex.LOGGER.error("[BioMob] AI action execution error: " + a.args().get("type"), e);
                 }
