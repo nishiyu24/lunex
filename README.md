@@ -55,21 +55,6 @@ The name comes from **Lua + Nexus / Next**.
 
 ---
 
-### Important Notes
-
-**Contains AI-generated code**  
-AI tools were used as a coding assistant to help implement and optimize parts of the mod.  
-The core ideas, design, and overall architecture are original. All code has been carefully reviewed and tested.
-
-**Contains external system interactions**  
-This mod provides tools that can interact with external networks and execute custom scripts when initiated by the player:
-- Network connections via HTTP and WebSockets (only when triggered by user scripts)
-- Dynamic creation, editing, and execution of Lua, HTML/CSS, JSON, and TXT files inside the game
-
-Please use these features responsibly.
-
----
-
 Connect every element of your world.  
 Unleash your coding creativity.  
 Build the ultimate automated nexus.
