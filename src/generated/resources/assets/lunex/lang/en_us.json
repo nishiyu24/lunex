@@ -128,7 +128,7 @@
   "item.lunex.wrench": "Screwdriver",
   "itemGroup.lunex": "Lunex",
   "jei.lunex.machine_assemble.info": "Can be crafted by placing specific items in the Machine Frame and clicking 'Assemble'.",
-  "jei.lunex.printer_craft.info": "Can be crafted using the Printer.",
+  "jei.lunex.machine_link.info": "Requires a Machine.",
   "menu.lunex.arglasses.title": "AR Glasses",
   "menu.lunex.portablescreen.title": "Portable Screen",
   "menu.lunex.router_dashboard": "Router Dashboard",

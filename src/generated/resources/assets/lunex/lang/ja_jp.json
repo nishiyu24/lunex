@@ -128,7 +128,7 @@
   "item.lunex.wrench": "ドライバー",
   "itemGroup.lunex": "Lunex",
   "jei.lunex.machine_assemble.info": "マシンフレームに特定のアイテムを入れて「組み立て」をクリックすることで作成できます。",
-  "jei.lunex.printer_craft.info": "プリンターを使用して作成できます。",
+  "jei.lunex.machine_link.info": "マシンと連携して使用",
   "menu.lunex.arglasses.title": "AR Glasses",
   "menu.lunex.portablescreen.title": "Portable Screen",
   "menu.lunex.router_dashboard": "ルーターダッシュボード",

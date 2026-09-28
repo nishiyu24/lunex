@@ -59,24 +59,24 @@ public class PrinterScreen extends AbstractContainerScreen<PrinterMenu> {
         }
 
         // ==========================================
-        // 2. 進行度ゲージの描画 (矢印の下の細いバー)
+        // 2. 進行度ゲージの描画 (矢印の描画)
         // ==========================================
         int progress = this.menu.getProgress();
         int maxProgress = this.menu.getMaxProgress();
 
-        int progX = i + 98;
-        int progY = j + 48;
-        int progWidth = 22;
-        int progHeight = 16; // 矢印の高さ
+        int progX = i + 95;
+        int progY = j + 49;
+        int progWidth = 24;
+        int progHeight = 17;
 
-        // 矢印のすぐ下に細いゲージの背景を描画
-        guiGraphics.fill(progX, progY + progHeight, progX + progWidth, progY + progHeight + 4, 0xFF000000);
-        guiGraphics.fill(progX + 1, progY + progHeight + 1, progX + progWidth - 1, progY + progHeight + 3, 0xFF333333);
-
-        // 進行度に応じた塗りつぶし (緑色)
         if (maxProgress > 0 && progress > 0) {
-            int fillWidth = (int) ((float) progress / maxProgress * (progWidth - 2));
-            guiGraphics.fill(progX + 1, progY + progHeight + 1, progX + 1 + fillWidth, progY + progHeight + 3, 0xFF00FF00);
+            int fillWidth = (int) ((float) progress / maxProgress * progWidth);
+
+            // 白い矢印のテクスチャ上の座標
+            int activeArrowU = 176;
+            int activeArrowV = 0;
+
+            guiGraphics.blit(TEXTURE, progX, progY, activeArrowU, activeArrowV, fillWidth, progHeight);
         }
     }
 
@@ -104,7 +104,7 @@ public class PrinterScreen extends AbstractContainerScreen<PrinterMenu> {
         int progX = i + 98;
         int progY = j + 48;
         int progWidth = 22;
-        int progHeight = 20; // 矢印と追加したゲージ部分を含む高さ
+        int progHeight = 16; // 矢印の高さに修正
         if (mouseX >= progX && mouseX < progX + progWidth && mouseY >= progY && mouseY < progY + progHeight) {
             int progress = this.menu.getProgress();
             int maxProgress = this.menu.getMaxProgress();

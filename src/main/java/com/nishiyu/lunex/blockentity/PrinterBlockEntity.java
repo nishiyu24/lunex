@@ -2,6 +2,8 @@ package com.nishiyu.lunex.blockentity;
 
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.mcnet.IMCNetDevice;
+import com.nishiyu.lunex.recipe.PrinterRecipe;
+import com.nishiyu.lunex.recipe.PrinterRecipeInput;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
@@ -17,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.WrittenBookContent;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -26,10 +29,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 public class PrinterBlockEntity extends BlockEntity implements IMCNetDevice {
 
-    // 【修正】型推論エラーを防ぐため、内部クラスとして定義
     public class MyEnergyStorage extends EnergyStorage {
         public MyEnergyStorage(int capacity, int maxReceive, int maxExtract, int energy) {
             super(capacity, maxReceive, maxExtract, energy);
@@ -51,7 +55,6 @@ public class PrinterBlockEntity extends BlockEntity implements IMCNetDevice {
         }
     }
 
-    // 作成した MyEnergyStorage 型で変数を宣言
     public final MyEnergyStorage energyStorage = new MyEnergyStorage(10000, 1000, 1000, 0);
 
     public final ItemStackHandler itemHandler = new ItemStackHandler(4) {
@@ -65,7 +68,10 @@ public class PrinterBlockEntity extends BlockEntity implements IMCNetDevice {
     };
 
     public int progress = 0;
-    public int maxProgress = 100; // 完了までのティック数 (100 = 5秒)
+    public int maxProgress = 100;
+
+    // 現在進行中のカスタムレシピ（毎ティック検索するのを防ぐキャッシュ）
+    private RecipeHolder<PrinterRecipe> currentRecipe = null;
 
     public final ContainerData dataAccess = new ContainerData() {
         @Override
@@ -100,21 +106,41 @@ public class PrinterBlockEntity extends BlockEntity implements IMCNetDevice {
         if (level == null || level.isClientSide()) return;
 
         boolean hasChanged = false;
-        int energyPerTick = 10; // 1ティックに消費するエネルギー
 
-        // コピー可能で、かつ1ティック分のエネルギーがある場合
-        if (canCopyEnchantmentBook() && energyStorage.getEnergyStored() >= energyPerTick) {
-            progress++;
-            energyStorage.extractEnergy(energyPerTick, false);
-            hasChanged = true;
-
-            // 完了したらアイテムを生成
-            if (progress >= maxProgress) {
-                performCopyEnchantmentBook();
+        // 出力スロットに空きがない場合は処理しない
+        if (!itemHandler.getStackInSlot(3).isEmpty() && itemHandler.getStackInSlot(3).getCount() >= itemHandler.getStackInSlot(3).getMaxStackSize()) {
+            if (progress > 0) {
                 progress = 0;
+                setChanged();
             }
-        } else {
-            // 素材やエネルギーが足りなくなったら進捗をリセット
+            return;
+        }
+
+        PrinterRecipeInput input = new PrinterRecipeInput(itemHandler);
+
+        // 1. まずカスタムレシピ（JSON/KubeJS）に一致するか確認
+        Optional<RecipeHolder<PrinterRecipe>> match = level.getRecipeManager().getRecipeFor(PrinterRecipe.Type.INSTANCE, input, level);
+
+        if (match.isPresent()) {
+            hasChanged = processCustomRecipe(match.get().value(), input);
+        }
+        // 2. カスタムレシピがない場合、既存の「エンチャント本のコピー」を判定
+        else if (canCopyEnchantmentBook()) {
+            int energyPerTick = 10;
+            if (energyStorage.getEnergyStored() >= energyPerTick) {
+                maxProgress = 100; // コピーの所要時間
+                progress++;
+                energyStorage.extractEnergy(energyPerTick, false);
+                hasChanged = true;
+
+                if (progress >= maxProgress) {
+                    performCopyEnchantmentBook();
+                    progress = 0;
+                }
+            }
+        }
+        // 3. どちらの条件も満たさない場合は進行度をリセット
+        else {
             if (progress > 0) {
                 progress = 0;
                 hasChanged = true;
@@ -125,6 +151,47 @@ public class PrinterBlockEntity extends BlockEntity implements IMCNetDevice {
             setChanged();
         }
     }
+
+    // ===============================================
+    // カスタムレシピ（JSON/KubeJS）の処理メソッド
+    // ===============================================
+    private boolean processCustomRecipe(PrinterRecipe recipe, PrinterRecipeInput input) {
+        if (energyStorage.getEnergyStored() < recipe.energyPerTick()) {
+            return false;
+        }
+
+        this.maxProgress = recipe.processingTime();
+        this.progress++;
+        this.energyStorage.extractEnergy(recipe.energyPerTick(), false);
+
+        if (this.progress >= this.maxProgress) {
+            // アイテムの消費
+            for (int i = 0; i < recipe.ingredients().size(); i++) {
+                for (int slot = 0; slot < 3; slot++) {
+                    if (recipe.ingredients().get(i).test(itemHandler.getStackInSlot(slot))) {
+                        itemHandler.extractItem(slot, 1, false);
+                        break;
+                    }
+                }
+            }
+
+            // アイテムの生成
+            ItemStack result = recipe.assemble(input, Objects.requireNonNull(level).registryAccess());
+            ItemStack currentOutput = itemHandler.getStackInSlot(3);
+            if (currentOutput.isEmpty()) {
+                itemHandler.setStackInSlot(3, result);
+            } else if (ItemStack.isSameItemSameComponents(currentOutput, result)) {
+                currentOutput.grow(result.getCount());
+            }
+
+            this.progress = 0;
+        }
+        return true;
+    }
+
+    // ===============================================
+    // 以下、既存の特殊処理（JEIではダミー表示する対象）
+    // ===============================================
 
     private boolean hasIngredients(Object... requirements) {
         int[] virtualConsumed = new int[3];
