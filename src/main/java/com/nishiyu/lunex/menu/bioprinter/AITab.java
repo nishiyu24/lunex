@@ -26,7 +26,7 @@ public class AITab extends AbstractPrinterTab {
                 else list.add(def);
             }
         }
-        if (luaControl != null) list.add(0, luaControl);
+        if (luaControl != null) list.addFirst(luaControl);
         return list;
     }
 
@@ -64,7 +64,7 @@ public class AITab extends AbstractPrinterTab {
                 boolean isSpecial = (def.id() == 19);
                 boolean isOn = selectedBehaviors.contains(def.id());
                 int order = isOn ? selectedBehaviors.indexOf(def.id()) + 1 : 0;
-                boolean canToggle = isOn || (isSpecial ? true : (!isMechSelected && selectedBehaviors.size() < 3));
+                boolean canToggle = isOn || (isSpecial || (!isMechSelected && selectedBehaviors.size() < 3));
 
                 int displayRow = j - this.scrollIndex;
                 int rowY = startY + displayRow * rowHeight;
@@ -137,7 +137,7 @@ public class AITab extends AbstractPrinterTab {
                 if (j >= this.scrollIndex && j < this.scrollIndex + visibleRows) {
                     CustomBehaviorRegistry.BehaviorDef def = list.get(j);
                     boolean isOn = selectedBehaviors.contains(def.id());
-                    boolean canToggle = isOn || (def.id() == 19 ? true : (!isMechSelected && selectedBehaviors.size() < 3));
+                    boolean canToggle = isOn || (def.id() == 19 || (!isMechSelected && selectedBehaviors.size() < 3));
 
                     int displayRow = j - this.scrollIndex;
                     int bx = startX;
