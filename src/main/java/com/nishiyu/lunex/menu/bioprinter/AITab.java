@@ -44,8 +44,9 @@ public class AITab extends AbstractPrinterTab {
         List<Integer> selectedBehaviors = this.menu.blockEntity.getSelectedBehaviors();
         boolean isMechSelected = selectedBehaviors.contains(19);
 
-        guiGraphics.drawString(screen.getFont(), "AI Behaviors", leftPos + 15, topPos + 40, 0xFFF38BA8, false);
-        guiGraphics.drawString(screen.getFont(), "Selected: " + selectedBehaviors.size() + " / 3", leftPos + 15, topPos + 55, 0xFFA6ADC8, false);
+        // ★ ハードコードを取り除き、Translatableのキーを使用
+        guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.AI_BEHAVIORS).getString(), leftPos + 15, topPos + 40, 0xFFF38BA8, false);
+        guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.AI_SELECTED_COUNT, selectedBehaviors.size()).getString(), leftPos + 15, topPos + 55, 0xFFA6ADC8, false);
 
         int maxScroll = Math.max(0, list.size() - visibleRows);
         if (maxScroll > 0) {

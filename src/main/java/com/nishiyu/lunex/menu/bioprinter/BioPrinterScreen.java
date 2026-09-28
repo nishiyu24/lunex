@@ -19,7 +19,6 @@ public class BioPrinterScreen extends AbstractContainerScreen<BioPrinterMenu> {
         this.imageWidth = 320;
         this.imageHeight = 220;
 
-        // ★ タブの登録順を Mixing -> AI -> Trait に変更
         this.tabs = new AbstractPrinterTab[]{
                 new MixingTab(this, menu),
                 new AITab(this, menu),
@@ -127,10 +126,10 @@ public class BioPrinterScreen extends AbstractContainerScreen<BioPrinterMenu> {
         guiGraphics.fill(x, y, x + this.imageWidth, y + this.imageHeight, 0xFF1E1E2E);
         guiGraphics.renderOutline(x, y, this.imageWidth, this.imageHeight, 0xFF45475A);
 
-        // ★ タブボタンの表記も順番通りに変更
-        drawTabBtn(guiGraphics, mouseX, mouseY, x + 10, y + 10, 60, 16, "Mixing", this.currentTab == 0 ? 0xFF89B4FA : 0xFF313244, true);
-        drawTabBtn(guiGraphics, mouseX, mouseY, x + 75, y + 10, 60, 16, "AI", this.currentTab == 1 ? 0xFF89B4FA : 0xFF313244, true);
-        drawTabBtn(guiGraphics, mouseX, mouseY, x + 140, y + 10, 60, 16, "Traits", this.currentTab == 2 ? 0xFF89B4FA : 0xFF313244, true);
+        // ★ ハードコードのタブ名を修正
+        drawTabBtn(guiGraphics, mouseX, mouseY, x + 10, y + 10, 60, 16, Component.translatable(BioPrinterTranslations.TAB_MIXING).getString(), this.currentTab == 0 ? 0xFF89B4FA : 0xFF313244, true);
+        drawTabBtn(guiGraphics, mouseX, mouseY, x + 75, y + 10, 60, 16, Component.translatable(BioPrinterTranslations.TAB_AI).getString(), this.currentTab == 1 ? 0xFF89B4FA : 0xFF313244, true);
+        drawTabBtn(guiGraphics, mouseX, mouseY, x + 140, y + 10, 60, 16, Component.translatable(BioPrinterTranslations.TAB_TRAITS).getString(), this.currentTab == 2 ? 0xFF89B4FA : 0xFF313244, true);
 
         int energy = this.menu.data.get(0);
         int currentTotal = this.menu.data.get(1);
@@ -191,13 +190,14 @@ public class BioPrinterScreen extends AbstractContainerScreen<BioPrinterMenu> {
         int progX = x + 275;
         int feX = x + 295;
 
+        // ★ ツールチップの翻訳
         if (isHovered(mouseX, mouseY, feX, barY, 15, barHeight)) {
-            guiGraphics.renderTooltip(this.font, Component.literal("Energy: " + this.menu.data.get(0) + " / 100000 FE"), mouseX, mouseY);
+            guiGraphics.renderTooltip(this.font, Component.translatable(BioPrinterTranslations.ENERGY_FORMAT, this.menu.data.get(0)), mouseX, mouseY);
         }
 
         if (isHovered(mouseX, mouseY, progX, barY, 15, barHeight)) {
             List<Component> tooltip = new ArrayList<>();
-            tooltip.add(Component.literal("Materials: " + this.menu.data.get(1) + " / " + this.menu.data.get(2)));
+            tooltip.add(Component.translatable(BioPrinterTranslations.MATERIALS_FORMAT, this.menu.data.get(1), this.menu.data.get(2)));
             Map<String, Integer> mats = this.menu.blockEntity.getMaterialCounts();
             if (mats != null && !mats.isEmpty()) {
                 tooltip.add(Component.literal(" "));
@@ -206,7 +206,7 @@ public class BioPrinterScreen extends AbstractContainerScreen<BioPrinterMenu> {
                     tooltip.add(Component.literal("- " + (parts.length > 1 ? parts[1] : parts[0]) + ": " + entry.getValue()).withStyle(net.minecraft.ChatFormatting.GRAY));
                 }
             } else {
-                tooltip.add(Component.literal("Empty").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+                tooltip.add(Component.translatable(BioPrinterTranslations.EMPTY).withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
             }
             guiGraphics.renderComponentTooltip(this.font, tooltip, mouseX, mouseY);
         }

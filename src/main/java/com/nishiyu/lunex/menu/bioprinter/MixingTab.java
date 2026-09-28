@@ -3,6 +3,7 @@ package com.nishiyu.lunex.menu.bioprinter;
 import com.nishiyu.lunex.entity.BioMobGenerator;
 import com.nishiyu.lunex.entity.traits.TraitRegistry;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 
@@ -30,7 +31,8 @@ public class MixingTab extends AbstractPrinterTab {
         boolean hasBaseMats = hasRequiredBaseMaterials(mats);
 
         if (hasBaseMats) {
-            guiGraphics.drawString(screen.getFont(), "Mixing Status", leftPos + 15, topPos + 35, 0xFFCDD6F4, false);
+            // ★ ハードコードの修正
+            guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.MIXING_STATUS).getString(), leftPos + 15, topPos + 35, 0xFFCDD6F4, false);
 
             List<String> previewTraits = new ArrayList<>();
             List<Integer> selectedTraits = this.menu.blockEntity.getSelectedTraits();
@@ -41,20 +43,20 @@ public class MixingTab extends AbstractPrinterTab {
             }
 
             int successRate = 100 - this.menu.data.get(7);
-
             int aiCount = this.menu.blockEntity.getSelectedBehaviors().size();
             int maxAi = this.menu.blockEntity.getSelectedBehaviors().contains(19) ? 1 : 3;
 
             int currentPoints = TraitRegistry.getConsumedPoints(selectedTraits);
             int maxTraits = TraitRegistry.getMaxPoints(mats, selectedTraits);
 
-            guiGraphics.drawString(screen.getFont(), "Success Rate: " + successRate + "%", leftPos + 15, topPos + 55, successRate < 50 ? 0xFFF38BA8 : 0xFFA6E3A1, false);
-            guiGraphics.drawString(screen.getFont(), "AI: " + aiCount + " / " + maxAi, leftPos + 120, topPos + 55, 0xFFA6ADC8, false);
-            guiGraphics.drawString(screen.getFont(), "Traits: " + currentPoints + " / " + maxTraits, leftPos + 175, topPos + 55, 0xFFA6ADC8, false);
+            // ★ 翻訳用パラメータに対応
+            guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.SUCCESS_RATE, successRate).getString(), leftPos + 15, topPos + 55, successRate < 50 ? 0xFFF38BA8 : 0xFFA6E3A1, false);
+            guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.AI_COUNT, aiCount, maxAi).getString(), leftPos + 120, topPos + 55, 0xFFA6ADC8, false);
+            guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.TRAITS_COUNT, currentPoints, maxTraits).getString(), leftPos + 175, topPos + 55, 0xFFA6ADC8, false);
 
             double baseHp = 2.0;
             double baseArmor = 0.0;
-            double baseAtk = 1.0; // BioMobGeneratorの初期値に合わせる
+            double baseAtk = 1.0;
             double baseSpd = 0.5;
 
             BioMobGenerator.MobStatus finalStatus = BioMobGenerator.calculateStatus(mats, previewTraits);
@@ -63,7 +65,6 @@ public class MixingTab extends AbstractPrinterTab {
             double traitAtk = finalStatus.attackDamage() - baseAtk;
             double traitSpd = finalStatus.speed() - baseSpd;
 
-            // 素材ボーナスが無くなったため2項表記に変更
             String hpStr = String.format("%.1f %s", baseHp, formatBonus(traitHp, false));
             String armorStr = String.format("%.1f %s", baseArmor, formatBonus(traitArmor, false));
             String atkStr = String.format("%.1f %s", baseAtk, formatBonus(traitAtk, false));
@@ -75,11 +76,13 @@ public class MixingTab extends AbstractPrinterTab {
             drawIconAndText(guiGraphics, EFFECT_SPEED, false, leftPos + 140, topPos + 95, spdStr);
 
         } else {
-            guiGraphics.drawString(screen.getFont(), "Need Base Materials", leftPos + 15, topPos + 35, 0xFFF38BA8, false);
+            // ★ ハードコードの修正
+            guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.NEED_BASE_MATS).getString(), leftPos + 15, topPos + 35, 0xFFF38BA8, false);
             int bones = mats == null ? 0 : BioMobGenerator.getCount(mats, Items.BONE);
             int meats = mats == null ? 0 : (BioMobGenerator.getCount(mats, Items.ROTTEN_FLESH) + BioMobGenerator.getCount(mats, Items.BEEF) + BioMobGenerator.getCount(mats, Items.PORKCHOP) + BioMobGenerator.getCount(mats, Items.CHICKEN) + BioMobGenerator.getCount(mats, Items.MUTTON) + BioMobGenerator.getCount(mats, Items.RABBIT));
-            guiGraphics.drawString(screen.getFont(), "- Bone: " + bones + " / 5", leftPos + 20, topPos + 55, bones >= 5 ? 0xFFA6E3A1 : 0xFFF38BA8, false);
-            guiGraphics.drawString(screen.getFont(), "- Meat: " + meats + " / 5", leftPos + 20, topPos + 70, meats >= 5 ? 0xFFA6E3A1 : 0xFFF38BA8, false);
+
+            guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.BONE_COUNT, bones).getString(), leftPos + 20, topPos + 55, bones >= 5 ? 0xFFA6E3A1 : 0xFFF38BA8, false);
+            guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.MEAT_COUNT, meats).getString(), leftPos + 20, topPos + 70, meats >= 5 ? 0xFFA6E3A1 : 0xFFF38BA8, false);
         }
 
         guiGraphics.fill(leftPos + 10, topPos + 135, leftPos + 174, topPos + 213, 0xFF11111B);
@@ -94,8 +97,9 @@ public class MixingTab extends AbstractPrinterTab {
         boolean canCreate = (currentTotal >= maxMaterials && currentTotal > 0) && (energy >= 100000) && hasBaseMats;
         boolean canExtract = currentTotal > 0;
 
-        screen.drawTabBtn(guiGraphics, mouseX, mouseY, leftPos + 192, topPos + 174, 64, 16, "Create", canCreate ? 0xFF89B4FA : 0xFF313244, canCreate);
-        screen.drawTabBtn(guiGraphics, mouseX, mouseY, leftPos + 192, topPos + 196, 64, 16, "Extract", canExtract ? 0xFFE0AF68 : 0xFF313244, canExtract);
+        // ★ ボタン名の翻訳対応
+        screen.drawTabBtn(guiGraphics, mouseX, mouseY, leftPos + 192, topPos + 174, 64, 16, Component.translatable(BioPrinterTranslations.BTN_CREATE).getString(), canCreate ? 0xFF89B4FA : 0xFF313244, canCreate);
+        screen.drawTabBtn(guiGraphics, mouseX, mouseY, leftPos + 192, topPos + 196, 64, 16, Component.translatable(BioPrinterTranslations.BTN_EXTRACT).getString(), canExtract ? 0xFFE0AF68 : 0xFF313244, canExtract);
     }
 
     private String formatBonus(double val, boolean isSpeed) {

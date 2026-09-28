@@ -21,15 +21,12 @@ public class TraitTab extends AbstractPrinterTab {
     private float zoom = 0.6f;
     private boolean isDragging = false;
     private boolean layoutCalculated = false;
-
-    // 配置計算用
     private int currentLeafIndex = 0;
 
     public TraitTab(BioPrinterScreen screen, BioPrinterMenu menu) {
         super(screen, menu);
     }
 
-    // 葉ノードから順にインデックス（論理的なY座標/角度位置）を割り当て、親をその中央に配置する
     private float calculateLogicalPosition(String node, Map<String, List<String>> treeChildren, Map<String, Float> logicalY) {
         List<String> children = treeChildren.get(node);
         if (children == null || children.isEmpty()) {
@@ -56,7 +53,6 @@ public class TraitTab extends AbstractPrinterTab {
         Map<String, List<String>> treeChildren = new HashMap<>();
         Map<String, Integer> depths = new HashMap<>();
 
-        // BFS(幅優先探索)で全域木を作成し、各ノードの深さを決定
         Queue<String> queue = new LinkedList<>();
         for (TraitDef def : TraitRegistry.TRAITS) {
             treeChildren.put(def.key(), new ArrayList<>());
@@ -73,7 +69,6 @@ public class TraitTab extends AbstractPrinterTab {
 
             for (TraitDef def : TraitRegistry.TRAITS) {
                 if (def.prerequisites().contains(curr)) {
-                    // 未訪問のノードのみを子として追加
                     if (!depths.containsKey(def.key())) {
                         depths.put(def.key(), currDepth + 1);
                         treeChildren.get(curr).add(def.key());
@@ -83,7 +78,6 @@ public class TraitTab extends AbstractPrinterTab {
             }
         }
 
-        // 孤立したノードの対策
         for (TraitDef def : TraitRegistry.TRAITS) {
             if (!depths.containsKey(def.key())) {
                 roots.add(def.key());
@@ -106,21 +100,17 @@ public class TraitTab extends AbstractPrinterTab {
 
         int totalLeaves = Math.max(1, currentLeafIndex);
 
-        // --- 根本的な改善：葉の総数から「必要な最小円周」を逆算し、半径を動的拡張する ---
-        float MIN_NODE_SPACING = 32.0f; // ノード幅(16) + ゆとりあるマージン(16)
+        float MIN_NODE_SPACING = 32.0f;
         float minRadius = (MIN_NODE_SPACING * totalLeaves) / (float) (2 * Math.PI);
 
-        // 第1階層（根本）の距離は計算された最小半径か、固定の120pxの大きい方を採用
         float INITIAL_RADIUS = Math.max(120.0f, minRadius);
-        float LAYER_DISTANCE = 60.0f; // 2階層目以降の追加距離
+        float LAYER_DISTANCE = 60.0f;
 
-        // 極座標からXY座標への変換
         for (String node : depths.keySet()) {
             int depth = depths.get(node);
             float lY = logicalY.get(node);
 
             float angle = (lY / totalLeaves) * 2.0f * (float) Math.PI;
-            // 根本(depth=1)に INITIAL_RADIUS を割り当て、以降は LAYER_DISTANCE ずつ広げる
             float radius = INITIAL_RADIUS + (depth - 1) * LAYER_DISTANCE;
 
             float cx = BASE_X + radius * (float) Math.cos(angle);
@@ -130,7 +120,6 @@ public class TraitTab extends AbstractPrinterTab {
             nodeY.put(node, cy);
         }
 
-        // 全体の中心を(0, 0)にオフセットして整える
         float minY = Float.MAX_VALUE;
         float maxY = -Float.MAX_VALUE;
         float minX = Float.MAX_VALUE;
@@ -170,13 +159,13 @@ public class TraitTab extends AbstractPrinterTab {
 
     private int getCategoryColor(TraitCategory category) {
         return switch (category) {
-            case BASE_ENHANCEMENT -> 0xFF89B4FA; // Blue
-            case COMBAT_ABILITY -> 0xFFCBA6F7; // Mauve
-            case ELEMENTAL_CORE -> 0xFFA6E3A1; // Green
-            case MORPHOLOGY -> 0xFFF9E2AF; // Yellow
-            case ENVIRONMENTAL -> 0xFF89DCEB; // Sky
-            case UTILITY -> 0xFFFAB387; // Peach
-            case WEAKNESS_STAT, WEAKNESS_TRAIT -> 0xFFF38BA8; // Red
+            case BASE_ENHANCEMENT -> 0xFF89B4FA;
+            case COMBAT_ABILITY -> 0xFFCBA6F7;
+            case ELEMENTAL_CORE -> 0xFFA6E3A1;
+            case MORPHOLOGY -> 0xFFF9E2AF;
+            case ENVIRONMENTAL -> 0xFF89DCEB;
+            case UTILITY -> 0xFFFAB387;
+            case WEAKNESS_STAT, WEAKNESS_TRAIT -> 0xFFF38BA8;
         };
     }
 
@@ -348,58 +337,43 @@ public class TraitTab extends AbstractPrinterTab {
         guiGraphics.disableScissor();
         guiGraphics.renderOutline(viewX, viewY, viewW, viewH, 0xFF45475A);
 
-        // ★ 言語設定を取得
-        boolean isJapanese = Minecraft.getInstance().getLanguageManager().getSelected().equals("ja_jp");
-
-        // ★ UIテキストの言語切り替え
-        String titleText = isJapanese ? "アンロックプール (クリックで装備)" : "Unlock Pool (Click to Equip)";
-        String pointText = isJapanese ? "研究ポイント: " : "Research Points: ";
-
-        guiGraphics.drawString(screen.getFont(), titleText, leftPos + 15, topPos + 35, 0xFF89DCEB, false);
-        guiGraphics.drawString(screen.getFont(), pointText + currentPoints + " / " + maxTraits, leftPos + 15, topPos + 50, 0xFFA6ADC8, false);
+        // ★ ハードコードの言語判定を削除し、Translatableに統一
+        guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.TRAIT_TITLE).getString(), leftPos + 15, topPos + 35, 0xFF89DCEB, false);
+        guiGraphics.drawString(screen.getFont(), Component.translatable(BioPrinterTranslations.TRAIT_POINTS, currentPoints, maxTraits).getString(), leftPos + 15, topPos + 50, 0xFFA6ADC8, false);
 
         if (hoveredBase && screen.isHovered(mouseX, mouseY, viewX, viewY, viewW, viewH)) {
             List<Component> tooltip = new ArrayList<>();
-            // ★ Base Coreの言語切り替え
-            String baseTitle = isJapanese ? "ベースコア" : "Base Core";
-            String baseDesc = isJapanese ? "すべての起点はここから始まる。" : "Everything starts from here.";
-
-            tooltip.add(Component.literal(baseTitle).withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE));
-            tooltip.add(Component.literal(baseDesc).withStyle(net.minecraft.ChatFormatting.GRAY));
+            tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_BASE_CORE).withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE));
+            tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_BASE_DESC).withStyle(net.minecraft.ChatFormatting.GRAY));
             guiGraphics.renderComponentTooltip(screen.getFont(), tooltip, mouseX, mouseY);
 
         } else if (hoveredDef != null && screen.isHovered(mouseX, mouseY, viewX, viewY, viewW, viewH)) {
             List<Component> tooltip = new ArrayList<>();
 
-            // Traitの名前・説明を切り替え
+            // Trait自体の名前・説明は既存のロジックを保持 (もしこれらもComponent化できているなら.translatable()を推奨します)
+            boolean isJapanese = Minecraft.getInstance().getLanguageManager().getSelected().equals("ja_jp");
             String traitName = isJapanese ? hoveredDef.japaneseName() : hoveredDef.englishName();
             String traitDesc = isJapanese ? hoveredDef.japaneseDescription() : hoveredDef.englishDescription();
 
             if (hoveredNodeState == 0) {
-                // 解放済みノードの表示
                 tooltip.add(Component.literal(traitName).withStyle(net.minecraft.ChatFormatting.GOLD));
                 tooltip.add(Component.literal("[" + hoveredDef.category().getDisplayName() + "]").withStyle(net.minecraft.ChatFormatting.DARK_AQUA));
                 tooltip.add(Component.literal(traitDesc).withStyle(net.minecraft.ChatFormatting.GRAY));
 
                 tooltip.add(Component.literal(" "));
                 if (hoveredDef.isNegative()) {
-                    String equipEffect = isJapanese ? "装備効果: 研究ポイント +1" : "Equip Effect: Grants +1 Research Point";
-                    tooltip.add(Component.literal(equipEffect).withStyle(net.minecraft.ChatFormatting.RED));
+                    tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_EFFECT_POS).withStyle(net.minecraft.ChatFormatting.RED));
                 } else {
-                    String equipCost = isJapanese ? "装備コスト: 研究ポイント 1 消費" : "Equip Cost: Consumes 1 Research Point";
-                    tooltip.add(Component.literal(equipCost).withStyle(net.minecraft.ChatFormatting.GREEN));
+                    tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_EFFECT_NEG).withStyle(net.minecraft.ChatFormatting.GREEN));
                 }
 
                 if (selectedTraits.contains(TraitRegistry.getTraitIndex(hoveredDef.key()))) {
-                    String equippedStatus = isJapanese ? "状態: 装備中 (クリックで外す)" : "Status: Equipped (Click to remove)";
-                    tooltip.add(Component.literal(equippedStatus).withStyle(net.minecraft.ChatFormatting.AQUA));
+                    tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_STATUS_EQUIPPED).withStyle(net.minecraft.ChatFormatting.AQUA));
                 } else {
-                    String unlockedStatus = isJapanese ? "状態: 解放済み (クリックで装備)" : "Status: Unlocked (Click to equip)";
-                    tooltip.add(Component.literal(unlockedStatus).withStyle(net.minecraft.ChatFormatting.YELLOW));
+                    tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_STATUS_UNLOCKED).withStyle(net.minecraft.ChatFormatting.YELLOW));
                 }
 
             } else {
-                // 未解放ノードの表示
                 boolean isAvailable = (hoveredNodeState == 1);
                 boolean showDesc = (visibility == Config.TraitVisibility.FULL);
                 boolean isSilhouette = (hoveredNodeState == 2 && visibility == Config.TraitVisibility.SILHOUETTE);
@@ -417,11 +391,9 @@ public class TraitTab extends AbstractPrinterTab {
                     }
 
                     if (hoveredDef.isNegative()) {
-                        String unlockCondition = isJapanese ? "前提条件を満たすと解放されます。" : "Unlocks when prerequisites are met.";
-                        tooltip.add(Component.literal(unlockCondition).withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+                        tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_UNLOCK_COND).withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
                     } else {
-                        String reqMats = isJapanese ? "要求素材:" : "Required Materials:";
-                        tooltip.add(Component.literal(reqMats).withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+                        tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_REQ_MATS).withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
                         if (hoveredDef.requirements() != null) {
                             for (TraitDef.ItemRequirement req : hoveredDef.requirements()) {
                                 int currentCount = BioMobGenerator.getCount(mats, req.item());

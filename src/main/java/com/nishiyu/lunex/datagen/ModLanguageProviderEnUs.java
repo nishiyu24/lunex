@@ -37,6 +37,7 @@ public class ModLanguageProviderEnUs extends AutoLanguageProvider {
         scanTranslatableFields(AdvancedMachineScreen.class);
         scanTranslatableFields(RouterDashboardScreen.class);
         scanTranslatableFields(com.nishiyu.lunex.block.RouterBlock.class);
+        scanTranslatableFields(com.nishiyu.lunex.menu.bioprinter.BioPrinterTranslations.class);
 
         // 【追加】JEIプラグインの @Translatable フィールドを自動収集
         scanTranslatableFields(LunexJEIPlugin.class);
