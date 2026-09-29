@@ -5,6 +5,8 @@ import com.nishiyu.lunex.datagen.AutoLanguageProvider;
 import com.nishiyu.lunex.datagen.ITranslationGatherer;
 import com.nishiyu.lunex.datagen.Translatable;
 import com.nishiyu.lunex.menu.PortableScreenMenu;
+import com.nishiyu.lunex.mcnet.IMCNetDevice;
+import com.nishiyu.lunex.mcnet.MCNetUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -24,9 +26,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.List;
-import java.util.UUID;
 
-public class ARGlassesItem extends Item implements net.minecraft.world.item.Equipable {
+public class ARGlassesItem extends Item implements net.minecraft.world.item.Equipable, IMCNetDevice {
 
     @Translatable(en = "[ARGlasses] Registration complete - IP: %s", ja = "[ARGlasses] 登録完了 - IP: %s")
     public static final String MSG_REGISTERED = "message.lunex.arglasses.registered";
@@ -59,6 +60,11 @@ public class ARGlassesItem extends Item implements net.minecraft.world.item.Equi
     }
 
     @Override
+    public String getDeviceType() {
+        return "ar_glasses";
+    }
+
+    @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
         if (level.isClientSide()) {
@@ -67,90 +73,10 @@ public class ARGlassesItem extends Item implements net.minecraft.world.item.Equi
 
         BlockEntity be = level.getBlockEntity(context.getClickedPos());
         if (be instanceof RouterBlockEntity router) {
-            ItemStack stack = context.getItemInHand();
-            Player player = context.getPlayer();
-
-            CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-            CompoundTag tag = customData.copyTag();
-
-            String deviceId = tag.contains("DeviceId") ? tag.getString("DeviceId") : UUID.randomUUID().toString();
-            tag.putString("DeviceId", deviceId);
-
-            if (router.machineId == null) {
-                router.machineId = UUID.randomUUID();
-                router.setChanged();
-            }
-            tag.putUUID("NetworkId", router.machineId);
-
-            // ★ 追加: ルーターの位置、ディメンション、アップグレードによる最大距離を記録
-            tag.putLong("RouterPos", router.getBlockPos().asLong());
-            tag.putString("RouterDim", level.dimension().location().toString());
-            int upgradeLevel = router.getDistanceUpgradeLevel();
-            double maxDist = upgradeLevel == 1 ? 256.0 : (upgradeLevel == 2 ? 1024.0 : (upgradeLevel >= 3 ? Double.MAX_VALUE : 64.0));
-            tag.putDouble("RouterRange", maxDist);
-
-            CompoundTag rData = router.persistentData;
-            if (rData != null && rData.getBoolean("DHCPServerEnabled")) {
-                CompoundTag leases = rData.contains("DHCPLeases") ? rData.getCompound("DHCPLeases") : new CompoundTag();
-                String assignedIp = "";
-
-                if (leases.contains(deviceId)) {
-                    assignedIp = leases.getString(deviceId);
-                } else {
-                    String baseIp = rData.getString("DHCPBaseIP");
-                    int start = rData.getInt("DHCPStartOctet");
-                    int size = rData.getInt("DHCPPoolSize");
-
-                    for (int i = 0; i < size; i++) {
-                        String testIp = baseIp + "." + (start + i);
-                        boolean used = false;
-                        for (String key : leases.getAllKeys()) {
-                            if (leases.getString(key).equals(testIp)) {
-                                used = true;
-                                break;
-                            }
-                        }
-                        if (!used) {
-                            assignedIp = testIp;
-                            break;
-                        }
-                    }
-
-                    if (assignedIp.isEmpty()) {
-                        for (String key : leases.getAllKeys()) {
-                            if (key.length() == 36 && key.split("-").length == 5) {
-                                assignedIp = leases.getString(key);
-                                leases.remove(key);
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!assignedIp.isEmpty()) {
-                        leases.putString(deviceId, assignedIp);
-                        rData.put("DHCPLeases", leases);
-                        router.setChanged();
-                        router.sync();
-                    }
-                }
-
-                if (!assignedIp.isEmpty()) {
-                    tag.putString("IPAddress", assignedIp);
-                    if (player != null) {
-                        player.displayClientMessage(Component.translatable(MSG_REGISTERED, assignedIp).withStyle(ChatFormatting.GREEN), true);
-                    }
-                } else {
-                    if (player != null) {
-                        player.displayClientMessage(Component.translatable(MSG_FAILED_IP).withStyle(ChatFormatting.RED), true);
-                    }
-                }
-            } else {
-                if (player != null) {
-                    player.displayClientMessage(Component.translatable(MSG_DHCP_DISABLED).withStyle(ChatFormatting.RED), true);
-                }
-            }
-
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+            MCNetUtil.registerPortableDevice(
+                    level, router, context.getItemInHand(), context.getPlayer(),
+                    this.getDeviceType(), MSG_REGISTERED, MSG_FAILED_IP, MSG_DHCP_DISABLED
+            );
             return InteractionResult.SUCCESS;
         }
 

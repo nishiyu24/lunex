@@ -1,3 +1,4 @@
+// 上書き: DeviceAPI.java
 package com.nishiyu.lunex.program.server.machine.api;
 
 import com.nishiyu.lunex.mcnet.DeviceAPIRegistry;
@@ -36,16 +37,13 @@ public class DeviceAPI {
             return LuaValue.NIL;
         }
 
-        // ★ 修正: 実際のタイプを取得し、要求されたタイプと一致するか厳格にチェックする
         String actualType = getType(targetStr);
         String requestedType = (typeStr == null || typeStr.isEmpty()) ? "auto" : typeStr.toLowerCase();
 
         String typeKey;
         if (requestedType.equals("auto") || requestedType.equals("default")) {
-            // 指定がない場合は実際のタイプをそのまま採用
             typeKey = actualType;
         } else {
-            // ★ 修正: 明示的に種類が指定されたが、実際のデバイス種類と合致しない場合は即座に nil を返す
             if (!requestedType.equals(actualType)) {
                 return LuaValue.NIL;
             }
@@ -93,9 +91,26 @@ public class DeviceAPI {
             @Override
             public org.luaj.vm2.Varargs invoke(org.luaj.vm2.Varargs args) {
                 String source = args.arg(1).tojstring();
-                String css = args.narg() >= 2 && !args.arg(2).isnil() ? args.arg(2).tojstring() : null;
-                String script = args.narg() >= 3 && !args.arg(3).isnil() ? args.arg(3).tojstring() : null;
-                return LuaValue.valueOf(screen.load(target, source, css, script));
+
+                LuaValue arg2 = args.arg(2);
+                LuaTable bindings = null;
+                String css = null;
+                String script = null;
+
+                int nextArgIdx = 2;
+                if (arg2.istable()) {
+                    bindings = (LuaTable) arg2;
+                    nextArgIdx = 3;
+                }
+
+                if (args.narg() >= nextArgIdx && !args.arg(nextArgIdx).isnil()) {
+                    css = args.arg(nextArgIdx).tojstring();
+                }
+                if (args.narg() >= nextArgIdx + 1 && !args.arg(nextArgIdx + 1).isnil()) {
+                    script = args.arg(nextArgIdx + 1).tojstring();
+                }
+
+                return LuaValue.valueOf(screen.loadWithBindings(target, source, bindings, css, script));
             }
         });
 
@@ -130,7 +145,6 @@ public class DeviceAPI {
 
     public void buildRouterWrapper(LuaTable obj, String target) {
         RouterAPI router = vm.getOrCreateAPI(RouterAPI.class, RouterAPI::new);
-
         obj.set("startDHCPServer", new org.luaj.vm2.lib.VarArgFunction() {
             @Override
             public org.luaj.vm2.Varargs invoke(org.luaj.vm2.Varargs args) {
@@ -144,42 +158,16 @@ public class DeviceAPI {
                 ));
             }
         });
-
-        obj.set("stopDHCPServer", new ZeroArgFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(router.stopDHCPServer(target));
-            }
-        });
-
-        obj.set("startDNSServer", new ZeroArgFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(router.startDNSServer(target));
-            }
-        });
-
-        obj.set("addDNSRecord", new TwoArgFunction() {
-            @Override
-            public LuaValue call(LuaValue domain, LuaValue ip) {
-                return LuaValue.valueOf(router.addDNSRecord(target, domain.tojstring(), ip.tojstring()));
-            }
-        });
-
-        obj.set("getWanIp", new ZeroArgFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(router.getWanIp(target));
-            }
-        });
+        obj.set("stopDHCPServer", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(router.stopDHCPServer(target)); } });
+        obj.set("startDNSServer", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(router.startDNSServer(target)); } });
+        obj.set("addDNSRecord", new TwoArgFunction() { @Override public LuaValue call(LuaValue domain, LuaValue ip) { return LuaValue.valueOf(router.addDNSRecord(target, domain.tojstring(), ip.tojstring())); } });
+        obj.set("getWanIp", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(router.getWanIp(target)); } });
     }
 
     public void buildInventoryWrapper(LuaTable obj, String target) {
         InventoryAPI inv = vm.getOrCreateAPI(InventoryAPI.class, InventoryAPI::new);
-
         obj.set("getInventorySize", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(inv.getInventorySize(target)); } });
         obj.set("getItemName", new OneArgFunction() { @Override public LuaValue call(LuaValue slot) { return LuaValue.valueOf(inv.getItemName(target, slot.toint())); } });
-
         obj.set("getItemCount", new OneArgFunction() {
             @Override
             public LuaValue call(LuaValue slotOrName) {
@@ -196,7 +184,6 @@ public class DeviceAPI {
                 return LuaValue.valueOf(inv.getItemCount(target, slotOrName.toint()));
             }
         });
-
         obj.set("getMaxStackSize", new OneArgFunction() { @Override public LuaValue call(LuaValue slot) { return LuaValue.valueOf(inv.getMaxStackSize(target, slot.toint())); } });
         obj.set("getTags", new OneArgFunction() { @Override public LuaValue call(LuaValue slot) { return LuaValue.valueOf(inv.getTags(target, slot.toint())); } });
         obj.set("listItems", new ZeroArgFunction() { @Override public LuaValue call() { return inv.listItems(target); } });
@@ -224,48 +211,21 @@ public class DeviceAPI {
 
     public void buildProbeWrapper(LuaTable obj, String target) {
         ProbeAPI probe = vm.getOrCreateAPI(ProbeAPI.class, ProbeAPI::new);
-
-        obj.set("setFaceEnabled", new org.luaj.vm2.lib.TwoArgFunction() {
-            @Override
-            public LuaValue call(LuaValue face, LuaValue enabled) {
-                return LuaValue.valueOf(probe.setFaceEnabled(target, face.tojstring(), enabled.toboolean()));
-            }
-        });
-
-        obj.set("getFaceEnabled", new OneArgFunction() {
-            @Override
-            public LuaValue call(LuaValue face) {
-                return LuaValue.valueOf(probe.getFaceEnabled(target, face.tojstring()));
-            }
-        });
-
-        obj.set("setRedstone", new org.luaj.vm2.lib.TwoArgFunction() {
-            @Override
-            public LuaValue call(LuaValue face, LuaValue power) {
-                return LuaValue.valueOf(probe.setRedstone(target, face.tojstring(), power.toint()));
-            }
-        });
-
-        obj.set("getRedstone", new OneArgFunction() {
-            @Override
-            public LuaValue call(LuaValue face) {
-                return LuaValue.valueOf(probe.getRedstone(target, face.tojstring()));
-            }
-        });
-
-        obj.set("getBlockName", new OneArgFunction() {
-            @Override
-            public LuaValue call(LuaValue face) {
-                return LuaValue.valueOf(probe.getBlockName(target, face.tojstring()));
-            }
-        });
+        obj.set("setFaceEnabled", new org.luaj.vm2.lib.TwoArgFunction() { @Override public LuaValue call(LuaValue face, LuaValue enabled) { return LuaValue.valueOf(probe.setFaceEnabled(target, face.tojstring(), enabled.toboolean())); } });
+        obj.set("getFaceEnabled", new OneArgFunction() { @Override public LuaValue call(LuaValue face) { return LuaValue.valueOf(probe.getFaceEnabled(target, face.tojstring())); } });
+        obj.set("setRedstone", new org.luaj.vm2.lib.TwoArgFunction() { @Override public LuaValue call(LuaValue face, LuaValue power) { return LuaValue.valueOf(probe.setRedstone(target, face.tojstring(), power.toint())); } });
+        obj.set("getRedstone", new OneArgFunction() { @Override public LuaValue call(LuaValue face) { return LuaValue.valueOf(probe.getRedstone(target, face.tojstring())); } });
+        obj.set("getBlockName", new OneArgFunction() { @Override public LuaValue call(LuaValue face) { return LuaValue.valueOf(probe.getBlockName(target, face.tojstring())); } });
     }
 
     public boolean isPresent(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
             if (targetStr == null) return false;
 
-            if (targetStr.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) return true;
+            if (targetStr.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) {
+                return isIpDevicePresent(targetStr);
+            }
+
             if (TargetUtil.isPortableScreen(vm.hardware, targetStr)) return true;
 
             BlockPos pos = getActionTargetPos(targetStr);
@@ -287,7 +247,11 @@ public class DeviceAPI {
         return vm.executeInMainThreadSync(() -> {
             if (targetStr == null) return "none";
 
-            if (TargetUtil.isPortableScreen(vm.hardware, targetStr) || targetStr.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) {
+            if (targetStr.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) {
+                return resolveDeviceTypeFromIp(targetStr);
+            }
+
+            if (TargetUtil.isPortableScreen(vm.hardware, targetStr)) {
                 return "portable_screen";
             }
 
@@ -346,5 +310,66 @@ public class DeviceAPI {
         if (dir != null) return vm.hardware.getBlockPos().relative(dir);
 
         return null;
+    }
+
+    // ==========================================
+    // ネットワーク上のIPデバイス判別処理
+    // ==========================================
+
+    private com.nishiyu.lunex.blockentity.RouterBlockEntity getRouterForVM() {
+        if (vm.hardware != null && vm.hardware.getLevel() != null) {
+            if (vm.hardware.persistentData.contains("RouterPos")) {
+                long posLong = vm.hardware.persistentData.getLong("RouterPos");
+                net.minecraft.world.level.block.entity.BlockEntity be = vm.hardware.getLevel().getBlockEntity(net.minecraft.core.BlockPos.of(posLong));
+                if (be instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
+                    return router;
+                }
+            }
+        } else if (vm.machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
+            return router;
+        }
+        return null;
+    }
+
+    private boolean isIpDevicePresent(String ip) {
+        com.nishiyu.lunex.blockentity.RouterBlockEntity router = getRouterForVM();
+        if (router == null) return false;
+
+        if (router.persistentData.contains("DHCPLeases")) {
+            net.minecraft.nbt.CompoundTag leases = router.persistentData.getCompound("DHCPLeases");
+            for (String key : leases.getAllKeys()) {
+                if (leases.getString(key).equals(ip)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private String resolveDeviceTypeFromIp(String ip) {
+        com.nishiyu.lunex.blockentity.RouterBlockEntity router = getRouterForVM();
+        if (router == null) return "none";
+
+        if (!router.persistentData.contains("DHCPLeases")) return "none";
+
+        net.minecraft.nbt.CompoundTag leases = router.persistentData.getCompound("DHCPLeases");
+        net.minecraft.nbt.CompoundTag deviceTypes = router.persistentData.contains("DeviceTypes")
+                ? router.persistentData.getCompound("DeviceTypes") : new net.minecraft.nbt.CompoundTag();
+
+        for (String key : leases.getAllKeys()) {
+            if (leases.getString(key).equals(ip)) {
+                if (deviceTypes.contains(key)) {
+                    return deviceTypes.getString(key);
+                }
+
+                // 互換性フォールバック: UUID(長さ36)ならポータブル、それ以外ならマシン
+                if (key.length() == 36) {
+                    return "portable_screen";
+                } else {
+                    return "machine";
+                }
+            }
+        }
+        return "none";
     }
 }

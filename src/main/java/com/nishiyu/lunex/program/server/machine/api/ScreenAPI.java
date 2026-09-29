@@ -1,14 +1,20 @@
+// 上書き: ScreenAPI.java
 package com.nishiyu.lunex.program.server.machine.api;
 
+import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
+import com.nishiyu.lunex.machine.VirtualStorage;
 import com.nishiyu.lunex.mcnet.ScreenSession;
 import com.nishiyu.lunex.mcnet.ScreenSessionManager;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
+import com.nishiyu.lunex.server.ServerPubSubManager;
 import com.nishiyu.lunex.webrender.UIParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import org.luaj.vm2.LuaTable;
+import org.luaj.vm2.LuaValue;
+import org.luaj.vm2.Varargs;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -19,8 +25,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ScreenAPI implements AutoCloseable {
@@ -70,11 +77,16 @@ public class ScreenAPI implements AutoCloseable {
     }
 
     @LuaFunction(
-            value = "HTML/ファイル/URL、CSS、Luaスクリプトを組み合わせてスクリーンに描画します。引数の数に応じて処理が変わります。",
+            value = "HTML/ファイル/URL、CSS、Luaスクリプトを組み合わせてスクリーンに描画します。",
             en = "Loads HTML/file/URL, CSS, and Lua scripts and renders the UI on the screen.",
             args = {"str:source", "str:css(optional)", "str:script(optional)"}, rets = {"bool:success"}, isAsync = false
     )
     public boolean load(String targetStr, String source, String css, String script) {
+        return loadWithBindings(targetStr, source, null, css, script);
+    }
+
+    // ★ バインディングの自動解決を行うメインの load メソッド
+    public boolean loadWithBindings(String targetStr, String source, LuaTable bindings, String css, String script) {
         if (source == null || source.trim().isEmpty()) {
             throw new org.luaj.vm2.LuaError("DOM Error: Provided source string is empty.");
         }
@@ -82,6 +94,43 @@ public class ScreenAPI implements AutoCloseable {
         String htmlContent = resolveContent(source);
         String cssContent = (css != null && !css.isEmpty()) ? resolveContent(css) : "";
         String scriptContent = (script != null && !script.isEmpty()) ? resolveContent(script) : "";
+
+        // バインディングデータの処理とHTMLインジェクション
+        if (bindings != null) {
+            String sessionPrefix = "scr_" + targetStr.replaceAll("[^a-zA-Z0-9]", "") + "_";
+            StringBuilder injectionAttrs = new StringBuilder();
+
+            LuaValue k = LuaValue.NIL;
+            while (true) {
+                Varargs n = bindings.next(k);
+                if ((k = n.arg1()).isnil()) break;
+
+                String bindKey = k.tojstring();
+                LuaValue bindTarget = n.arg(2);
+
+                String autoChannelName = sessionPrefix + bindKey + "_" + System.currentTimeMillis();
+
+                if (bindTarget.istable() || bindTarget.isuserdata()) {
+                    // ★ 統合: VirtualStorage等の自動配信スレッドを開始
+                    startVirtualStoragePublish(autoChannelName, bindTarget);
+                } else if (!bindTarget.isnil()) {
+                    // ★ 統合: 単一データの即時配信
+                    Map<String, Object> wrapper = new HashMap<>();
+                    if (bindTarget.isint()) wrapper.put(bindKey, bindTarget.toint());
+                    else if (bindTarget.isnumber()) wrapper.put(bindKey, bindTarget.todouble());
+                    else if (bindTarget.isboolean()) wrapper.put(bindKey, bindTarget.toboolean());
+                    else wrapper.put(bindKey, bindTarget.tojstring());
+
+                    ServerPubSubManager.publish(autoChannelName, wrapper);
+                }
+
+                injectionAttrs.append(" data-channel-").append(bindKey).append("=\"").append(autoChannelName).append("\"");
+            }
+
+            if (injectionAttrs.length() > 0) {
+                htmlContent = htmlContent.replaceFirst("<([a-zA-Z]+)", "<$1" + injectionAttrs.toString());
+            }
+        }
 
         if (!scriptContent.isEmpty()) {
             htmlContent += "\n<script>\n" + scriptContent + "\n</script>";
@@ -110,6 +159,105 @@ public class ScreenAPI implements AutoCloseable {
     public boolean load(String targetStr, String source) {
         return load(targetStr, source, null, null);
     }
+
+    // ==========================================
+    // ★ 追加・統合: ServerPubSubAPI から移植したバックエンド処理
+    // ==========================================
+    private void startVirtualStoragePublish(String channel, LuaValue storageObj) {
+        if (storageObj == null || storageObj.isnil()) return;
+
+        Thread.startVirtualThread(() -> {
+            boolean firstRun = true;
+            while (vm.isRunning) {
+                try {
+                    Thread.sleep(500);
+
+                    final boolean isFirst = firstRun;
+                    firstRun = false;
+
+                    vm.mainThreadTasks.add(() -> {
+                        if (!vm.isRunning) return;
+                        Map<String, Object> currentItems = new HashMap<>();
+                        String foundMethod = "NONE";
+
+                        try {
+                            Object result = null;
+                            Object javaApi = null;
+
+                            if (storageObj.isuserdata()) {
+                                javaApi = storageObj.checkuserdata();
+                            } else if (storageObj.istable()) {
+                                LuaValue ud = storageObj.get("userdata");
+                                if (!ud.isnil() && ud.isuserdata()) {
+                                    javaApi = ud.checkuserdata();
+                                }
+                            }
+
+                            if (javaApi instanceof VirtualStorage vs) {
+                                result = vs.getAllItems();
+                                foundMethod = "Java API -> VirtualStorage.getAllItems()";
+                            }
+
+                            if (result == null && storageObj.istable()) {
+                                String[] methodNames = {"getAllItems", "getItems", "list", "getInventory", "getItemList", "getAll"};
+                                for (String mName : methodNames) {
+                                    LuaValue func = storageObj.get(mName);
+                                    if (!func.isnil() && func.isfunction()) {
+                                        LuaValue res = func.call(storageObj);
+                                        if (res.istable() || res.isuserdata()) {
+                                            result = res;
+                                            foundMethod = "Lua API -> " + mName;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (result instanceof Map<?, ?> map) {
+                                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                                    currentItems.put(String.valueOf(entry.getKey()), entry.getValue());
+                                }
+                            } else if (result instanceof LuaTable table) {
+                                LuaValue tk = LuaValue.NIL;
+                                while (true) {
+                                    Varargs n = table.next(tk);
+                                    if ((tk = n.arg1()).isnil()) break;
+                                    LuaValue val = n.arg(2);
+
+                                    if (tk.isstring() && val.isint()) {
+                                        currentItems.put(tk.tojstring(), val.toint());
+                                    } else if (tk.isint() && val.istable()) {
+                                        LuaValue idVal = val.get("id");
+                                        if (idVal.isnil()) idVal = val.get("name");
+                                        LuaValue countVal = val.get("count");
+
+                                        if (!idVal.isnil() && !countVal.isnil()) {
+                                            currentItems.put(idVal.tojstring(), countVal.toint());
+                                        }
+                                    }
+                                }
+                            }
+
+                        } catch (Exception e) {
+                            Lunex.LOGGER.error("[Server PubSub] Critical error during extraction: ", e);
+                        }
+
+                        ServerPubSubManager.publish(channel, currentItems);
+
+                        if (isFirst || "NONE".equals(foundMethod)) {
+                            Lunex.LOGGER.info("[Server PubSub] Tracking started. Channel: " + channel + " | Method: " + foundMethod + " | Total Items: " + currentItems.size());
+                        }
+                    });
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+            Lunex.LOGGER.info("[Server PubSub] Stopped tracking storage. Channel: " + channel);
+        });
+    }
+    // ==========================================
+    // 統合ここまで
+    // ==========================================
 
     private String resolveContent(String content) {
         if (content == null || content.trim().isEmpty()) return "";
@@ -222,16 +370,11 @@ public class ScreenAPI implements AutoCloseable {
             boolean anyUpdated = false;
             for (ScreenBlockEntity sbe : screens) {
                 if (speakers.isEmpty() && speakerTargets.length() > 0) {
-                    // ★ 修正: 直接代入せず、確実にマスターブロックに伝播する setLinkedSpeakers メソッドを使用
                     sbe.setLinkedSpeakers(new java.util.ArrayList<>());
                 } else {
-                    // ★ 修正: 同上
                     sbe.setLinkedSpeakers(new java.util.ArrayList<>(speakers));
-
-                    // シャットダウン時にクリアするため、実際のマスター座標を記録
                     BlockPos actualPos = sbe.isMaster ? sbe.getBlockPos() : (sbe.masterPos != null ? sbe.masterPos : sbe.getBlockPos());
                     linkedScreenPositions.add(actualPos);
-
                     anyUpdated = true;
                 }
             }
@@ -294,7 +437,6 @@ public class ScreenAPI implements AutoCloseable {
         Runnable clearTask = () -> {
             for (BlockPos pos : linkedScreenPositions) {
                 if (level.getBlockEntity(pos) instanceof com.nishiyu.lunex.blockentity.ScreenBlockEntity sbe) {
-                    // ★ 修正: 直接代入を廃止
                     sbe.setLinkedSpeakers(new java.util.ArrayList<>());
                 }
             }

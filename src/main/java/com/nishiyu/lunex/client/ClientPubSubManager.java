@@ -1,3 +1,4 @@
+// 上書き: ClientPubSubManager.java
 package com.nishiyu.lunex.client;
 
 import com.nishiyu.lunex.Lunex;
@@ -12,8 +13,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ClientPubSubManager {
-    // ★ 改善: 正規表現を静的定数として事前コンパイル
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{([a-zA-Z0-9_]+)\\}\\}");
+    // テンプレート用のプレースホルダー置換用パターン
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{([a-zA-Z0-9_.-]+)\\}\\}");
 
     private static final Map<String, Map<String, Object>> clientCache = new ConcurrentHashMap<>();
     private static final Map<String, Set<String>> activeSessions = new ConcurrentHashMap<>();
@@ -39,8 +40,8 @@ public class ClientPubSubManager {
         dataBindings.computeIfAbsent(sessionId, k -> new ArrayList<>()).add(new DataBinding(targetId, channel, path, targetAttr));
     }
 
-    public static void registerVirtualList(String sessionId, String targetId, String channel, String template, int itemW, int itemH) {
-        virtualListBindings.computeIfAbsent(sessionId, k -> new ArrayList<>()).add(new VirtualListBinding(targetId, channel, template, itemW, itemH));
+    public static void registerVirtualList(String sessionId, String targetId, String channel, String templateHtml, int itemW, int itemH) {
+        virtualListBindings.computeIfAbsent(sessionId, k -> new ArrayList<>()).add(new VirtualListBinding(targetId, channel, templateHtml, itemW, itemH));
     }
 
     public static void clearSession(String sessionId) {
@@ -93,7 +94,7 @@ public class ClientPubSubManager {
                     }
                 }
             } catch (Exception e) {
-                Lunex.LOGGER.error("[Client PubSub Debug] Failed to force recompute", e);
+                Lunex.LOGGER.error("[Client PubSub] Failed to force recompute", e);
             }
         }
     }
@@ -104,6 +105,7 @@ public class ClientPubSubManager {
 
         boolean changedAny = false;
 
+        // 1. 仮想リスト (data-list) の適用
         List<VirtualListBinding> vLists = virtualListBindings.get(sessionId);
         if (vLists != null) {
             for (VirtualListBinding vBind : vLists) {
@@ -113,7 +115,9 @@ public class ClientPubSubManager {
                 if (targetNode == null) continue;
 
                 List<Map<String, String>> dataList = getStorageListAsMap(vBind.channel);
-                targetNode.children.clear();
+
+                // templateタグ自体は残しておくため、それ以外の子要素をクリア
+                targetNode.children.removeIf(node -> !node.tag.equals("template"));
                 changedAny = true;
 
                 if (dataList != null) {
@@ -136,11 +140,13 @@ public class ClientPubSubManager {
                     topSpacer.parent = targetNode;
                     targetNode.children.add(topSpacer);
 
-                    HtmlNode templateRoot = HtmlParser.parse(vBind.template);
+                    // 保存しておいたテンプレートHTMLをパース
+                    HtmlNode templateRoot = HtmlParser.parse(vBind.templateHtml);
                     int startIndex = startRow * itemsPerRow;
                     int endIndex = Math.min(dataList.size(), endRow * itemsPerRow);
 
                     for (int i = startIndex; i < endIndex; i++) {
+                        // root直下の子要素(実質的なテンプレート要素群)をクローン
                         for (HtmlNode tmpl : templateRoot.children) {
                             HtmlNode itemNode = tmpl.cloneNode();
                             applyTemplateData(itemNode, dataList.get(i));
@@ -159,6 +165,7 @@ public class ClientPubSubManager {
             }
         }
 
+        // 2. 単一データ (data-bind) の適用
         List<DataBinding> dBindings = dataBindings.get(sessionId);
         if (dBindings != null) {
             for (DataBinding dBind : dBindings) {
@@ -217,7 +224,6 @@ public class ClientPubSubManager {
         }
     }
 
-    // ★ 改善: コンパイル済みのパターンを使い回すように修正
     private static String replacePlaceholders(String text, Map<String, String> data) {
         Matcher m = PLACEHOLDER_PATTERN.matcher(text);
         StringBuilder sb = new StringBuilder();
@@ -263,5 +269,5 @@ public class ClientPubSubManager {
     }
 
     private record DataBinding(String targetId, String channel, String path, String targetAttr) {}
-    private record VirtualListBinding(String targetId, String channel, String template, int itemW, int itemH) {}
+    private record VirtualListBinding(String targetId, String channel, String templateHtml, int itemW, int itemH) {}
 }

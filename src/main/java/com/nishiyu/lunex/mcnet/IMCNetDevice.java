@@ -22,4 +22,12 @@ public interface IMCNetDevice {
             }
         }
     }
+
+    /**
+     * デバイスの種類（タイプ名）を返します。
+     * DHCPサーバー等で登録する際に使用されます。
+     */
+    default String getDeviceType() {
+        return "default";
+    }
 }

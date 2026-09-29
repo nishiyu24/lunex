@@ -79,7 +79,6 @@ public class CssParser {
             }
         }
 
-        // ★強化されたcalcパーサー (四則演算とパーセントに対応)
         if (val.startsWith("calc(") && val.endsWith(")")) {
             String inner = val.substring(5, val.length() - 1).trim();
             return (int) evalMath(inner, maxPixels, rootW, rootH);
@@ -100,14 +99,11 @@ public class CssParser {
         return 0;
     }
 
-    // ★追加: 文字列から数式を評価するパーサー
     private static double evalMath(String str, int maxPixels, int rootW, int rootH) {
         return new Object() {
             int pos = -1, ch;
 
-            void nextChar() {
-                ch = (++pos < str.length()) ? str.charAt(pos) : -1;
-            }
+            void nextChar() { ch = (++pos < str.length()) ? str.charAt(pos) : -1; }
 
             boolean eat(int charToEat) {
                 while (ch == ' ') nextChar();
@@ -121,7 +117,7 @@ public class CssParser {
             double parse() {
                 nextChar();
                 double x = parseExpression();
-                if (pos < str.length()) return 0; // fallback
+                if (pos < str.length()) return 0;
                 return x;
             }
 
@@ -208,7 +204,6 @@ public class CssParser {
         return new int[]{rTL, rTR, rBR, rBL};
     }
 
-    // ★ 引数に env (システム環境変数) を追加
     public static Map<String, String> computeNodeStyle(HtmlNode node, Map<String, String> inheritedStyle, StyleSheet sheet, Map<String, String> env) {
         Map<String, String> style = new HashMap<>();
         String[] inheritable = {"color", "text-align", "font-family", "font-size", "line-height", "text-transform", "font-weight"};
@@ -221,7 +216,8 @@ public class CssParser {
         }
 
         for (StyleRule rule : sheet.rules) {
-            if (rule.matches(node)) {
+            // ::before や ::after 自体のルールは親ノード本体のスタイルには適用しない
+            if (!rule.isBefore && !rule.isAfter && rule.matches(node)) {
                 if (rule.isHover) {
                     for (Map.Entry<String, String> e : rule.properties.entrySet()) {
                         style.put("hover-" + e.getKey(), e.getValue());
@@ -260,22 +256,14 @@ public class CssParser {
                     while (vm.find()) {
                         String varName = vm.group(1).trim();
                         String fallback = vm.group(2) != null ? vm.group(2).trim() : "";
-
                         String resolved = style.get(varName);
                         if (resolved == null) resolved = sheet.variables.get(varName);
 
-                        // ★ システムから提供された環境変数をCSSのvar(--xxx)として展開
                         if (resolved == null && env != null) {
                             String envKey = varName.replace("--", "");
-                            if (env.containsKey(envKey)) {
-                                resolved = env.get(envKey);
-                            }
+                            if (env.containsKey(envKey)) resolved = env.get(envKey);
                         }
-
-                        if (resolved == null || resolved.isEmpty()) {
-                            resolved = fallback;
-                        }
-
+                        if (resolved == null || resolved.isEmpty()) resolved = fallback;
                         vm.appendReplacement(sb, Matcher.quoteReplacement(resolved));
                     }
                     vm.appendTail(sb);
@@ -326,7 +314,6 @@ public class CssParser {
 
                 String condition = css.substring(blockStart, i).trim();
                 i++;
-
                 int braceCount = 1, contentStart = i;
                 while (i < len) {
                     char ac = css.charAt(i);
@@ -345,14 +332,10 @@ public class CssParser {
                         int maxWidth = Integer.parseInt(m.group(1));
                         if (rootW <= maxWidth) conditionMet = true;
                     }
-                    if (conditionMet) {
-                        sb.append(css.substring(contentStart, i));
-                    }
+                    if (conditionMet) sb.append(css.substring(contentStart, i));
                 } else {
                     sb.append(css.substring(blockStart, contentStart - 1));
-                    sb.append("{");
-                    sb.append(css.substring(contentStart, i));
-                    sb.append("}");
+                    sb.append("{").append(css.substring(contentStart, i)).append("}");
                 }
                 i++;
             } else {
@@ -426,9 +409,7 @@ public class CssParser {
                 sheet.rules.add(rule);
             }
         }
-
         sheet.variables.putAll(variables);
-
         sheet.rules.sort((a, b) -> Integer.compare(a.specificity, b.specificity));
         return sheet;
     }
@@ -437,13 +418,24 @@ public class CssParser {
         public String selector;
         public int specificity;
         public boolean isHover = false;
+        public boolean isBefore = false;
+        public boolean isAfter = false;
         public Map<String, String> properties = new HashMap<>();
 
         public StyleRule(String selector) {
             this.specificity = calculateSpecificity(selector);
-            if (selector.endsWith(":hover")) {
+
+            if (selector.contains(":hover")) {
                 this.isHover = true;
-                selector = selector.substring(0, selector.length() - 6);
+                selector = selector.replace(":hover", "");
+            }
+            if (selector.contains("::before") || selector.contains(":before")) {
+                this.isBefore = true;
+                selector = selector.replace("::before", "").replace(":before", "");
+            }
+            if (selector.contains("::after") || selector.contains(":after")) {
+                this.isAfter = true;
+                selector = selector.replace("::after", "").replace(":after", "");
             }
             this.selector = selector.trim();
         }
@@ -483,12 +475,9 @@ public class CssParser {
                 }
             }
             parts.add(sel.substring(lastIdx));
-
             int pIdx = parts.size() - 1;
 
-            if (!matchSimpleSelector(parts.get(pIdx), node)) {
-                return false;
-            }
+            if (!matchSimpleSelector(parts.get(pIdx), node)) return false;
             pIdx--;
 
             HtmlNode current = node;
@@ -520,7 +509,6 @@ public class CssParser {
                     pIdx--;
                 }
             }
-
             return pIdx < 0;
         }
 
@@ -529,12 +517,21 @@ public class CssParser {
             HtmlNode prev = null;
             for (HtmlNode child : node.parent.children) {
                 if (child == node) return prev;
-                if (!child.tag.startsWith("#")) prev = child;
+                if (!child.tag.startsWith("#") && !child.tag.equals("template") && !child.isPseudoNode) prev = child;
             }
             return null;
         }
 
         private boolean matchSimpleSelector(String simpleSelector, HtmlNode node) {
+            if (simpleSelector.contains(":not(")) {
+                Matcher notMatcher = Pattern.compile(":not\\(([^)]+)\\)").matcher(simpleSelector);
+                while (notMatcher.find()) {
+                    String notSel = notMatcher.group(1).trim();
+                    if (matchSimpleSelector(notSel, node)) return false;
+                }
+                simpleSelector = simpleSelector.replaceAll(":not\\([^)]+\\)", "");
+            }
+
             String pseudo = "";
             if (simpleSelector.contains(":")) {
                 int colonIdx = simpleSelector.indexOf(":");
@@ -543,23 +540,36 @@ public class CssParser {
             }
 
             Map<String, String> requiredAttrs = new HashMap<>();
+            List<String> requiredExistsAttrs = new ArrayList<>();
             Matcher attrMatcher = Pattern.compile("\\[([^\\]=]+)(?:=[\"']?([^\\]\"']+)[\"']?)?\\]").matcher(simpleSelector);
             while (attrMatcher.find()) {
-                requiredAttrs.put(attrMatcher.group(1), attrMatcher.group(2));
+                if (attrMatcher.group(2) != null) {
+                    requiredAttrs.put(attrMatcher.group(1), attrMatcher.group(2));
+                } else {
+                    requiredExistsAttrs.add(attrMatcher.group(1));
+                }
             }
             simpleSelector = simpleSelector.replaceAll("\\[.*?\\]", "");
 
-            if (simpleSelector.equals("*") && pseudo.isEmpty() && requiredAttrs.isEmpty()) return true;
+            if (simpleSelector.equals("*") && pseudo.isEmpty() && requiredAttrs.isEmpty() && requiredExistsAttrs.isEmpty()) return true;
             boolean match = true;
 
-            for (Map.Entry<String, String> req : requiredAttrs.entrySet()) {
-                if (!node.attrs.containsKey(req.getKey())) {
+            for (String reqExist : requiredExistsAttrs) {
+                if (!node.attrs.containsKey(reqExist)) {
                     match = false;
                     break;
                 }
-                if (req.getValue() != null && !req.getValue().equals(node.attrs.get(req.getKey()))) {
-                    match = false;
-                    break;
+            }
+            if (match) {
+                for (Map.Entry<String, String> req : requiredAttrs.entrySet()) {
+                    if (!node.attrs.containsKey(req.getKey())) {
+                        match = false;
+                        break;
+                    }
+                    if (req.getValue() != null && !req.getValue().equals(node.attrs.get(req.getKey()))) {
+                        match = false;
+                        break;
+                    }
                 }
             }
 
@@ -584,28 +594,6 @@ public class CssParser {
             if (match && !pseudo.isEmpty()) {
                 if (pseudo.equals(":checked") && !node.attrs.containsKey("checked")) match = false;
                 if (pseudo.equals(":disabled") && !node.attrs.containsKey("disabled")) match = false;
-                if (pseudo.equals(":focus") && !node.attrs.containsKey("focus")) match = false;
-                if (pseudo.equals(":active") && !node.attrs.containsKey("active")) match = false;
-                if (pseudo.equals(":hover") && !node.attrs.containsKey("hover")) match = false;
-
-                if (pseudo.startsWith(":nth-child(")) {
-                    int n = Integer.parseInt(pseudo.replaceAll("[^0-9]", ""));
-                    if (node.parent != null) {
-                        int elemIndex = 1;
-                        boolean found = false;
-                        for (HtmlNode sibling : node.parent.children) {
-                            if (sibling.tag.startsWith("#")) continue;
-                            if (sibling == node) {
-                                found = true;
-                                break;
-                            }
-                            elemIndex++;
-                        }
-                        if (!found || elemIndex != n) match = false;
-                    } else {
-                        match = false;
-                    }
-                }
             }
             return match;
         }

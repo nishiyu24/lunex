@@ -7,7 +7,6 @@ import com.google.gson.JsonObject;
 import com.nishiyu.lunex.client.renderer.ARGlassesHudRenderer;
 import com.nishiyu.lunex.program.client.api.ClientDOMAPI;
 import com.nishiyu.lunex.program.client.api.ClientFetchAPI;
-import com.nishiyu.lunex.program.client.api.ClientPubSubAPI;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
@@ -43,7 +42,6 @@ public class ClientScriptManager {
 
             injectAPI(env, "document", new ClientDOMAPI(sessionId));
             injectAPI(env, "", new ClientFetchAPI(sessionId));
-            injectAPI(env, "pubsub", new ClientPubSubAPI(sessionId));
 
             sessionEnvironments.put(sessionId, env);
 

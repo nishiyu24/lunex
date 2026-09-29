@@ -7,6 +7,12 @@ import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.machine.IMainframePart;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -133,7 +139,6 @@ public class MCNetUtil {
 
                 String tag = data.getString("NetworkTag");
 
-                // ★追加: Assemble時のタグを優先して適用
                 if (be instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity sm && sm.isMainframeMaster) {
                     if (data.contains("MainframeNetworkTag") && !data.getString("MainframeNetworkTag").isEmpty()) {
                         tag = data.getString("MainframeNetworkTag");
@@ -161,5 +166,96 @@ public class MCNetUtil {
         boolean isIp = str.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$");
 
         return !isDirection && !isIp;
+    }
+
+    /**
+     * ポータブルデバイス(アイテム)をルーターに登録する共通メソッド
+     */
+    public static boolean registerPortableDevice(Level level, RouterBlockEntity router, ItemStack stack, Player player, String deviceType, String msgRegistered, String msgFailedIp, String msgDhcpDisabled) {
+        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+        CompoundTag tag = customData.copyTag();
+
+        String deviceId = tag.contains("DeviceId") ? tag.getString("DeviceId") : UUID.randomUUID().toString();
+        tag.putString("DeviceId", deviceId);
+
+        if (router.machineId == null) {
+            router.machineId = UUID.randomUUID();
+            router.setChanged();
+        }
+        tag.putUUID("NetworkId", router.machineId);
+
+        tag.putLong("RouterPos", router.getBlockPos().asLong());
+        tag.putString("RouterDim", level.dimension().location().toString());
+        int upgradeLevel = router.getDistanceUpgradeLevel();
+        double maxDist = upgradeLevel == 1 ? 256.0 : (upgradeLevel == 2 ? 1024.0 : (upgradeLevel >= 3 ? Double.MAX_VALUE : 64.0));
+        tag.putDouble("RouterRange", maxDist);
+
+        CompoundTag rData = router.persistentData;
+        if (rData != null && rData.getBoolean("DHCPServerEnabled")) {
+            CompoundTag leases = rData.contains("DHCPLeases") ? rData.getCompound("DHCPLeases") : new CompoundTag();
+            CompoundTag deviceTypes = rData.contains("DeviceTypes") ? rData.getCompound("DeviceTypes") : new CompoundTag();
+            String assignedIp = "";
+
+            if (leases.contains(deviceId)) {
+                assignedIp = leases.getString(deviceId);
+            } else {
+                String baseIp = rData.getString("DHCPBaseIP");
+                int start = rData.getInt("DHCPStartOctet");
+                int size = rData.getInt("DHCPPoolSize");
+
+                for (int i = 0; i < size; i++) {
+                    String testIp = baseIp + "." + (start + i);
+                    boolean used = false;
+                    for (String key : leases.getAllKeys()) {
+                        if (leases.getString(key).equals(testIp)) {
+                            used = true;
+                            break;
+                        }
+                    }
+                    if (!used) {
+                        assignedIp = testIp;
+                        break;
+                    }
+                }
+
+                if (assignedIp.isEmpty()) {
+                    for (String key : leases.getAllKeys()) {
+                        if (key.length() == 36 && key.split("-").length == 5) {
+                            assignedIp = leases.getString(key);
+                            leases.remove(key);
+                            deviceTypes.remove(key);
+                            break;
+                        }
+                    }
+                }
+
+                if (!assignedIp.isEmpty()) {
+                    leases.putString(deviceId, assignedIp);
+                    deviceTypes.putString(deviceId, deviceType);
+                    rData.put("DHCPLeases", leases);
+                    rData.put("DeviceTypes", deviceTypes);
+                    router.setChanged();
+                    router.sync();
+                }
+            }
+
+            if (!assignedIp.isEmpty()) {
+                tag.putString("IPAddress", assignedIp);
+                if (player != null) {
+                    player.displayClientMessage(Component.translatable(msgRegistered, assignedIp).withStyle(net.minecraft.ChatFormatting.GREEN), true);
+                }
+            } else {
+                if (player != null) {
+                    player.displayClientMessage(Component.translatable(msgFailedIp).withStyle(net.minecraft.ChatFormatting.RED), true);
+                }
+            }
+        } else {
+            if (player != null) {
+                player.displayClientMessage(Component.translatable(msgDhcpDisabled).withStyle(net.minecraft.ChatFormatting.RED), true);
+            }
+        }
+
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        return true;
     }
 }

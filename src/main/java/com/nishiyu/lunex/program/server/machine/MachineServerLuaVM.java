@@ -56,7 +56,6 @@ public class MachineServerLuaVM extends ServerLuaVM {
         registerAPI("screen", getOrCreateAPI(ScreenAPI.class, ScreenAPI::new));
         registerAPI("net", getOrCreateAPI(NetAPI.class, NetAPI::new));
         registerAPI("lan", getOrCreateAPI(LanAPI.class, LanAPI::new));
-        registerAPI("pubsub", getOrCreateAPI(ServerPubSubAPI.class, ServerPubSubAPI::new));
         registerAPI("storage", getOrCreateAPI(StorageAPI.class, StorageAPI::new));
         registerAPI("inventory", getOrCreateAPI(InventoryAPI.class, InventoryAPI::new));
         registerAPI("router", getOrCreateAPI(RouterAPI.class, RouterAPI::new));

@@ -1,3 +1,4 @@
+// 上書き: HtmlParser.java
 package com.nishiyu.lunex.webrender;
 
 import java.util.Arrays;
@@ -5,15 +6,13 @@ import java.util.Stack;
 
 public class HtmlParser {
 
-    private static final int MAX_NODES = 2000;
-    private static final int MAX_DEPTH = 50;
-
-    // ★ 追加: パース時にすべての要素へ固定のIDを割り振るためのカウンター
+    private static final int MAX_NODES = 5000;
+    private static final int MAX_DEPTH = 100;
     private static int globalAutoId = 0;
 
     public static HtmlNode parse(String html) {
         HtmlNode root = new HtmlNode("root");
-        root.id = "html_root"; // ルートの固定ID
+        root.id = "html_root";
         Stack<HtmlNode> stack = new Stack<>();
         stack.push(root);
 
@@ -38,9 +37,10 @@ public class HtmlParser {
                     else if (key.equals("class")) node.classes.addAll(Arrays.asList(val.split("\\s+")));
                 }
 
-                // ★ 追加: IDがない要素に一意のIDをパース段階で確定させる
+                // IDがない要素に一意のIDを割り当て (バインディングの確実なターゲットにするため)
                 if (node.id.isEmpty()) {
                     node.id = "html_gen_" + (++globalAutoId);
+                    node.attrs.put("id", node.id);
                 }
 
                 stack.peek().children.add(node);
@@ -48,6 +48,7 @@ public class HtmlParser {
                 boolean isSelfClosing = token.isSelfClosing ||
                         Arrays.asList("br", "hr", "img", "input", "meta", "link").contains(token.name);
 
+                // template タグも通常のノードとしてツリーに保持する (レンダリング時に無視される)
                 if (!isSelfClosing) {
                     stack.push(node);
                 }
@@ -71,7 +72,7 @@ public class HtmlParser {
                 if (!text.isEmpty()) {
                     HtmlNode textNode = new HtmlNode("#text");
                     textNode.text = text;
-                    textNode.id = "html_txt_" + (++globalAutoId); // テキストにも固定ID
+                    textNode.id = "html_txt_" + (++globalAutoId);
                     textNode.parent = stack.peek();
                     stack.peek().children.add(textNode);
                 }

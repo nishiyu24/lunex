@@ -63,7 +63,12 @@ public class ClientScreenManager {
 
             UIParser.Document doc = new UIParser.Document(rootNode, sheet, cssString, clientScript);
             DOM_CACHE.put(sessionId, doc);
-            VIRTUAL_DOM_CACHE.put(sessionId, rootNode.cloneNode());
+
+            HtmlNode virtualRoot = rootNode.cloneNode();
+            VIRTUAL_DOM_CACHE.put(sessionId, virtualRoot);
+
+            // ★ 追加: HTMLが構築された瞬間に、data-* 属性（仮想リストやデータバインディング）を走査して自動購読を開始する
+            DeclarativeBindingManager.initializeBindings(sessionId, virtualRoot);
 
             Map<String, String> currentEnv = SESSION_ENV.getOrDefault(sessionId, new HashMap<>());
             List<ScreenBlockEntity.UIElement> elements = parser.renderDocument(doc, rootW, rootH, currentEnv);
@@ -420,6 +425,8 @@ public class ClientScreenManager {
         DIRTY_SESSIONS.remove(sessionId);
         SESSION_ENV.remove(sessionId);
         DOM_HASH_CACHE.remove(sessionId);
+        // ★ 追加: セッション終了時にPubSubバインディングも確実にクリーンアップ
+        ClientPubSubManager.clearSession(sessionId);
     }
 
     public static UIParser.Document getDocument(String sessionId) {

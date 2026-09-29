@@ -18,24 +18,31 @@ import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.Varargs;
 import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 
 public class ServerLuaVM extends BaseLuaVM {
 
-    protected static final Set<String> BASE_SYSTEM_GLOBALS = Set.of(
+    // ★ 修正: storage, pubsub, inventory, printer, speaker などのAPI名を追加
+    protected static final Set<String> BASE_SYSTEM_GLOBALS = new HashSet<>(Set.of(
             "_G", "_VERSION", "assert", "error", "getmetatable", "next", "pcall", "print", "rawequal", "rawget", "rawlen", "rawset",
             "select", "setmetatable", "tonumber", "tostring", "type", "xpcall", "coroutine", "math", "string", "table", "io", "os",
             "package", "collectgarbage", "dofile", "load", "loadfile", "require",
             "system", "machine", "screen", "turtle", "mcLAN", "craft", "tool", "http", "fs", "device", "rs", "commands", "mcNet",
             "net", "lan", "router", "machine_control", "mob", "goal",
+            "storage", "pubsub", "inventory", "printer", "speaker",
             "on_init", "on_tick", "on_click", "on_redstone", "on_item_in",
             "on_right_click", "on_left_click_block", "on_attack_entity",
             "on_block_break", "on_projectile_hit_entity", "on_projectile_hit_block", "on_projectile_shoot"
-    );
+    ));
+
     private static final ExecutorService SCRIPT_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     public final Map<Class<?>, Object> apiCache = new ConcurrentHashMap<>();
+
+    // ★ 追加: registerAPI で登録された名前を動的に記録し、NBT保存・復元から除外する
+    protected final Set<String> dynamicSystemGlobals = ConcurrentHashMap.newKeySet();
 
     public IMachineContext machine;
     public AdvancedMachineBlockEntity hardware;
@@ -58,6 +65,11 @@ public class ServerLuaVM extends BaseLuaVM {
         return BASE_SYSTEM_GLOBALS;
     }
 
+    // ★ 追加: システム予約語かどうかを動的登録も含めて判定
+    public boolean isSystemGlobal(String name) {
+        return getSystemGlobals().contains(name) || dynamicSystemGlobals.contains(name);
+    }
+
     public void setContext(IMachineContext context) {
         this.machine = context;
         if (context instanceof AdvancedMachineBlockEntity be) {
@@ -76,6 +88,7 @@ public class ServerLuaVM extends BaseLuaVM {
         this.currentExecutingThread = oldVm.currentExecutingThread;
         this.globals = oldVm.globals;
         this.apiCache.putAll(oldVm.apiCache);
+        this.dynamicSystemGlobals.addAll(oldVm.dynamicSystemGlobals);
         setContext(this.machine);
     }
 
@@ -95,6 +108,10 @@ public class ServerLuaVM extends BaseLuaVM {
     }
 
     protected void registerAPI(String namespace, Object apiInstance) {
+        // ルート名前空間（例: "system.io" なら "system"）を動的予約語に追加
+        String rootName = namespace.split("\\.")[0];
+        dynamicSystemGlobals.add(rootName);
+
         LuaValue coercedInstance = CoerceJavaToLua.coerce(apiInstance);
         LuaTable apiTable = new LuaTable();
 
@@ -416,7 +433,6 @@ public class ServerLuaVM extends BaseLuaVM {
 
         if (taskFuture != null && !taskFuture.isDone()) taskFuture.cancel(true);
 
-        // ★修正: ローカル変数に一時退避してNullPointerException（スレッド競合）を回避
         Thread execThread = this.currentExecutingThread;
         if (execThread != null && execThread.isAlive()) {
             execThread.interrupt();
@@ -535,6 +551,9 @@ public class ServerLuaVM extends BaseLuaVM {
 
     public void loadMemoryFromTag(CompoundTag memTag) {
         for (String key : memTag.getAllKeys()) {
+            // ★ 修正: 保存データ側に誤ってシステムAPIが入っていても上書き復元しないようガード
+            if (isSystemGlobal(key)) continue;
+
             LuaValue loadedVal = loadFromNBT(memTag.get(key));
             if (loadedVal != LuaValue.NIL) globals.set(key, loadedVal);
         }
@@ -543,8 +562,6 @@ public class ServerLuaVM extends BaseLuaVM {
     public CompoundTag extractMemoryToTag() {
         CompoundTag memTag = new CompoundTag();
         if (globals != null) {
-            Set<String> sysGlobals = getSystemGlobals();
-
             LuaValue key = LuaValue.NIL;
             int count = 0;
             final int MAX_GLOBALS_SIZE = 2000;
@@ -571,7 +588,8 @@ public class ServerLuaVM extends BaseLuaVM {
 
                 if (key.isstring()) {
                     String k = key.checkjstring();
-                    if (sysGlobals.contains(k)) continue;
+                    // ★ 修正: isSystemGlobal で動的APIも含めてセーブ対象から除外
+                    if (isSystemGlobal(k)) continue;
 
                     LuaValue val = nextNode.arg(2);
                     Tag tag = saveToNBT(val, 0);

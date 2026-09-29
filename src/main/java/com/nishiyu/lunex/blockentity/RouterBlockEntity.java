@@ -41,11 +41,10 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
     public UUID machineId = null;
     public CompoundTag persistentData = new CompoundTag();
 
-    // ★ 所有者のUUIDを保持
     public UUID ownerUUID = null;
 
     private boolean isPrivateMode = false;
-    private boolean isRunningStatus = true; // 外部設定用の稼働ステータス
+    private boolean isRunningStatus = true;
 
     public BlockState disguiseState = null;
 
@@ -73,8 +72,6 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
         entity.virtualStorage.tick(level);
 
         if (!entity.isRunningStatus) return;
-
-        // 外部操作用ルーターとしての定期処理が必要であればここに記述
     }
 
     private void addToNetwork() {
@@ -103,6 +100,8 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
         List<BlockPos> connected = MCNetUtil.getConnectedDevices(this.level, this.worldPosition, 2048);
 
         CompoundTag leases = this.persistentData.contains("DHCPLeases") ? this.persistentData.getCompound("DHCPLeases") : new CompoundTag();
+        CompoundTag deviceTypes = this.persistentData.contains("DeviceTypes") ? this.persistentData.getCompound("DeviceTypes") : new CompoundTag();
+
         String baseIp = this.persistentData.getString("DHCPBaseIP");
         int start = this.persistentData.getInt("DHCPStartOctet");
         int size = this.persistentData.getInt("DHCPPoolSize");
@@ -129,6 +128,7 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
         for (String mac : keysToRemove) {
             String ip = leases.getString(mac);
             leases.remove(mac);
+            deviceTypes.remove(mac);
             routerChanged = true;
             this.localRoutes.remove(ip);
         }
@@ -151,14 +151,24 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
                 String mac = pos.toShortString();
                 String assignedIp = "";
 
+                String deviceType = "default";
+                if (be instanceof IMCNetDevice netDev) {
+                    deviceType = netDev.getDeviceType();
+                }
+
                 if (leases.contains(mac)) {
                     assignedIp = leases.getString(mac);
+                    if (!deviceTypes.getString(mac).equals(deviceType)) {
+                        deviceTypes.putString(mac, deviceType);
+                        routerChanged = true;
+                    }
                 } else {
                     for (int i = 0; i < size; i++) {
                         String testIp = baseIp + "." + (start + i);
                         if (!usedIps.contains(testIp)) {
                             assignedIp = testIp;
                             leases.putString(mac, testIp);
+                            deviceTypes.putString(mac, deviceType);
                             usedIps.add(testIp);
                             routerChanged = true;
                             break;
@@ -188,6 +198,7 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
 
         if (routerChanged) {
             this.persistentData.put("DHCPLeases", leases);
+            this.persistentData.put("DeviceTypes", deviceTypes);
             this.setChanged();
             this.virtualStorage.rebuildNetworkCache(this.level);
         }
@@ -249,7 +260,6 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
         tag.putBoolean("IsPrivateMode", this.isPrivateMode);
         tag.putBoolean("IsRunningStatus", this.isRunningStatus);
 
-        // ★ 保存時に OwnerUUID を記録
         if (this.ownerUUID != null) tag.putUUID("OwnerUUID", this.ownerUUID);
 
         if (this.disguiseState != null) {
@@ -269,7 +279,6 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
         if (tag.contains("IsPrivateMode")) this.isPrivateMode = tag.getBoolean("IsPrivateMode");
         if (tag.contains("IsRunningStatus")) this.isRunningStatus = tag.getBoolean("IsRunningStatus");
 
-        // ★ 読み込み時に OwnerUUID を復元
         if (tag.contains("OwnerUUID")) this.ownerUUID = tag.getUUID("OwnerUUID");
 
         if (tag.contains("DisguiseState")) {
@@ -309,7 +318,6 @@ public class RouterBlockEntity extends BlockEntity implements IMachineContext, I
         tag.putBoolean("IsRunningStatus", this.isRunningStatus);
         tag.put("PersistentData", this.persistentData);
 
-        // ★ クライアント（画面表示側）に OwnerUUID を同期
         if (this.ownerUUID != null) tag.putUUID("OwnerUUID", this.ownerUUID);
 
         if (this.disguiseState != null) {

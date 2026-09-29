@@ -1,3 +1,4 @@
+// 上書き: UIParser.java
 package com.nishiyu.lunex.webrender;
 
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
@@ -10,13 +11,12 @@ import java.util.regex.Pattern;
 
 public class UIParser {
 
-    public UIParser() {
-    }
+    public UIParser() {}
 
     public CssParser.StyleSheet buildStyleSheet(String authorCss, int rootW) {
         String defaultCss = """
                     body, html { background-color: #ffffff; color: #333333; margin: 0; padding: 0; width: 100%; min-height: 100%; box-sizing: border-box; overflow: auto; }
-                    head, meta, title, link, style, script { display: none; }
+                    head, meta, title, link, style, script, template { display: none; }
                     h1 { font-size: 2rem; font-weight: bold; margin: 0.67em 0; display: block; }
                     h2 { font-size: 1.5rem; font-weight: bold; margin: 0.83em 0; display: block; }
                     h3 { font-size: 1.17rem; font-weight: bold; margin: 1em 0; display: block; }
@@ -76,7 +76,6 @@ public class UIParser {
 
         String authorCss = combinedCss.toString();
         CssParser.StyleSheet sheet = buildStyleSheet(authorCss, rootW);
-
         HtmlNode htmlRoot = HtmlParser.parse(html == null ? "" : html);
 
         return new Document(htmlRoot, sheet, authorCss, extractedScript.toString());
@@ -88,9 +87,6 @@ public class UIParser {
         rootStyle.put("min-height", String.valueOf(rootH));
         rootStyle.put("color", "#f5f5f0");
         rootStyle.put("box-sizing", "border-box");
-
-        // ★削除: ここにあった expandTemplatesAndBindings(doc.root, env) の呼び出しを完全削除。
-        // 今後は ClientPubSubManager がデータ受信時にメモリ上の設定に基づいて DOM を直接操作します。
 
         LayoutBox rootBox = buildLayoutTree(doc.root, rootStyle, doc.sheet, env);
 
@@ -106,11 +102,74 @@ public class UIParser {
     private LayoutBox buildLayoutTree(HtmlNode node, Map<String, String> inheritedStyle, CssParser.StyleSheet sheet, Map<String, String> env) {
         Map<String, String> style = CssParser.computeNodeStyle(node, inheritedStyle, sheet, env);
         LayoutBox box = new LayoutBox(node, style, env);
+
+        // ::before 擬似要素の処理
+        HtmlNode beforeNode = createPseudoElement(node, sheet, true);
+        if (beforeNode != null) {
+            box.children.add(buildLayoutTree(beforeNode, style, sheet, env));
+        }
+
         for (HtmlNode child : node.children) {
             if (child.tag.equals("#text") && child.text.trim().isEmpty()) continue;
+            if (child.tag.equals("template")) continue; // templateはレイアウトから除外
             box.children.add(buildLayoutTree(child, style, sheet, env));
         }
+
+        // ::after 擬似要素の処理
+        HtmlNode afterNode = createPseudoElement(node, sheet, false);
+        if (afterNode != null) {
+            box.children.add(buildLayoutTree(afterNode, style, sheet, env));
+        }
         return box;
+    }
+
+    private HtmlNode createPseudoElement(HtmlNode parent, CssParser.StyleSheet sheet, boolean isBefore) {
+        Map<String, String> pseudoStyle = new HashMap<>();
+        boolean matched = false;
+
+        for (CssParser.StyleRule rule : sheet.rules) {
+            if ((isBefore && rule.isBefore) || (!isBefore && rule.isAfter)) {
+                if (rule.matches(parent)) {
+                    pseudoStyle.putAll(rule.properties);
+                    matched = true;
+                }
+            }
+        }
+        if (!matched || !pseudoStyle.containsKey("content")) return null;
+
+        String content = pseudoStyle.get("content");
+        if (content.equals("none") || content.equals("normal") || content.equals("\"\"") || content.equals("''")) return null;
+
+        HtmlNode pseudo = new HtmlNode("span");
+        pseudo.isPseudoNode = true;
+        pseudo.parent = parent;
+        // 疑似要素自体には固有のIDを振っておく（イベント等の混線防止）
+        pseudo.id = parent.id + (isBefore ? "_before" : "_after");
+
+        // ★ 修正: テキストを描画エンジンに認識させるための #text ノードを子として追加する
+        HtmlNode textNode = new HtmlNode("#text");
+        textNode.parent = pseudo;
+        textNode.id = pseudo.id + "_txt";
+
+        if (content.startsWith("attr(") && content.endsWith(")")) {
+            String attrName = content.substring(5, content.length() - 1).trim();
+            textNode.text = parent.attrs.getOrDefault(attrName, "");
+        } else {
+            textNode.text = content.replaceAll("^[\"']|[\"']$", "");
+        }
+
+        // テキストが空なら擬似要素自体を生成しない
+        if (textNode.text.isEmpty()) return null;
+
+        pseudo.children.add(textNode);
+
+        StringBuilder styleStr = new StringBuilder();
+        for (Map.Entry<String, String> entry : pseudoStyle.entrySet()) {
+            styleStr.append(entry.getKey()).append(":").append(entry.getValue()).append(";");
+        }
+        pseudo.attrs.put("style", styleStr.toString());
+
+        return pseudo;
     }
 
     public static class Document {
@@ -124,10 +183,6 @@ public class UIParser {
             this.sheet = sheet;
             this.authorCss = authorCss;
             this.clientScript = clientScript;
-        }
-
-        public Document(HtmlNode root, CssParser.StyleSheet sheet) {
-            this(root, sheet, "", "");
         }
     }
 }
