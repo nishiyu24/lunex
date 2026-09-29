@@ -1,4 +1,3 @@
-// 上書き: UIParser.java
 package com.nishiyu.lunex.webrender;
 
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
@@ -111,7 +110,6 @@ public class UIParser {
 
         for (HtmlNode child : node.children) {
             if (child.tag.equals("#text") && child.text.trim().isEmpty()) continue;
-            if (child.tag.equals("template")) continue; // templateはレイアウトから除外
             box.children.add(buildLayoutTree(child, style, sheet, env));
         }
 
@@ -143,10 +141,8 @@ public class UIParser {
         HtmlNode pseudo = new HtmlNode("span");
         pseudo.isPseudoNode = true;
         pseudo.parent = parent;
-        // 疑似要素自体には固有のIDを振っておく（イベント等の混線防止）
         pseudo.id = parent.id + (isBefore ? "_before" : "_after");
 
-        // ★ 修正: テキストを描画エンジンに認識させるための #text ノードを子として追加する
         HtmlNode textNode = new HtmlNode("#text");
         textNode.parent = pseudo;
         textNode.id = pseudo.id + "_txt";
@@ -158,7 +154,6 @@ public class UIParser {
             textNode.text = content.replaceAll("^[\"']|[\"']$", "");
         }
 
-        // テキストが空なら擬似要素自体を生成しない
         if (textNode.text.isEmpty()) return null;
 
         pseudo.children.add(textNode);

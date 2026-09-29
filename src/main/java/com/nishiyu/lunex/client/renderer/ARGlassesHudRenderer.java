@@ -44,7 +44,6 @@ public class ARGlassesHudRenderer {
 
     private static final float VIRTUAL_HEIGHT = 720.0f;
 
-    // 前回の提案を含めた最適化
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{([a-zA-Z0-9_.-]+)}}");
 
     public static class HudTemplateConfig {
@@ -131,7 +130,6 @@ public class ARGlassesHudRenderer {
         PacketDistributor.sendToServer(new SubscribeC2SPacket("", needsHud, needsTracker, radius, type, hudNbtPaths, trackerNbtPaths));
     }
 
-    // ★ 修正: 距離だけでなく、ルーターが稼働中かどうかの確認も追加
     private static boolean isRouterActiveAndInRange(Minecraft mc, ItemStack stack) {
         CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
         CompoundTag tag = customData.copyTag();
@@ -144,11 +142,9 @@ public class ARGlassesHudRenderer {
         if (mc.player == null || mc.level == null) return false;
         boolean isSameDim = mc.level.dimension().location().toString().equals(routerDim);
 
-        // 距離チェック
         if (!isSameDim && maxDist != Double.MAX_VALUE) return false;
         if (isSameDim && maxDist != Double.MAX_VALUE && mc.player.blockPosition().distSqr(routerPos) > (maxDist * maxDist)) return false;
 
-        // 稼働状況チェック (チャンクがロードされている場合のみ)
         if (isSameDim && mc.level.isLoaded(routerPos)) {
             net.minecraft.world.level.block.entity.BlockEntity be = mc.level.getBlockEntity(routerPos);
             if (be instanceof RouterBlockEntity router) {
@@ -177,7 +173,6 @@ public class ARGlassesHudRenderer {
         String screenKey = ClientScreenInteractionManager.getSessionIdFromItem(headItem);
         if (screenKey == null) return;
 
-        // ★ 修正: 範囲外やVM停止時にはセッションを完全にクリアして描画を止める
         if (!isRouterActiveAndInRange(mc, headItem)) {
             ClientScreenManager.clearSession(screenKey);
             clearSession(screenKey);
@@ -298,7 +293,6 @@ public class ARGlassesHudRenderer {
         String screenKey = ClientScreenInteractionManager.getSessionIdFromItem(headItem);
         if (screenKey == null) return;
 
-        // ★ 修正: 範囲外やVM停止時にはワールド内のトラッカー描画もしない
         if (!isRouterActiveAndInRange(mc, headItem)) return;
 
         if (trackerTemplateNode != null && screenKey.equals(currentTrackerSessionId) && currentTrackerConfig != null) {
@@ -522,7 +516,14 @@ public class ARGlassesHudRenderer {
             String jsonStr = node.attrs.get("data-list");
             node.attrs.remove("data-list");
 
-            List<HtmlNode> templateChildren = new java.util.ArrayList<>(node.children);
+            List<HtmlNode> templateChildren = new java.util.ArrayList<>();
+            for (HtmlNode c : node.children) {
+                if ("template".equalsIgnoreCase(c.tag)) {
+                    templateChildren.addAll(c.children);
+                } else {
+                    templateChildren.add(c);
+                }
+            }
             node.children.clear();
 
             if (jsonStr != null && !jsonStr.isEmpty() && !jsonStr.contains("{{")) {
@@ -547,11 +548,22 @@ public class ARGlassesHudRenderer {
                     } else if (parsedJson.isJsonArray()) {
                         int idx = 0;
                         for (JsonElement elem : parsedJson.getAsJsonArray()) {
-                            if (!elem.isJsonPrimitive()) continue;
-
                             Map<String, String> localData = new HashMap<>(data);
                             localData.put("_key", String.valueOf(idx++));
-                            localData.put("_value", elem.getAsString());
+
+                            if (elem.isJsonPrimitive()) {
+                                localData.put("_value", elem.getAsString());
+                            } else if (elem.isJsonObject()) {
+                                JsonObject obj = elem.getAsJsonObject();
+                                for (Map.Entry<String, JsonElement> objEntry : obj.entrySet()) {
+                                    if (objEntry.getValue().isJsonPrimitive()) {
+                                        localData.put(objEntry.getKey(), objEntry.getValue().getAsString());
+                                    }
+                                }
+                                localData.put("_value", elem.toString());
+                            } else {
+                                continue;
+                            }
 
                             for (HtmlNode tmplChild : templateChildren) {
                                 HtmlNode clonedChild = tmplChild.cloneNode();
@@ -572,7 +584,6 @@ public class ARGlassesHudRenderer {
         }
     }
 
-    // ★ 提案内容を反映した正規表現処理
     private static String replacePlaceholders(String text, Map<String, String> data) {
         Matcher m = PLACEHOLDER_PATTERN.matcher(text);
         StringBuilder sb = new StringBuilder();
@@ -625,24 +636,45 @@ public class ARGlassesHudRenderer {
         }
     }
 
-    private static JsonObject mapToJson(Map<String, Object> map) {
-        JsonObject obj = new JsonObject();
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            Object v = entry.getValue();
-            if (v instanceof String s) obj.addProperty(entry.getKey(), s);
-            else if (v instanceof Number n) obj.addProperty(entry.getKey(), n);
-            else if (v instanceof Boolean b) obj.addProperty(entry.getKey(), b);
-            else if (v instanceof Map<?, ?> m) {
-                Map<String, Object> safeMap = new HashMap<>();
-                for (Map.Entry<?, ?> subEntry : m.entrySet()) {
-                    if (subEntry.getKey() instanceof String strKey) {
-                        safeMap.put(strKey, subEntry.getValue());
-                    }
+    // ★ 修正：すべてのオブジェクト型(ListやArray含む)を網羅的にJSONへ変換するヘルパーメソッド
+    private static com.google.gson.JsonElement toJsonElement(Object v) {
+        if (v instanceof String s) return new com.google.gson.JsonPrimitive(s);
+        if (v instanceof Number n) return new com.google.gson.JsonPrimitive(n);
+        if (v instanceof Boolean b) return new com.google.gson.JsonPrimitive(b);
+        if (v instanceof Map<?, ?> m) {
+            JsonObject obj = new JsonObject();
+            for (Map.Entry<?, ?> entry : m.entrySet()) {
+                if (entry.getKey() instanceof String strKey) {
+                    com.google.gson.JsonElement child = toJsonElement(entry.getValue());
+                    if (child != null) obj.add(strKey, child);
                 }
-                obj.add(entry.getKey(), mapToJson(safeMap));
             }
+            return obj;
         }
-        return obj;
+        if (v instanceof Iterable<?> list) {
+            com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+            for (Object item : list) {
+                com.google.gson.JsonElement child = toJsonElement(item);
+                if (child != null) arr.add(child);
+            }
+            return arr;
+        }
+        if (v != null && v.getClass().isArray()) {
+            com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+            int length = java.lang.reflect.Array.getLength(v);
+            for (int i = 0; i < length; i++) {
+                com.google.gson.JsonElement child = toJsonElement(java.lang.reflect.Array.get(v, i));
+                if (child != null) arr.add(child);
+            }
+            return arr;
+        }
+        return null;
+    }
+
+    // ★ 修正：ヘルパーメソッドを使用して、抜け落ちなくJSONオブジェクトを生成するように変更
+    private static JsonObject mapToJson(Map<String, Object> map) {
+        com.google.gson.JsonElement el = toJsonElement(map);
+        return el != null && el.isJsonObject() ? el.getAsJsonObject() : new JsonObject();
     }
 
     private static class TrackerCache {

@@ -1,4 +1,3 @@
-// 上書き: LayoutBox.java
 package com.nishiyu.lunex.webrender;
 
 import java.util.ArrayList;
@@ -48,11 +47,10 @@ public class LayoutBox {
     public int getMinContentWidth() {
         if (style.containsKey("min-width")) return CssParser.parseDim(style.get("min-width"), 9999, 1920, 1080);
 
-        // ★ 修正: isPseudoNode の特別扱いを削除
         if (node.tag.equals("#text")) {
             int maxWordW = 0;
             String text = this.displayText;
-            if (style.getOrDefault("font-weight", "").matches("(?i)bold|bolder|700|800|900")) text = "\u00A7l" + text;
+            if (style.getOrDefault("font-weight", "").matches("(?i)bold|bolder|700|800|900")) text = "§l" + text;
             String[] words = text.split("(?<=\\s)|(?=\\s)|(?<=[、。！？.,])");
             for (String word : words)
                 if (!word.trim().isEmpty())
@@ -63,7 +61,7 @@ public class LayoutBox {
         } else {
             int max = 0;
             for (LayoutBox c : children)
-                if (!c.isAbsolute && !c.style.getOrDefault("display", "block").equals("none") && !c.node.tag.equals("template"))
+                if (!c.isAbsolute && !c.style.getOrDefault("display", "block").equals("none"))
                     max = Math.max(max, c.getMinContentWidth() + c.mL + c.mR);
             return max + pL + pR + bL + bR;
         }
@@ -80,7 +78,7 @@ public class LayoutBox {
                 totalFr += Float.parseFloat(colDefs[i].replace("fr", ""));
             } else {
                 gridColWidths[i] = CssParser.parseDim(colDefs[i], tentativeInnerW, rootW, rootH);
-                fixedW += gridColWidths[i];
+                fixedW = (int) (fixedW + gridColWidths[i]);
             }
         }
         int availableW = Math.max(0, tentativeInnerW - (gridColsCount - 1) * gap - fixedW);
@@ -96,7 +94,8 @@ public class LayoutBox {
         int currentR = 0, currentC = 0;
 
         for (LayoutBox child : children) {
-            if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+            // ★変更: templateの除外条件を削除
+            if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
             GridItem item = new GridItem();
             item.box = child;
 
@@ -245,7 +244,8 @@ public class LayoutBox {
     }
 
     public void computeSize(int parentW, int parentH, boolean isParentFlexRow, boolean isParentFlexColumn, String parentAlignItems, boolean isParentShrink, int rootW, int rootH) {
-        if (style.getOrDefault("display", "block").equals("none") || node.tag.equals("template")) {
+        // ★変更: templateの除外条件を削除
+        if (style.getOrDefault("display", "block").equals("none")) {
             this.w = 0;
             this.h = 0;
             return;
@@ -311,7 +311,6 @@ public class LayoutBox {
         boolean isFlexBasisZero = style.getOrDefault("flex-basis", "auto").equals("0") || style.getOrDefault("flex-basis", "auto").equals("0%") || style.getOrDefault("flex-basis", "auto").equals("0px");
         String display = style.getOrDefault("display", "block");
 
-        // ★ 修正: isPseudoNode の特別扱いを削除
         if (hasWidth && !isPercentWidthAndShrinking) {
             this.w = CssParser.parseDim(widthStr, parentW, rootW, rootH);
             if (!isBorderBox) this.w += horizontalDecoration;
@@ -323,7 +322,7 @@ public class LayoutBox {
             }
             if (limitW <= 0) limitW = 9999;
             String text = this.displayText;
-            if (style.getOrDefault("font-weight", "").matches("(?i)bold|bolder|700|800|900")) text = "\u00A7l" + text;
+            if (style.getOrDefault("font-weight", "").matches("(?i)bold|bolder|700|800|900")) text = "§l" + text;
             this.textLines = TextMetrics.wrapText(text, limitW, this.fontSize);
             int maxLineW = 0;
             for (String s : textLines) maxLineW = Math.max(maxLineW, TextMetrics.getDisplayWidth(s, this.fontSize));
@@ -343,7 +342,6 @@ public class LayoutBox {
             int inputW = 120;
             String type = node.attrs.getOrDefault("type", "text");
             if (type.equals("checkbox") || type.equals("radio")) inputW = 16;
-            else if (type.equals("range")) inputW = 120;
             else if (node.attrs.containsKey("size")) {
                 try {
                     inputW = Integer.parseInt(node.attrs.get("size")) * 8;
@@ -391,7 +389,7 @@ public class LayoutBox {
             }
             if (this.w == -1) {
                 int totalW = 0;
-                for (int c = 0; c < gridColsCount; c++) totalW += gridColWidths[c];
+                for (int c = 0; c < gridColsCount; c++) totalW = (int) (totalW + gridColWidths[c]);
                 totalW += Math.max(0, gridColsCount - 1) * gap;
                 this.w = totalW + horizontalDecoration;
             }
@@ -405,7 +403,8 @@ public class LayoutBox {
 
         if (!display.equals("grid")) {
             for (LayoutBox child : children) {
-                if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                // ★変更: templateの除外条件を削除
+                if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                 child.computeSize(tentativeInnerW, parentH, isFlexRow, isFlexColumn, alignItems, this.w == -1, rootW, rootH);
                 maxChildW = Math.max(maxChildW, child.w + child.mL + child.mR);
                 sumChildW += child.w + child.mL + child.mR;
@@ -464,7 +463,6 @@ public class LayoutBox {
             } catch (Exception ignored) {
                 this.h = this.w;
             }
-            // ★ 修正: isPseudoNode の特別扱いを削除
         } else if (node.tag.equals("#text")) {
             int lineCount = this.textLines != null && !this.textLines.isEmpty() ? this.textLines.size() : 1;
             this.h = (Math.max(0, lineCount - 1) * (int) (16 * this.fontSize * lh)) + (int) (16 * this.fontSize) + verticalDecoration;
@@ -484,7 +482,7 @@ public class LayoutBox {
             }
         } else if (node.tag.equals("input")) {
             this.h = 16 + verticalDecoration;
-            if (node.tag.equals("input") && !node.attrs.getOrDefault("type", "text").equals("checkbox") && !node.attrs.getOrDefault("type", "text").equals("radio") && !node.attrs.getOrDefault("type", "text").equals("range")) {
+            if (!node.attrs.getOrDefault("type", "text").equals("checkbox") && !node.attrs.getOrDefault("type", "text").equals("radio") && !node.attrs.getOrDefault("type", "text").equals("range")) {
                 this.h = (int) (16 * this.fontSize) + 8 + verticalDecoration;
             }
         } else if (!display.equals("grid")) {
@@ -493,7 +491,8 @@ public class LayoutBox {
             if (display.equals("flex") && isFlexRow && flexWrap.equals("wrap")) {
                 int currentLineW = 0, currentLineH = 0, actualInnerW = Math.max(0, this.w - horizontalDecoration);
                 for (LayoutBox child : children) {
-                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                    // ★変更: templateの除外条件を削除
+                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                     int childOuterW = child.w + child.mL + child.mR, childOuterH = child.h + child.mT + child.mB;
                     if (currentLineW + childOuterW > actualInnerW && currentLineW > 0) {
                         totalH += currentLineH + gap;
@@ -506,11 +505,13 @@ public class LayoutBox {
                 totalH += currentLineH;
             } else if (display.equals("flex") && isFlexRow) {
                 for (LayoutBox child : children)
-                    if (!child.isAbsolute && !child.style.getOrDefault("display", "block").equals("none") && !child.node.tag.equals("template"))
+                    // ★変更: templateの除外条件を削除
+                    if (!child.isAbsolute && !child.style.getOrDefault("display", "block").equals("none"))
                         totalH = Math.max(totalH, child.h + child.mT + child.mB);
             } else {
                 for (LayoutBox child : children) {
-                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                    // ★変更: templateの除外条件を削除
+                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                     totalH += child.h + child.mT + child.mB;
                 }
                 if (activeChildren > 1) totalH += gap * (activeChildren - 1);
@@ -530,7 +531,8 @@ public class LayoutBox {
             String align = style.getOrDefault("align-items", "stretch"), flexWrap = style.getOrDefault("flex-wrap", "nowrap");
             if (align.equals("stretch") && flexWrap.equals("nowrap")) {
                 for (LayoutBox child : children) {
-                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                    // ★変更: templateの除外条件を削除
+                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                     boolean stretched = false;
                     String oldProp = null;
                     if (isFlexRow && !child.style.containsKey("height")) {
@@ -572,7 +574,8 @@ public class LayoutBox {
             float totalGrowW = 0, totalGrowH = 0;
             int usedW = 0, usedH = 0;
             for (LayoutBox child : children) {
-                if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                // ★変更: templateの除外条件を削除
+                if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                 if (isFlexRow) {
                     usedW += child.w + child.mL + child.mR;
                     if (child.style.containsKey("flex-grow"))
@@ -591,7 +594,8 @@ public class LayoutBox {
             if (isFlexRow && flexWrap.equals("nowrap") && totalGrowW > 0 && actualInnerW > usedW) {
                 int extraW = Math.max(0, actualInnerW - usedW);
                 for (LayoutBox child : children) {
-                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                    // ★変更: templateの除外条件を削除
+                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                     if (child.style.containsKey("flex-grow")) {
                         float grow = Float.parseFloat(child.style.get("flex-grow"));
                         child.w += (int) (extraW * (grow / totalGrowW));
@@ -615,7 +619,8 @@ public class LayoutBox {
                         float currentTotalShrinkW = 0;
                         for (int i = 0; i < children.size(); i++) {
                             LayoutBox child = children.get(i);
-                            if (frozen[i] || child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template"))
+                            // ★変更: templateの除外条件を削除
+                            if (frozen[i] || child.isAbsolute || child.style.getOrDefault("display", "block").equals("none"))
                                 continue;
                             float shrink = Float.parseFloat(child.style.getOrDefault("flex-shrink", "1"));
                             currentTotalShrinkW += shrink * child.w;
@@ -625,7 +630,8 @@ public class LayoutBox {
                         int remainingDeficit = 0;
                         for (int i = 0; i < children.size(); i++) {
                             LayoutBox child = children.get(i);
-                            if (frozen[i] || child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template"))
+                            // ★変更: templateの除外条件を削除
+                            if (frozen[i] || child.isAbsolute || child.style.getOrDefault("display", "block").equals("none"))
                                 continue;
                             float shrink = Float.parseFloat(child.style.getOrDefault("flex-shrink", "1"));
                             if (shrink > 0) {
@@ -644,7 +650,8 @@ public class LayoutBox {
                         loopCount++;
                     }
                     for (LayoutBox child : children) {
-                        if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                        // ★変更: templateの除外条件を削除
+                        if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                         String oldW = child.style.get("width");
                         int forcedW = child.w;
                         if (child.style.getOrDefault("box-sizing", "border-box").equals("content-box"))
@@ -658,7 +665,8 @@ public class LayoutBox {
             } else if (isFlexColumn && flexWrap.equals("nowrap") && totalGrowH > 0 && actualInnerH > usedH) {
                 int extraH = Math.max(0, actualInnerH - usedH);
                 for (LayoutBox child : children) {
-                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                    // ★変更: templateの除外条件を削除
+                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                     if (child.style.containsKey("flex-grow")) {
                         float grow = Float.parseFloat(child.style.get("flex-grow"));
                         child.h += (int) (extraH * (grow / totalGrowH));
@@ -682,7 +690,8 @@ public class LayoutBox {
                         float currentTotalShrinkH = 0;
                         for (int i = 0; i < children.size(); i++) {
                             LayoutBox child = children.get(i);
-                            if (frozen[i] || child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template"))
+                            // ★変更: templateの除外条件を削除
+                            if (frozen[i] || child.isAbsolute || child.style.getOrDefault("display", "block").equals("none"))
                                 continue;
                             float shrink = Float.parseFloat(child.style.getOrDefault("flex-shrink", "1"));
                             currentTotalShrinkH += shrink * child.h;
@@ -692,7 +701,8 @@ public class LayoutBox {
                         int remainingDeficit = 0;
                         for (int i = 0; i < children.size(); i++) {
                             LayoutBox child = children.get(i);
-                            if (frozen[i] || child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template"))
+                            // ★変更: templateの除外条件を削除
+                            if (frozen[i] || child.isAbsolute || child.style.getOrDefault("display", "block").equals("none"))
                                 continue;
                             float shrink = Float.parseFloat(child.style.getOrDefault("flex-shrink", "1"));
                             if (shrink > 0) {
@@ -711,7 +721,8 @@ public class LayoutBox {
                         loopCount++;
                     }
                     for (LayoutBox child : children) {
-                        if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                        // ★変更: templateの除外条件を削除
+                        if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                         String oldH = child.style.get("height");
                         int forcedH = child.h;
                         if (child.style.getOrDefault("box-sizing", "border-box").equals("content-box"))
@@ -726,7 +737,8 @@ public class LayoutBox {
         }
 
         for (LayoutBox child : children) {
-            if (child.isAbsolute && !child.style.getOrDefault("display", "block").equals("none") && !child.node.tag.equals("template")) {
+            // ★変更: templateの除外条件を削除
+            if (child.isAbsolute && !child.style.getOrDefault("display", "block").equals("none")) {
                 child.computeSize(actualInnerW, actualInnerH, false, false, "stretch", false, rootW, rootH);
             }
         }
@@ -736,13 +748,15 @@ public class LayoutBox {
             if (display.equals("flex")) {
                 if (isFlexRow) {
                     for (LayoutBox child : children) {
-                        if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                        // ★変更: templateの除外条件を削除
+                        if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                         contentH = Math.max(contentH, child.h + child.mT + child.mB);
                     }
                 } else if (isFlexColumn) {
                     int activeCountLocal = 0;
                     for (LayoutBox child : children) {
-                        if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                        // ★変更: templateの除外条件を削除
+                        if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                         contentH += child.h + child.mT + child.mB;
                         activeCountLocal++;
                     }
@@ -750,7 +764,8 @@ public class LayoutBox {
                 }
             } else {
                 for (LayoutBox child : children) {
-                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+                    // ★変更: templateの除外条件を削除
+                    if (child.isAbsolute || child.style.getOrDefault("display", "block").equals("none")) continue;
                     contentH += child.h + child.mT + child.mB;
                 }
             }
@@ -759,7 +774,8 @@ public class LayoutBox {
     }
 
     public void layout(int parentX, int parentY, int parentOuterW, int parentOuterH, int rootW, int rootH) {
-        if (style.getOrDefault("display", "block").equals("none") || node.tag.equals("template")) return;
+        // ★変更: templateの除外条件を削除
+        if (style.getOrDefault("display", "block").equals("none")) return;
         int refX = this.isFixed ? 0 : parentX;
         int refY = this.isFixed ? 0 : parentY;
         int refW = this.isFixed ? rootW : parentOuterW;
@@ -794,7 +810,8 @@ public class LayoutBox {
 
         List<LayoutBox> flowChildren = new ArrayList<>();
         for (LayoutBox child : children) {
-            if (child.style.getOrDefault("display", "block").equals("none") || child.node.tag.equals("template")) continue;
+            // ★変更: templateの除外条件を削除
+            if (child.style.getOrDefault("display", "block").equals("none")) continue;
             if (child.isAbsolute) child.layout(this.x - scrollX, this.y - scrollY, this.w, this.h, rootW, rootH);
             else flowChildren.add(child);
         }
@@ -925,13 +942,14 @@ public class LayoutBox {
         int maxChildRight = this.x + pL + bL;
         int maxChildBottom = this.y + pT + bT;
         for (LayoutBox child : children) {
-            if (child.style.getOrDefault("display", "block").equals("none") || child.isAbsolute || child.node.tag.equals("template")) continue;
+            if (child.style.getOrDefault("display", "block").equals("none") || child.isAbsolute) continue;
             maxChildRight = Math.max(maxChildRight, child.x + child.w + child.mR + scrollX);
             maxChildBottom = Math.max(maxChildBottom, child.y + child.h + child.mB + scrollY);
         }
         if (display.equals("grid")) {
             for (GridItem item : gridItems) {
-                if (item.box.isAbsolute || item.box.node.tag.equals("template")) continue;
+                // ★変更: templateの除外条件を削除
+                if (item.box.isAbsolute) continue;
                 maxChildRight = Math.max(maxChildRight, item.box.x + item.box.w + item.box.mR + scrollX);
                 maxChildBottom = Math.max(maxChildBottom, item.box.y + item.box.h + item.box.mB + scrollY);
             }
@@ -958,13 +976,11 @@ public class LayoutBox {
         if (display.equals("inline") || display.equals("inline-block")) return true;
         if (display.equals("block") || display.equals("flex") || display.equals("grid")) return false;
         String tag = box.node.tag;
-        // ★ 修正: isPseudoNode の特別扱いを削除
         return tag.equals("#text") || tag.equals("br") || tag.equals("span") || tag.equals("a") || tag.equals("b") || tag.equals("i") || tag.equals("strong") || tag.equals("em") || tag.equals("img") || tag.equals("input") || tag.equals("button");
     }
 
     private void flattenInlines(List<LayoutBox> boxes, List<FlatRun> runs, List<LayoutBox> parents) {
         for (LayoutBox b : boxes) {
-            // ★ 修正: isPseudoNode の特別扱いを削除
             if (b.node.tag.equals("#text") && b.displayText != null && !b.displayText.isEmpty()) {
                 runs.add(new FlatRun(b, true, b.displayText, new ArrayList<>(parents)));
             } else if (b.node.tag.equals("br")) {
@@ -1009,7 +1025,7 @@ public class LayoutBox {
             if (run.isText) {
                 String text = run.text;
                 boolean isBold = run.box.style.getOrDefault("font-weight", "").matches("(?i)bold|bolder|700|800|900");
-                if (isBold) text = "\u00A7l" + text;
+                if (isBold) text = "§l" + text;
 
                 float scale = run.box.fontSize;
                 int fontH = (int) (16 * scale), runH = (int) (fontH * lh), totalRunH = runH + decoT + decoB;
