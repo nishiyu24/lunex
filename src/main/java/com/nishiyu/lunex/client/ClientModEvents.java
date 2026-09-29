@@ -33,8 +33,6 @@ public class ClientModEvents {
         boolean isWebServerEnabled = Config.ENABLE_WEB_SERVER.get();
         LocalWebSocketServer.start(isWebServerEnabled);
         LocalWebServer.start(isWebServerEnabled);
-
-        Lunex.LOGGER.info("Lunex Client Setup Complete. Web Server Enabled: " + isWebServerEnabled);
     }
 
     @SubscribeEvent

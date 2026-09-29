@@ -584,31 +584,6 @@ public class CustomBioMobEntity extends PathfinderMob implements Merchant {
         return this.fakePlayerContext.getFakePlayer();
     }
 
-    @Nullable
-    @Override
-    protected SoundEvent getAmbientSound() {
-        return this.isMechanical() ? SoundEvents.COPPER_GRATE_STEP : SoundEvents.COW_AMBIENT;
-    }
-
-    @Nullable
-    @Override
-    protected SoundEvent getHurtSound(@NotNull DamageSource source) {
-        return SoundEvents.GENERIC_HURT;
-    }
-
-    @Override
-    protected SoundEvent getDeathSound() {
-        return SoundEvents.GENERIC_DEATH;
-    }
-
-    @Override
-    protected void playStepSound(@NotNull BlockPos pos, @NotNull BlockState state) {
-        if (!state.liquid()) {
-            net.minecraft.world.level.block.SoundType soundtype = state.getSoundType(this.level(), pos, this);
-            this.playSound(soundtype.getStepSound(), soundtype.getVolume() * 0.15F, soundtype.getPitch());
-        }
-    }
-
     public void startConsumingItem(InteractionHand hand) {
         ItemStack stack = this.getItemInHand(hand);
         if (!stack.isEmpty()) {
