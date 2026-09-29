@@ -27,7 +27,7 @@ public class ModCapabilitiesEvent {
                 (blockEntity, side) -> blockEntity.energyStorage
         );
 
-        // ProgrammableMachineBlockEntity の EnergyStorage 登録
+        // AdvancedMachineBlockEntity の EnergyStorage 登録
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
                 Lunex.ADVANCED_MACHINE_BE.get(),

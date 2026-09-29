@@ -204,7 +204,7 @@ public class AdvancedMachineBlockEntity extends BlockEntity implements IMachineC
         json.addProperty("status", this.isRunning() ? "running" : "stopped");
         json.addProperty("workspaceId", this.getWorkspaceId());
         json.addProperty("programName", this.getProgramName());
-        json.addProperty("machineType", "ProgrammableMachine");
+        json.addProperty("machineType", "AdvancedMachine");
         json.addProperty("memory_usage", "N/A");
         JsonObject vars = new JsonObject();
         json.add("variables", vars);

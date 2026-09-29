@@ -71,7 +71,7 @@ public class UpgradeItem extends Item {
         @Override
         public void gatherTranslations(AutoLanguageProvider provider, String locale) {
             provider.addTranslation("tooltip.lunex.hold_shift", "<Hold Shift for details>", "<Shiftキーを押して詳細を表示>");
-            provider.addTranslation("tooltip.lunex.upgrade.desc", "Insert into a Programmable Machine to enhance its performance.", "プログラマブルマシンに挿入して性能を強化できる。");
+            provider.addTranslation("tooltip.lunex.upgrade.desc", "Insert into a Machine frame to enhance its performance.", "マシンフレームに挿入して性能を強化できる。");
             provider.addTranslation("tooltip.lunex.upgrade.execution", "Expands the machine's hotbar capacity. (Mk%s)", "マシンの作業枠を拡張します。(Mk%s)");
             provider.addTranslation("tooltip.lunex.upgrade.storage", "Expands the machine's storage capacity. (Mk%s)", "マシンのストレージ枠を拡張します。(Mk%s)");
             provider.addTranslation("tooltip.lunex.upgrade.speed", "Reduces delay and smelting time. (Mk%s)", "クールタイムと精錬時間を短縮します。(Mk%s)");

@@ -92,6 +92,9 @@ public class BioPrinterTranslations implements ITranslationGatherer {
     @Translatable(en = "Required Materials:", ja = "要求素材:")
     public static final String TRAIT_REQ_MATS = "gui.lunex.bioprinter.trait.req_mats";
 
+    @Translatable(en = "Locked", ja = "未解放")
+    public static final String TRAIT_LOCKED = "gui.lunex.trait.locked";
+
     @Override
     public void gatherTranslations(AutoLanguageProvider provider, String locale) {
         // ITranslationGathererとしての実装。自身のリフレクションを利用して翻訳を登録します。

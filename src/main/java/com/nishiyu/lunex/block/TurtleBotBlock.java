@@ -40,7 +40,6 @@ public class TurtleBotBlock extends AdvancedMachineBlock {
     // ▼ 追加: タートルボットをレンチで破壊した時の処理（親クラスの処理＋ピストン）
     @Override
     protected void handleWrenchDestroy(Level level, BlockPos pos, BlockState state, AdvancedMachineBlockEntity machineEntity) {
-        // 親クラス（ProgrammableMachine）の処理を呼び出し、アップグレードとMachine Frameをドロップ
         super.handleWrenchDestroy(level, pos, state, machineEntity);
 
         // 追加でピストンを1つドロップさせる

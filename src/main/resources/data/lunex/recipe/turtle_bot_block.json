@@ -8,7 +8,7 @@
   ],
   "key": {
     "I": { "item": "minecraft:iron_ingot" },
-    "M": { "item": "lunex:programmable_machine" },
+    "M": { "item": "lunex:advanced_machine" },
     "P": { "item": "minecraft:piston" }
   },
   "result": {

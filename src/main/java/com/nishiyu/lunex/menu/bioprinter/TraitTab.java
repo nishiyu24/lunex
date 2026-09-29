@@ -380,7 +380,7 @@ public class TraitTab extends AbstractPrinterTab {
 
                 if (isSilhouette) {
                     tooltip.add(Component.literal("???").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-                    tooltip.add(Component.translatable("gui.lunex.trait.locked").withStyle(net.minecraft.ChatFormatting.GRAY));
+                    tooltip.add(Component.translatable(BioPrinterTranslations.TRAIT_LOCKED).withStyle(net.minecraft.ChatFormatting.GRAY));
                 } else {
                     tooltip.add(Component.literal(traitName).withStyle(net.minecraft.ChatFormatting.GRAY));
                     tooltip.add(Component.literal("[" + hoveredDef.category().getDisplayName() + "]").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
