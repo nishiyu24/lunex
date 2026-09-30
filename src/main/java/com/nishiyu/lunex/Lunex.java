@@ -1,6 +1,7 @@
 package com.nishiyu.lunex;
 
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.Codec;
 import com.nishiyu.lunex.block.*;
 import com.nishiyu.lunex.blockentity.*;
 import com.nishiyu.lunex.datagen.DataGenerators;
@@ -18,9 +19,11 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.*;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -29,6 +32,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -36,6 +40,7 @@ import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -53,6 +58,10 @@ public class Lunex {
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(BuiltInRegistries.MENU, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(BuiltInRegistries.CREATIVE_MODE_TAB, MODID);
     public static final DeferredRegister<net.minecraft.world.entity.EntityType<?>> ENTITY_TYPES = DeferredRegister.create(BuiltInRegistries.ENTITY_TYPE, MODID);
+
+    // 追加: DataComponent と AttachmentType のレジストリ
+    public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENTS = DeferredRegister.create(BuiltInRegistries.DATA_COMPONENT_TYPE, MODID);
+    public static final DeferredRegister<AttachmentType<?>> ATTACHMENTS = DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, MODID);
 
     // =========================================
     // Entity の登録
@@ -111,6 +120,11 @@ public class Lunex {
     @Translatable(en = "Database", ja = "データベース")
     public static final DeferredHolder<Block, com.nishiyu.lunex.block.DatabaseBlock> DATABASE_BLOCK = BLOCKS.register("database_block",
             () -> new com.nishiyu.lunex.block.DatabaseBlock(Block.Properties.of().strength(5.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()));
+
+    // カメラブロックの登録
+    @Translatable(en = "Camera", ja = "カメラ")
+    public static final DeferredHolder<Block, com.nishiyu.lunex.block.CameraBlock> CAMERA_BLOCK = BLOCKS.register("camera_block",
+            () -> new com.nishiyu.lunex.block.CameraBlock(Block.Properties.of().strength(1.5F).sound(SoundType.METAL).noOcclusion()));
 
     // =========================================
     // Item の登録
@@ -247,6 +261,10 @@ public class Lunex {
     @Translatable(en = "Router", ja = "ルーター")
     public static final DeferredHolder<Item, BlockItem> ROUTER_BLOCK_ITEM = ITEMS.register("router_block", () -> new BlockItem(ROUTER_BLOCK.get(), new Item.Properties()));
 
+    // 追加: カメラブロックのItem版登録（CameraItemクラスを削除したため標準のBlockItemを使用）
+    @Translatable(en = "Camera", ja = "カメラ")
+    public static final DeferredHolder<Item, BlockItem> CAMERA_BLOCK_ITEM = ITEMS.register("camera_block", () -> new BlockItem(CAMERA_BLOCK.get(), new Item.Properties()));
+
     // =========================================
     // BlockEntity の登録
     // =========================================
@@ -261,6 +279,16 @@ public class Lunex {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PrinterBlockEntity>> PRINTER_BE = BLOCK_ENTITIES.register("printer", () -> BlockEntityType.Builder.of(PrinterBlockEntity::new, PRINTER.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.BioPrinterBlockEntity>> BIO_PRINTER_BE = BLOCK_ENTITIES.register("bio_printer_block", () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.BioPrinterBlockEntity::new, BIO_PRINTER_BLOCK.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.DatabaseBlockEntity>> DATABASE_BE = BLOCK_ENTITIES.register("database_block", () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.DatabaseBlockEntity::new, DATABASE_BLOCK.get()).build(null));
+
+    // カメラブロックエンティティの登録
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.CameraBlockEntity>> CAMERA_BE = BLOCK_ENTITIES.register("camera_block",
+            () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.CameraBlockEntity::new, CAMERA_BLOCK.get()).build(null));
+
+    // =========================================
+    // Attachment の登録
+    // =========================================
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Boolean>> HAS_CAMERA_ATTACHMENT = ATTACHMENTS.register("has_camera",
+            () -> AttachmentType.builder(() -> false).serialize(Codec.BOOL).build());
 
     // =========================================
     // Menu (GUI) の登録
@@ -307,6 +335,7 @@ public class Lunex {
                 output.accept(PROBE_BLOCK_ITEM.get());
                 output.accept(LAN_CABLE_BLOCK_ITEM.get());
                 output.accept(BIO_PRINTER_BLOCK_ITEM.get());
+                output.accept(CAMERA_BLOCK_ITEM.get());
 
                 output.accept(WRENCH.get());
                 output.accept(PROGRAMMER_TABLET.get());
@@ -357,6 +386,9 @@ public class Lunex {
         MENUS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
         ENTITY_TYPES.register(modEventBus);
+
+        DATA_COMPONENTS.register(modEventBus);
+        ATTACHMENTS.register(modEventBus);
 
         modEventBus.addListener(this::setup);
         modEventBus.addListener(this::registerCapabilities);

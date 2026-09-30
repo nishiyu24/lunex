@@ -34,6 +34,7 @@ public class DeviceAPIRegistry {
         register("router", DeviceAPI::buildRouterWrapper);
         register("printer", DeviceAPI::buildPrinterWrapper);
         register("database", DeviceAPI::buildDatabaseWrapper);
+        register("camera", DeviceAPI::buildMachineWrapper);
 
         initialized = true;
     }

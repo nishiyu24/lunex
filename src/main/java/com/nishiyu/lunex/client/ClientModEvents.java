@@ -8,8 +8,6 @@ import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsScreen;
 import com.nishiyu.lunex.menu.MachineSettings.MachineSettingsScreen;
 import com.nishiyu.lunex.menu.*;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterScreen;
-// ★ 追加: SimpleMachineScreen
-import com.nishiyu.lunex.menu.SimpleMachineScreen;
 import com.nishiyu.lunex.network.LocalWebServer;
 import com.nishiyu.lunex.network.LocalWebSocketServer;
 import net.minecraft.client.Minecraft;
@@ -38,7 +36,6 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(Lunex.ADVANCED_MACHINE_MENU.get(), AdvancedMachineScreen::new);
-
         event.register(Lunex.SIMPLE_MACHINE_MENU.get(), SimpleMachineScreen::new);
         event.register(Lunex.UPGRADE_MENU.get(), UpgradeScreen::new);
         event.register(Lunex.MACHINE_SETTINGS_MENU.get(), MachineSettingsScreen::new);
@@ -49,8 +46,6 @@ public class ClientModEvents {
         event.register(Lunex.BIO_PRINTER_MENU.get(), BioPrinterScreen::new);
         event.register(Lunex.BIO_MOB_SETTINGS_MENU.get(), BioEntitySettingsScreen::new);
         event.register(Lunex.DATABASE_MENU.get(), DatabaseScreen::new);
-
-        // ★ 追加: MainframeOverviewScreen の登録
         event.register(Lunex.MAINFRAME_OVERVIEW_MENU.get(), MainframeOverviewScreen::new);
     }
 
