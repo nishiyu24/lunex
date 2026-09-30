@@ -18,6 +18,10 @@ public class ModTraits implements ITranslationGatherer {
     }
 
     public static void register() {
+
+        if (!TRAITS.isEmpty()) {
+            return;
+        }
         // --- 基礎ステータス系 ---
         registerTrait(new TraitDef(
                 "bio_core", "Bio Core", "バイオコア", "Source of life. The starting point of everything.", "生命の源。すべての起点。",
@@ -767,6 +771,11 @@ public class ModTraits implements ITranslationGatherer {
 
     @Override
     public void gatherTranslations(AutoLanguageProvider provider, String locale) {
+        // DataGen実行時にTRAITSリストが空の場合は、登録メソッドを呼び出してリストを生成する
+        if (TRAITS.isEmpty()) {
+            register();
+        }
+
         // 登録されたすべてのTraitをループで回し、名前と説明を自動的に言語ファイルに書き込む
         for (TraitDef trait : TRAITS) {
             provider.addTranslation("trait.lunex." + trait.key() + ".name", trait.englishName(), trait.japaneseName());

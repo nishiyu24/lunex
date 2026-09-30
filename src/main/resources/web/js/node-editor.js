@@ -5,6 +5,7 @@ export const NodeEditor = {
     edges: {},
     nextNodeId: 1,
     nextEdgeId: 1,
+    mcLang: "en_us",
 
     container: null,
     transform: { x: 0, y: 0, scale: 1 },
@@ -17,6 +18,7 @@ export const NodeEditor = {
     mouseLocalPos: { x: 0, y: 0 },
 
     init(payload) {
+        this.mcLang = payload.mcLang || "en_us";
         this.actionDefs = payload.actions || [];
         this.conditionDefs = payload.conditions || [];
 
@@ -228,7 +230,8 @@ export const NodeEditor = {
     },
 
     formatComboString(def) {
-        return `${def.desc || def.descEn || def.name} [${def.name}]`;
+        const desc = this.mcLang === "ja_jp" ? (def.desc || def.descEn) : (def.descEn || def.desc);
+        return `${desc || def.name} [${def.name}]`;
     },
 
     extractName(val) {
@@ -291,7 +294,7 @@ export const NodeEditor = {
                 priority: 5,
                 isAlwaysActive: false,
                 action: { actName: "None", actArgs: {} },
-                clearConditions: [] // 追加: Goal時のクリア条件を保持
+                clearConditions: []
             }
         };
 
@@ -331,7 +334,6 @@ export const NodeEditor = {
         const actOptions = this.generateOptions(this.actionDefs, node.data.action.actName, "Select Action...");
         const showPriority = node.data.nodeType === "Start" || node.data.isAlwaysActive;
 
-        // ★追加: Goalノード用のクリア条件表示ブロック
         let goalCondHtml = "";
         if (node.data.nodeType === "Goal") {
             goalCondHtml = `
@@ -439,7 +441,6 @@ export const NodeEditor = {
         };
         this.buildArgsUI(el.querySelector('.act-args'), this.actionDefs, node.data.action.actName, node.data.action.actArgs);
 
-        // ★追加: Goalノードのクリア条件イベントバインド
         if (node.data.nodeType === "Goal") {
             if (!node.data.clearConditions) node.data.clearConditions = [];
             const btnAdd = el.querySelector('.btn-add-goal-cond');
@@ -513,7 +514,6 @@ export const NodeEditor = {
         this.updateEdges();
     },
 
-    // ★修正: EdgeとGoalの両方で使える共通の条件UI生成関数
     renderConditionRow(conditionsArray, condData, container) {
         const row = document.createElement('div');
         const condOptions = this.generateOptions(this.conditionDefs, condData.condName, "Select Condition...");
@@ -674,7 +674,6 @@ export const NodeEditor = {
             }
 
             if (node.data.nodeType === "Goal") {
-                // ★修正: Goalノードのクリア条件を出力
                 const condList = [];
                 if (node.data.clearConditions) {
                     for (const cond of node.data.clearConditions) {
@@ -694,7 +693,6 @@ export const NodeEditor = {
             } else {
                 Object.values(this.edges).filter(e => e.sourceId === node.id).forEach(edge => {
                     const condList = [];
-                    // ★修正: StartやAlwaysActiveの暴走(他ステート上書き)を防ぐIsInitialStateを自動追加
                     if (node.data.nodeType === "Start" || node.data.isAlwaysActive) {
                         condList.push(`GoalCondition.System.IsInitialState({ key = "state_${edge.targetId}" })`);
                     }

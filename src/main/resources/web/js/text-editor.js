@@ -5,20 +5,22 @@ export const TextEditor = {
     apiSuggestions: [],
     currentFontSize: 14,
     errorDecorations: [],
+    mcLang: "en_us",
 
     standardLuaApis: [
-        { label: 'print', insertText: 'print(${1:text})', descEn: 'Outputs text to the console' },
-        { label: 'tostring', insertText: 'tostring(${1:value})', descEn: 'Converts a value to a string' },
-        { label: 'tonumber', insertText: 'tonumber(${1:value})', descEn: 'Converts a string to a number' },
-        { label: 'math.random', insertText: 'math.random(${1:min},${2:max})', descEn: 'Generates a random number' },
-        { label: 'math.floor', insertText: 'math.floor(${1:value})', descEn: 'Rounds down a float' },
-        { label: 'table.insert', insertText: 'table.insert(${1:list},${2:value})', descEn: 'Inserts an element into a list' },
-        { label: 'table.remove', insertText: 'table.remove(${1:list},${2:index})', descEn: 'Removes an element from a list' }
+        { label: 'print', insertText: 'print(${1:text})', desc: 'コンソールにテキストを出力します', descEn: 'Outputs text to the console' },
+        { label: 'tostring', insertText: 'tostring(${1:value})', desc: '値を文字列に変換します', descEn: 'Converts a value to a string' },
+        { label: 'tonumber', insertText: 'tonumber(${1:value})', desc: '文字列を数値に変換します', descEn: 'Converts a string to a number' },
+        { label: 'math.random', insertText: 'math.random(${1:min},${2:max})', desc: '乱数を生成します', descEn: 'Generates a random number' },
+        { label: 'math.floor', insertText: 'math.floor(${1:value})', desc: '小数を切り捨てます', descEn: 'Rounds down a float' },
+        { label: 'table.insert', insertText: 'table.insert(${1:list},${2:value})', desc: 'リストに要素を追加します', descEn: 'Inserts an element into a list' },
+        { label: 'table.remove', insertText: 'table.remove(${1:list},${2:index})', desc: 'リストから要素を削除します', descEn: 'Removes an element from a list' }
     ],
 
     init(suggestions, mcLang = "en_us") {
         return new Promise((resolve) => {
             this.apiSuggestions = suggestions;
+            this.mcLang = mcLang;
 
             this.buildApiSidebar();
             this.bindEvents();
@@ -65,6 +67,14 @@ export const TextEditor = {
                 resolve();
             });
         });
+    },
+
+    getDesc(def) {
+        if (this.mcLang === "ja_jp") {
+            return def.description || def.desc || def.descriptionEn || def.descEn || '';
+        } else {
+            return def.descriptionEn || def.descEn || def.description || def.desc || '';
+        }
     },
 
     updateLanguage(filename) {
@@ -191,13 +201,13 @@ export const TextEditor = {
     },
 
     buildMarkdownDocs(def) {
-        let title = def.type === 'api' ? `${def.module}.${def.name}` :
-            def.type === 'event' ? `on_${def.name}` : def.name;
+        // ★修正: event の場合に `on_` を自動付与しないように変更
+        let title = def.type === 'api' ? `${def.module}.${def.name}` : def.name;
 
         let argsStr = (def.args && def.args.length > 0) ? def.args.join(', ') : '';
         let md = `### \`${title}(${argsStr})\`\n\n`;
 
-        let desc = def.descriptionEn || 'No description available.';
+        let desc = this.getDesc(def) || 'No description available.';
         md += `${desc}\n\n`;
 
         if (def.args && def.args.length > 0) {
@@ -249,8 +259,9 @@ export const TextEditor = {
                         insertText = `${def.module}.${def.name}(${def.args.join(', ')})`;
                         if (!detail) detail = `API: ${def.module}`;
                     } else if (def.type === 'event') {
-                        label = `on_${def.name}`;
-                        insertText = `function on_${def.name}(${def.args.join(', ')})\n\t$0\nend`;
+                        // ★修正: `on_` を自動付与しないように変更
+                        label = def.name;
+                        insertText = `function ${def.name}(${def.args.join(', ')})\n\t$0\nend`;
                         detail = 'Event Handler';
                     } else if (def.type === 'enum') {
                         label = `${def.module}.${def.name}`;
@@ -272,7 +283,7 @@ export const TextEditor = {
                     label: api.label,
                     kind: monaco.languages.CompletionItemKind.Function,
                     detail: 'Lua Standard API',
-                    documentation: {value: `### \`${api.label}\`\n\n${api.descEn}`},
+                    documentation: {value: `### \`${api.label}\`\n\n${this.getDesc(api)}`},
                     insertText: api.insertText,
                     insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                     range: range
@@ -302,7 +313,8 @@ export const TextEditor = {
                         return def.name === word.word && lineContent.includes(`${def.module}.${def.name}`);
                     }
                     if (def.type === 'event' || def.type === 'enum') {
-                        return def.name === word.word || `on_${def.name}` === word.word;
+                        // ★修正: 自動で `on_` を付与して判定しないように変更
+                        return def.name === word.word;
                     }
                     return false;
                 });
@@ -318,7 +330,7 @@ export const TextEditor = {
                 if (foundStd) {
                     return {
                         range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
-                        contents: [{value: `### \`${foundStd.label}\`\n\n${foundStd.descEn}`}]
+                        contents: [{value: `### \`${foundStd.label}\`\n\n${this.getDesc(foundStd)}`}]
                     };
                 }
 
@@ -357,7 +369,7 @@ export const TextEditor = {
                             activeSignature: 0,
                             signatures: [{
                                 label: `${funcName}(${(foundApi.args || []).join(', ')})`,
-                                documentation: {value: foundApi.descriptionEn || ''},
+                                documentation: {value: this.getDesc(foundApi)},
                                 parameters: (foundApi.args || []).map(argName => ({
                                     label: argName,
                                     documentation: `Argument: ${argName}`
@@ -405,12 +417,15 @@ export const TextEditor = {
             apis.forEach(def => {
                 const item = document.createElement('div');
                 item.className = `api-item color-${groupName.toLowerCase()}`;
+
+                // ★修正: event の場合に `on_` を自動付与しないように変更
                 let title = def.type === 'api' ? `${def.module}.${def.name}` :
-                    def.type === 'event' ? `on_${def.name}` : def.type === 'enum' ? `${def.module}.${def.name}` : def.name;
+                    def.type === 'enum' ? `${def.module}.${def.name}` : def.name;
+
                 let argsStr = (def.args && def.args.length > 0) ? `(${def.args.join(', ')})` : '()';
                 if (def.type === 'enum') argsStr = '';
 
-                let desc = def.descriptionEn || '';
+                let desc = this.getDesc(def);
 
                 item.innerHTML = `
                     <div class="api-item-title">${title}</div><div class="api-item-args">${argsStr}</div>
