@@ -10,7 +10,7 @@ import com.nishiyu.lunex.client.ClientScreenInteractionManager;
 import com.nishiyu.lunex.client.ClientScreenManager;
 import com.nishiyu.lunex.network.packet.c2s.SubscribeC2SPacket;
 import com.nishiyu.lunex.webrender.HtmlNode;
-import com.nishiyu.lunex.webrender.LayoutBox;
+import com.nishiyu.lunex.webrender.LayoutBox.LayoutBox;
 import com.nishiyu.lunex.webrender.UIRenderer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;

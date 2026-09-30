@@ -1,6 +1,8 @@
+// 上書き: UIRenderer.java
 package com.nishiyu.lunex.webrender;
 
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
+import com.nishiyu.lunex.webrender.LayoutBox.LayoutBox;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -401,7 +403,6 @@ public class UIRenderer {
             addElement(elements, id + "_shadow", "rect", box.x + shadowOffset / 2, box.y + shadowOffset, box.w, box.h, "", 0, 0x1A000000, Map.of("mc-parent", id), fallbackRadius, 1f, 0, 0, 1f, 1f, 0, 0, "");
         }
 
-        // ★ 修正1: ボーダー幅と色を正しくパースして変数に保持し、描画リストへの無条件追加を防ぐ
         boolean hasBorder = false;
         int borderColor = 0x00000000;
         int bwTop = 0, bwRight = 0, bwBottom = 0, bwLeft = 0;
@@ -417,7 +418,7 @@ public class UIRenderer {
                     if (bw > 0) {
                         int bc = CssParser.parseColor(parts[parts.length - 1]);
                         hasBorder = true;
-                        borderColor = bc; // fallback
+                        borderColor = bc;
                         switch (dir) {
                             case "top" -> { bwTop = bw; bcTop = bc; }
                             case "right" -> { bwRight = bw; bcRight = bc; }
@@ -448,7 +449,6 @@ public class UIRenderer {
                     drawStraightBorders(elements, id, box, rootW, rootH, rOff, partsEvents, bwTop, bwRight, bwBottom, bwLeft, bcTop, bcRight, bcBottom, bcLeft);
                 }
 
-                // 内側の描画座標計算
                 int innerX = box.x + bwLeft;
                 int innerY = box.y + bwTop;
                 int innerW = Math.max(0, box.w - bwLeft - bwRight);
@@ -505,7 +505,6 @@ public class UIRenderer {
                 String inputType = box.node.attrs.getOrDefault("type", "text");
                 String val = box.node.attrs.getOrDefault("value", "");
 
-                // 内側の描画座標と角丸の再計算
                 int innerX = box.x + bwLeft;
                 int innerY = box.y + bwTop;
                 int innerW = Math.max(0, box.w - bwLeft - bwRight);
@@ -572,7 +571,6 @@ public class UIRenderer {
                         addElement(elements, id + "_bg", baseType, box.x, box.y, box.w, box.h, "", color, bgColor, partsEvents, fallbackRadius, 1f, 0, 0, 1f, 1f, 0, 0, "");
                     addElement(elements, id + "_cb", "circle_border", box.x, box.y, box.w, box.h, bData, 0, 0, Map.of("mc-parent", id), 0, 1f, 0, 0, 1f, 1f, 0, 0, "");
                 } else if (useRoundedBorder) {
-                    // ★ 修正2: 角丸ボーダーと内側の背景（縮小版）を正確に重ねる
                     addElement(elements, id + "_bbg", "rect", box.x, box.y, box.w, box.h, "", 0, borderColor, partsEvents, fallbackRadius, 1f, 0, 0, 1f, 1f, 0, 0, "");
 
                     if (bgColor != 0x00000000 || !partsEvents.isEmpty()) {
@@ -593,7 +591,6 @@ public class UIRenderer {
                 } else {
                     if (bgColor != 0x00000000 || !partsEvents.isEmpty())
                         addElement(elements, id + "_bg", baseType, box.x, box.y, box.w, box.h, "", color, bgColor, partsEvents, fallbackRadius, 1f, 0, 0, 1f, 1f, 0, 0, "");
-                    // ★ 修正3: useRoundedBorder でない時だけ直線ボーダーを描画
                     if (hasBorder) {
                         drawStraightBorders(elements, id, box, rootW, rootH, rOff, partsEvents, bwTop, bwRight, bwBottom, bwLeft, bcTop, bcRight, bcBottom, bcLeft);
                     }
@@ -602,7 +599,6 @@ public class UIRenderer {
         }
     }
 
-    // ★ 修正4: パース結果を引数で受け取るようにして冗長な再パースを防ぐ
     private void drawStraightBorders(List<ScreenBlockEntity.UIElement> elements, String id, LayoutBox box, int rootW, int rootH, int rOff, Map<String, String> partsEvents, int bwTop, int bwRight, int bwBottom, int bwLeft, int bcTop, int bcRight, int bcBottom, int bcLeft) {
         if (bwTop > 0)
             addElement(elements, id + "_b_top", "rect", box.x + rOff, box.y, box.w - rOff * 2, bwTop, "", 0, bcTop, partsEvents, 0, 1f, 0, 0, 1f, 1f, 0, 0, "");

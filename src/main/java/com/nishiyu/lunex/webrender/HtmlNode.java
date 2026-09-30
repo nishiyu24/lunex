@@ -14,6 +14,10 @@ public class HtmlNode {
     public List<HtmlNode> children = new ArrayList<>();
     public String text = "";
     public HtmlNode parent = null;
+    public boolean isHovered = false;
+    public boolean isChecked = false;
+    public boolean isDirty = true; // 初期状態は必ず再計算
+    public java.util.Map<String, String> computedStyle = null;
 
     // 擬似要素(::before, ::after)などで自動生成された仮想ノードかどうか
     public boolean isPseudoNode = false;

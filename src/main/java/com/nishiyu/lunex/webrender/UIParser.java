@@ -1,6 +1,7 @@
 package com.nishiyu.lunex.webrender;
 
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
+import com.nishiyu.lunex.webrender.LayoutBox.LayoutBox;
 
 import java.util.HashMap;
 import java.util.List;
@@ -76,6 +77,7 @@ public class UIParser {
         String authorCss = combinedCss.toString();
         CssParser.StyleSheet sheet = buildStyleSheet(authorCss, rootW);
         HtmlNode htmlRoot = HtmlParser.parse(html == null ? "" : html);
+        htmlRoot.isDirty = true;
 
         return new Document(htmlRoot, sheet, authorCss, extractedScript.toString());
     }
@@ -87,36 +89,36 @@ public class UIParser {
         rootStyle.put("color", "#f5f5f0");
         rootStyle.put("box-sizing", "border-box");
 
-        LayoutBox rootBox = buildLayoutTree(doc.root, rootStyle, doc.sheet, env);
+        LayoutBox rootBox = buildLayoutTree(doc.root, rootStyle, doc.sheet, env, false);
 
         rootBox.computeSize(rootW, rootH, false, false, "stretch", false, rootW, rootH);
         rootBox.computeSize(rootW, rootH, false, false, "stretch", false, rootW, rootH);
-
         rootBox.layout(0, 0, rootW, rootH, rootW, rootH);
 
         UIRenderer renderer = new UIRenderer(rootW, rootH, doc.sheet.keyframes);
         return renderer.render(rootBox);
     }
 
-    private LayoutBox buildLayoutTree(HtmlNode node, Map<String, String> inheritedStyle, CssParser.StyleSheet sheet, Map<String, String> env) {
+    private LayoutBox buildLayoutTree(HtmlNode node, Map<String, String> inheritedStyle, CssParser.StyleSheet sheet, Map<String, String> env, boolean forceDirty) {
+        if (forceDirty) node.isDirty = true;
+        boolean wasDirty = node.isDirty;
+
         Map<String, String> style = CssParser.computeNodeStyle(node, inheritedStyle, sheet, env);
         LayoutBox box = new LayoutBox(node, style, env);
 
-        // ::before 擬似要素の処理
         HtmlNode beforeNode = createPseudoElement(node, sheet, true);
         if (beforeNode != null) {
-            box.children.add(buildLayoutTree(beforeNode, style, sheet, env));
+            box.children.add(buildLayoutTree(beforeNode, style, sheet, env, wasDirty));
         }
 
         for (HtmlNode child : node.children) {
             if (child.tag.equals("#text") && child.text.trim().isEmpty()) continue;
-            box.children.add(buildLayoutTree(child, style, sheet, env));
+            box.children.add(buildLayoutTree(child, style, sheet, env, wasDirty));
         }
 
-        // ::after 擬似要素の処理
         HtmlNode afterNode = createPseudoElement(node, sheet, false);
         if (afterNode != null) {
-            box.children.add(buildLayoutTree(afterNode, style, sheet, env));
+            box.children.add(buildLayoutTree(afterNode, style, sheet, env, wasDirty));
         }
         return box;
     }
@@ -136,15 +138,18 @@ public class UIParser {
         if (!matched || !pseudoStyle.containsKey("content")) return null;
 
         String content = pseudoStyle.get("content");
-        if (content.equals("none") || content.equals("normal") || content.equals("\"\"") || content.equals("''")) return null;
+        // "none" 以外は許容 (空文字等でも枠線描画目的で要素を生成する)
+        if (content.equals("none") || content.equals("normal")) return null;
 
         HtmlNode pseudo = new HtmlNode("span");
         pseudo.isPseudoNode = true;
+        pseudo.isDirty = parent.isDirty;
         pseudo.parent = parent;
         pseudo.id = parent.id + (isBefore ? "_before" : "_after");
 
         HtmlNode textNode = new HtmlNode("#text");
         textNode.parent = pseudo;
+        textNode.isDirty = pseudo.isDirty;
         textNode.id = pseudo.id + "_txt";
 
         if (content.startsWith("attr(") && content.endsWith(")")) {
@@ -153,8 +158,6 @@ public class UIParser {
         } else {
             textNode.text = content.replaceAll("^[\"']|[\"']$", "");
         }
-
-        if (textNode.text.isEmpty()) return null;
 
         pseudo.children.add(textNode);
 

@@ -1,3 +1,4 @@
+// 上書き: CssParser.java
 package com.nishiyu.lunex.webrender;
 
 import java.util.ArrayList;
@@ -102,9 +103,7 @@ public class CssParser {
     private static double evalMath(String str, int maxPixels, int rootW, int rootH) {
         return new Object() {
             int pos = -1, ch;
-
             void nextChar() { ch = (++pos < str.length()) ? str.charAt(pos) : -1; }
-
             boolean eat(int charToEat) {
                 while (ch == ' ') nextChar();
                 if (ch == charToEat) {
@@ -113,14 +112,12 @@ public class CssParser {
                 }
                 return false;
             }
-
             double parse() {
                 nextChar();
                 double x = parseExpression();
                 if (pos < str.length()) return 0;
                 return x;
             }
-
             double parseExpression() {
                 double x = parseTerm();
                 for (; ; ) {
@@ -129,7 +126,6 @@ public class CssParser {
                     else return x;
                 }
             }
-
             double parseTerm() {
                 double x = parseFactor();
                 for (; ; ) {
@@ -138,7 +134,6 @@ public class CssParser {
                     else return x;
                 }
             }
-
             double parseFactor() {
                 if (eat('+')) return parseFactor();
                 if (eat('-')) return -parseFactor();
@@ -205,6 +200,10 @@ public class CssParser {
     }
 
     public static Map<String, String> computeNodeStyle(HtmlNode node, Map<String, String> inheritedStyle, StyleSheet sheet, Map<String, String> env) {
+        if (!node.isDirty && node.computedStyle != null) {
+            return node.computedStyle;
+        }
+
         Map<String, String> style = new HashMap<>();
         String[] inheritable = {"color", "text-align", "font-family", "font-size", "line-height", "text-transform", "font-weight"};
         for (String k : inheritable) {
@@ -216,7 +215,6 @@ public class CssParser {
         }
 
         for (StyleRule rule : sheet.rules) {
-            // ::before や ::after 自体のルールは親ノード本体のスタイルには適用しない
             if (!rule.isBefore && !rule.isAfter && rule.matches(node)) {
                 if (rule.isHover) {
                     for (Map.Entry<String, String> e : rule.properties.entrySet()) {
@@ -293,6 +291,10 @@ public class CssParser {
                 if (parts.length > 0) style.putIfAbsent("border-" + dir + "-width", parts[0]);
             }
         }
+
+        node.computedStyle = style;
+        node.isDirty = false;
+
         return style;
     }
 
@@ -414,6 +416,124 @@ public class CssParser {
         return sheet;
     }
 
+    private static class SelectorToken {
+        String rawSelector;
+        String tag = "*";
+        String id = null;
+        List<String> classes = new ArrayList<>();
+        Map<String, String> requiredAttrs = new HashMap<>();
+        List<String> requiredExistsAttrs = new ArrayList<>();
+        List<SelectorToken> notSelectors = new ArrayList<>();
+        boolean isHover = false;
+        boolean parsedHover = false;
+        boolean isChecked = false;
+        boolean isDisabled = false;
+        int nthChild = -1;
+
+        SelectorToken(String sel) {
+            this.rawSelector = sel;
+
+            Matcher notMatcher = Pattern.compile(":not\\(([^)]+)\\)").matcher(sel);
+            while (notMatcher.find()) {
+                String notSel = notMatcher.group(1).trim();
+                notSelectors.add(new SelectorToken(notSel));
+            }
+            sel = notMatcher.replaceAll("");
+
+            if (sel.contains(":hover")) {
+                parsedHover = true;
+                sel = sel.replace(":hover", "");
+            }
+            if (sel.contains(":checked")) {
+                isChecked = true;
+                sel = sel.replace(":checked", "");
+            }
+            if (sel.contains(":disabled")) {
+                isDisabled = true;
+                sel = sel.replace(":disabled", "");
+            }
+            if (sel.contains(":nth-child")) {
+                Matcher m = Pattern.compile(":nth-child\\((\\d+)\\)").matcher(sel);
+                if (m.find()) {
+                    nthChild = Integer.parseInt(m.group(1));
+                    sel = m.replaceAll("");
+                }
+            }
+
+            Matcher attrMatcher = Pattern.compile("\\[([^\\]=]+)(?:=[\"']?([^\\]\"']+)[\"']?)?\\]").matcher(sel);
+            while (attrMatcher.find()) {
+                if (attrMatcher.group(2) != null) {
+                    requiredAttrs.put(attrMatcher.group(1), attrMatcher.group(2));
+                } else {
+                    requiredExistsAttrs.add(attrMatcher.group(1));
+                }
+            }
+            sel = sel.replaceAll("\\[.*?\\]", "");
+
+            if (sel.contains("#")) {
+                int hashIdx = sel.indexOf("#");
+                String afterHash = sel.substring(hashIdx + 1);
+                id = afterHash.split("\\.")[0];
+                sel = sel.substring(0, hashIdx) + (afterHash.contains(".") ? afterHash.substring(afterHash.indexOf(".")) : "");
+            }
+            if (sel.contains(".")) {
+                String[] cls = sel.split("\\.");
+                tag = cls[0].isEmpty() ? "*" : cls[0];
+                for (int i = 1; i < cls.length; i++) {
+                    if (!cls[i].isEmpty()) classes.add(cls[i]);
+                }
+            } else if (!sel.isEmpty()) {
+                tag = sel.trim();
+            }
+        }
+
+        boolean matches(HtmlNode node) {
+            for (SelectorToken notToken : notSelectors) {
+                if (notToken.matches(node)) return false;
+            }
+            if (id != null && !id.equals(node.id)) return false;
+            if (!tag.equals("*") && !tag.equals(node.tag)) return false;
+            for (String c : classes) {
+                if (!node.classes.contains(c)) return false;
+            }
+            if (isDisabled && !node.attrs.containsKey("disabled")) return false;
+
+            // ★追加: isChecked 判定の追加
+            if (isChecked) {
+                boolean nodeChecked = node.isChecked || node.attrs.containsKey("checked");
+                if (!nodeChecked) return false;
+            }
+
+            if (isHover) {
+                boolean nodeHovered = node.isHovered || node.attrs.containsKey("hover");
+                if (!nodeHovered) return false;
+            }
+
+            for (String req : requiredExistsAttrs) {
+                if (!node.attrs.containsKey(req)) return false;
+            }
+            for (Map.Entry<String, String> req : requiredAttrs.entrySet()) {
+                boolean nodeChecked = node.isChecked || node.attrs.containsKey("checked");
+                if (req.getKey().equals("checked") && nodeChecked) continue;
+
+                if (!node.attrs.containsKey(req.getKey())) return false;
+                if (req.getValue() != null && !req.getValue().equals(node.attrs.get(req.getKey()))) return false;
+            }
+
+            if (nthChild != -1 && node.parent != null) {
+                int idx = 0;
+                for (HtmlNode child : node.parent.children) {
+                    if (!child.tag.startsWith("#") && !child.tag.equals("template") && !child.isPseudoNode) {
+                        idx++;
+                        if (child == node) break;
+                    }
+                }
+                if (idx != nthChild) return false;
+            }
+            return true;
+        }
+    }
+
     public static class StyleRule {
         public String selector;
         public int specificity;
@@ -422,13 +542,12 @@ public class CssParser {
         public boolean isAfter = false;
         public Map<String, String> properties = new HashMap<>();
 
+        private List<SelectorToken> tokens = new ArrayList<>();
+        private List<Character> combinators = new ArrayList<>();
+
         public StyleRule(String selector) {
             this.specificity = calculateSpecificity(selector);
 
-            if (selector.contains(":hover")) {
-                this.isHover = true;
-                selector = selector.replace(":hover", "");
-            }
             if (selector.contains("::before") || selector.contains(":before")) {
                 this.isBefore = true;
                 selector = selector.replace("::before", "").replace(":before", "");
@@ -438,6 +557,38 @@ public class CssParser {
                 selector = selector.replace("::after", "").replace(":after", "");
             }
             this.selector = selector.trim();
+            parseSelectorTokens(this.selector);
+        }
+
+        private void parseSelectorTokens(String sel) {
+            sel = sel.replaceAll("\\s+", " ")
+                    .replaceAll(" \\> ", ">").replaceAll(" \\>", ">").replaceAll("\\> ", ">")
+                    .replaceAll(" \\+ ", "+").replaceAll(" \\+", "+").replaceAll("\\+ ", "+")
+                    .replaceAll(" \\~ ", "~").replaceAll(" \\~", "~").replaceAll("\\~ ", "~").trim();
+
+            int lastIdx = 0;
+            for (int i = 0; i < sel.length(); i++) {
+                char c = sel.charAt(i);
+                if (c == ' ' || c == '>' || c == '+' || c == '~') {
+                    tokens.add(new SelectorToken(sel.substring(lastIdx, i)));
+                    combinators.add(c);
+                    lastIdx = i + 1;
+                }
+            }
+            tokens.add(new SelectorToken(sel.substring(lastIdx)));
+
+            boolean hasCombinators = !combinators.isEmpty();
+            for (SelectorToken t : tokens) {
+                if (t.parsedHover) {
+                    if (hasCombinators) {
+                        t.isHover = true;
+                        this.isHover = false;
+                    } else {
+                        t.isHover = false;
+                        this.isHover = true;
+                    }
+                }
+            }
         }
 
         private int calculateSpecificity(String sel) {
@@ -457,52 +608,35 @@ public class CssParser {
         }
 
         public boolean matches(HtmlNode node) {
-            String sel = selector.replaceAll("\\s+", " ")
-                    .replaceAll(" \\> ", ">").replaceAll(" \\>", ">").replaceAll("\\> ", ">")
-                    .replaceAll(" \\+ ", "+").replaceAll(" \\+", "+").replaceAll("\\+ ", "+")
-                    .replaceAll(" \\~ ", "~").replaceAll(" \\~", "~").replaceAll("\\~ ", "~").trim();
+            if (tokens.isEmpty()) return false;
+            int pIdx = tokens.size() - 1;
 
-            List<String> parts = new ArrayList<>();
-            List<Character> combinators = new ArrayList<>();
-
-            int lastIdx = 0;
-            for (int i = 0; i < sel.length(); i++) {
-                char c = sel.charAt(i);
-                if (c == ' ' || c == '>' || c == '+' || c == '~') {
-                    parts.add(sel.substring(lastIdx, i));
-                    combinators.add(c);
-                    lastIdx = i + 1;
-                }
-            }
-            parts.add(sel.substring(lastIdx));
-            int pIdx = parts.size() - 1;
-
-            if (!matchSimpleSelector(parts.get(pIdx), node)) return false;
+            if (!tokens.get(pIdx).matches(node)) return false;
             pIdx--;
 
             HtmlNode current = node;
             while (pIdx >= 0 && current != null) {
                 char combinator = combinators.get(pIdx);
-                String expectedSel = parts.get(pIdx);
+                SelectorToken expected = tokens.get(pIdx);
 
                 if (combinator == '>') {
                     current = current.parent;
-                    if (current == null || !matchSimpleSelector(expectedSel, current)) return false;
+                    if (current == null || !expected.matches(current)) return false;
                     pIdx--;
                 } else if (combinator == ' ') {
                     current = current.parent;
-                    while (current != null && !matchSimpleSelector(expectedSel, current)) {
+                    while (current != null && !expected.matches(current)) {
                         current = current.parent;
                     }
                     if (current == null) return false;
                     pIdx--;
                 } else if (combinator == '+') {
                     current = getPreviousSibling(current);
-                    if (current == null || !matchSimpleSelector(expectedSel, current)) return false;
+                    if (current == null || !expected.matches(current)) return false;
                     pIdx--;
                 } else if (combinator == '~') {
                     current = getPreviousSibling(current);
-                    while (current != null && !matchSimpleSelector(expectedSel, current)) {
+                    while (current != null && !expected.matches(current)) {
                         current = getPreviousSibling(current);
                     }
                     if (current == null) return false;
@@ -520,82 +654,6 @@ public class CssParser {
                 if (!child.tag.startsWith("#") && !child.tag.equals("template") && !child.isPseudoNode) prev = child;
             }
             return null;
-        }
-
-        private boolean matchSimpleSelector(String simpleSelector, HtmlNode node) {
-            if (simpleSelector.contains(":not(")) {
-                Matcher notMatcher = Pattern.compile(":not\\(([^)]+)\\)").matcher(simpleSelector);
-                while (notMatcher.find()) {
-                    String notSel = notMatcher.group(1).trim();
-                    if (matchSimpleSelector(notSel, node)) return false;
-                }
-                simpleSelector = simpleSelector.replaceAll(":not\\([^)]+\\)", "");
-            }
-
-            String pseudo = "";
-            if (simpleSelector.contains(":")) {
-                int colonIdx = simpleSelector.indexOf(":");
-                pseudo = simpleSelector.substring(colonIdx);
-                simpleSelector = simpleSelector.substring(0, colonIdx);
-            }
-
-            Map<String, String> requiredAttrs = new HashMap<>();
-            List<String> requiredExistsAttrs = new ArrayList<>();
-            Matcher attrMatcher = Pattern.compile("\\[([^\\]=]+)(?:=[\"']?([^\\]\"']+)[\"']?)?\\]").matcher(simpleSelector);
-            while (attrMatcher.find()) {
-                if (attrMatcher.group(2) != null) {
-                    requiredAttrs.put(attrMatcher.group(1), attrMatcher.group(2));
-                } else {
-                    requiredExistsAttrs.add(attrMatcher.group(1));
-                }
-            }
-            simpleSelector = simpleSelector.replaceAll("\\[.*?\\]", "");
-
-            if (simpleSelector.equals("*") && pseudo.isEmpty() && requiredAttrs.isEmpty() && requiredExistsAttrs.isEmpty()) return true;
-            boolean match = true;
-
-            for (String reqExist : requiredExistsAttrs) {
-                if (!node.attrs.containsKey(reqExist)) {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) {
-                for (Map.Entry<String, String> req : requiredAttrs.entrySet()) {
-                    if (!node.attrs.containsKey(req.getKey())) {
-                        match = false;
-                        break;
-                    }
-                    if (req.getValue() != null && !req.getValue().equals(node.attrs.get(req.getKey()))) {
-                        match = false;
-                        break;
-                    }
-                }
-            }
-
-            if (match && simpleSelector.contains("#")) {
-                String id = simpleSelector.substring(simpleSelector.indexOf("#") + 1).split("\\.")[0];
-                if (!node.id.equals(id)) match = false;
-            }
-            if (match && simpleSelector.contains(".")) {
-                String[] classes = simpleSelector.split("\\.");
-                for (int i = 1; i < classes.length; i++) {
-                    if (!node.classes.contains(classes[i])) {
-                        match = false;
-                        break;
-                    }
-                }
-            }
-            if (match) {
-                String tag = simpleSelector.split("[#.]")[0];
-                if (!tag.isEmpty() && !tag.equals("*") && !node.tag.equals(tag)) match = false;
-            }
-
-            if (match && !pseudo.isEmpty()) {
-                if (pseudo.equals(":checked") && !node.attrs.containsKey("checked")) match = false;
-                if (pseudo.equals(":disabled") && !node.attrs.containsKey("disabled")) match = false;
-            }
-            return match;
         }
     }
 

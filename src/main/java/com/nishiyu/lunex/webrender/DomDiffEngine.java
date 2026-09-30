@@ -29,13 +29,14 @@ public class DomDiffEngine {
         }
 
         // 2. 属性(Attributes)のDiff
-        // ★修正：イベントリスナー等も含めて完全に同期する
         Iterator<String> it = realNode.attrs.keySet().iterator();
         while (it.hasNext()) {
             String key = it.next();
             if (!virtualNode.attrs.containsKey(key)) {
                 it.remove();
                 if (key.equals("class")) realNode.classes.clear();
+                if (key.equals("hover")) realNode.isHovered = false;
+                if (key.equals("checked")) realNode.isChecked = false;
                 changed = true;
             }
         }
@@ -50,13 +51,21 @@ public class DomDiffEngine {
                     realNode.classes.clear();
                     realNode.classes.addAll(Arrays.asList(vVal.split("\\s+")));
                 }
+                if (key.equals("hover")) realNode.isHovered = true;
+                if (key.equals("checked")) realNode.isChecked = true;
                 changed = true;
             }
         }
 
+        if (changed) {
+            realNode.isDirty = true;
+        }
+
         // 3. 子要素(Children)のDiff
-        // template タグは構造として維持するが、中身の差分適用は最小限にとどめる
         int minSize = Math.min(realNode.children.size(), virtualNode.children.size());
+
+        // ★最適化: 構造変更があった場合、+ や ~ セレクタ、nth-childのために後続の兄弟も全てDirtyにする
+        boolean siblingDirty = false;
 
         for (int i = 0; i < minSize; i++) {
             HtmlNode rChild = realNode.children.get(i);
@@ -65,11 +74,15 @@ public class DomDiffEngine {
             if (!rChild.tag.equals(vChild.tag)) {
                 HtmlNode newRealChild = vChild.cloneNode();
                 newRealChild.parent = realNode;
+                newRealChild.isDirty = true;
                 realNode.children.set(i, newRealChild);
                 changed = true;
+                siblingDirty = true;
             } else {
+                if (siblingDirty) rChild.isDirty = true;
                 if (diffAndPatch(rChild, vChild)) {
                     changed = true;
+                    siblingDirty = true;
                 }
             }
         }
@@ -77,7 +90,7 @@ public class DomDiffEngine {
         // 超過分の削除
         if (realNode.children.size() > virtualNode.children.size()) {
             while (realNode.children.size() > virtualNode.children.size()) {
-                realNode.children.remove(realNode.children.size() - 1);
+                realNode.children.removeLast();
                 changed = true;
             }
         }
@@ -86,9 +99,14 @@ public class DomDiffEngine {
             for (int i = minSize; i < virtualNode.children.size(); i++) {
                 HtmlNode newRealChild = virtualNode.children.get(i).cloneNode();
                 newRealChild.parent = realNode;
+                newRealChild.isDirty = true;
                 realNode.children.add(newRealChild);
                 changed = true;
             }
+        }
+
+        if (changed) {
+            realNode.isDirty = true;
         }
 
         return changed;
