@@ -218,7 +218,7 @@ public class ScreenRenderCore {
                     if (renderItems && el.text() != null && !el.text().isEmpty()) {
                         String src = el.text();
 
-                        if (src.startsWith("http://") || src.startsWith("https://")) {
+                        if (src.startsWith("https://")) {
                             ClientMediaManager.ImageInfo info = ClientMediaManager.getImage(src);
                             if (info != null) {
                                 ResourceLocation texLoc = info.textureId();

@@ -5,11 +5,12 @@ import com.nishiyu.lunex.client.ClientScreenManager;
 import com.nishiyu.lunex.program.client.ClientScriptManager;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.webrender.HtmlNode;
+import com.nishiyu.lunex.client.renderer.ClientMediaManager;
+import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
-import org.luaj.vm2.lib.OneArgFunction;
-import org.luaj.vm2.lib.TwoArgFunction;
-import org.luaj.vm2.lib.ZeroArgFunction;
+import org.luaj.vm2.Varargs;
+import org.luaj.vm2.lib.VarArgFunction;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -19,6 +20,17 @@ public class ClientDOMAPI {
 
     public ClientDOMAPI(String sessionId) {
         this.sessionId = sessionId;
+    }
+
+    // --------------------------------------------------
+    // ヘルパー：. と : どちらの呼び出しでも引数を正しく取得する
+    // (第一引数が"id"を持つテーブルならselfとみなしてインデックスをずらす)
+    // --------------------------------------------------
+    private LuaValue getArg(Varargs args, int index) {
+        if (args.narg() > 0 && args.arg1().istable() && !args.arg1().get("id").isnil()) {
+            return args.arg(index + 1);
+        }
+        return args.arg(index);
     }
 
     @LuaFunction(
@@ -76,9 +88,9 @@ public class ClientDOMAPI {
         LuaTable element = new LuaTable();
         element.set("id", LuaValue.valueOf(id));
 
-        element.set("getDataset", new ZeroArgFunction() {
+        element.set("getDataset", new VarArgFunction() {
             @Override
-            public LuaValue call() {
+            public Varargs invoke(Varargs args) {
                 HtmlNode node = findNodeLocally(id);
                 if (node == null) return LuaValue.NIL;
                 LuaTable dataset = new LuaTable();
@@ -90,34 +102,36 @@ public class ClientDOMAPI {
             }
         });
 
-        element.set("querySelector", new OneArgFunction() {
+        element.set("querySelector", new VarArgFunction() {
             @Override
-            public LuaValue call(LuaValue selector) {
+            public Varargs invoke(Varargs args) {
+                String selector = getArg(args, 1).tojstring();
                 HtmlNode node = findNodeLocally(id);
                 if (node == null) return LuaValue.NIL;
-                HtmlNode found = node.querySelector(selector.tojstring());
+                HtmlNode found = node.querySelector(selector);
                 return (found != null && !found.id.isEmpty()) ? createLuaElement(found.id) : LuaValue.NIL;
             }
         });
 
-        element.set("querySelectorAll", new OneArgFunction() {
+        element.set("querySelectorAll", new VarArgFunction() {
             @Override
-            public LuaValue call(LuaValue selector) {
+            public Varargs invoke(Varargs args) {
+                String selector = getArg(args, 1).tojstring();
                 HtmlNode node = findNodeLocally(id);
                 if (node == null) return new LuaTable();
                 LuaTable results = new LuaTable();
                 int index = 1;
-                for (HtmlNode found : node.querySelectorAll(selector.tojstring())) {
+                for (HtmlNode found : node.querySelectorAll(selector)) {
                     if (!found.id.isEmpty()) results.set(index++, createLuaElement(found.id));
                 }
                 return results;
             }
         });
 
-        element.set("setText", new OneArgFunction() {
+        element.set("setText", new VarArgFunction() {
             @Override
-            public LuaValue call(LuaValue text) {
-                String newText = text.tojstring();
+            public Varargs invoke(Varargs args) {
+                String newText = getArg(args, 1).tojstring();
                 HtmlNode node = findNodeLocally(id);
                 if (node != null) {
                     boolean changed = false;
@@ -148,26 +162,30 @@ public class ClientDOMAPI {
             }
         });
 
-        element.set("setAttribute", new TwoArgFunction() {
+        element.set("setAttribute", new VarArgFunction() {
             @Override
-            public LuaValue call(LuaValue attr, LuaValue value) {
-                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, attr.tojstring(), value.tojstring(), false);
+            public Varargs invoke(Varargs args) {
+                String attr = getArg(args, 1).tojstring();
+                String value = getArg(args, 2).tojstring();
+                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, attr, value, false);
                 return element;
             }
         });
 
-        element.set("removeAttribute", new OneArgFunction() {
+        element.set("removeAttribute", new VarArgFunction() {
             @Override
-            public LuaValue call(LuaValue attr) {
-                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, attr.tojstring(), null, true);
+            public Varargs invoke(Varargs args) {
+                String attr = getArg(args, 1).tojstring();
+                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, attr, null, true);
                 return element;
             }
         });
 
-        element.set("addEventListener", new TwoArgFunction() {
+        element.set("addEventListener", new VarArgFunction() {
             @Override
-            public LuaValue call(LuaValue ev, LuaValue action) {
-                String eventName = ev.tojstring();
+            public Varargs invoke(Varargs args) {
+                String eventName = getArg(args, 1).tojstring();
+                LuaValue action = getArg(args, 2);
                 String tempAttrName = eventName.toLowerCase().trim();
                 if (!tempAttrName.startsWith("on")) tempAttrName = "on" + tempAttrName;
 
@@ -179,25 +197,28 @@ public class ClientDOMAPI {
                 } else {
                     actionName = action.tojstring();
                 }
+
+                // ★修正：純粋に仮想DOMへ属性をセットして再レンダリングを待つ
                 ClientScreenManager.updateNodeAttributeLocally(sessionId, id, tempAttrName, actionName, false);
                 return element;
             }
         });
 
-        element.set("getAttribute", new OneArgFunction() {
+        element.set("getAttribute", new VarArgFunction() {
             @Override
-            public LuaValue call(LuaValue attr) {
+            public Varargs invoke(Varargs args) {
+                String attr = getArg(args, 1).tojstring();
                 HtmlNode node = findNodeLocally(id);
-                if (node != null && node.attrs.containsKey(attr.tojstring())) {
-                    return LuaValue.valueOf(node.attrs.get(attr.tojstring()));
+                if (node != null && node.attrs.containsKey(attr)) {
+                    return LuaValue.valueOf(node.attrs.get(attr));
                 }
                 return LuaValue.NIL;
             }
         });
 
-        element.set("getText", new ZeroArgFunction() {
+        element.set("getText", new VarArgFunction() {
             @Override
-            public LuaValue call() {
+            public Varargs invoke(Varargs args) {
                 HtmlNode node = findNodeLocally(id);
                 if (node != null) {
                     for (HtmlNode child : node.children) {
@@ -208,12 +229,14 @@ public class ClientDOMAPI {
             }
         });
 
-        element.set("appendElement", new TwoArgFunction() {
+        element.set("appendElement", new VarArgFunction() {
             @Override
-            public LuaValue call(LuaValue tag, LuaValue newId) {
+            public Varargs invoke(Varargs args) {
+                String tag = getArg(args, 1).tojstring();
+                LuaValue newId = getArg(args, 2);
                 HtmlNode parent = findNodeLocally(id);
                 if (parent != null) {
-                    HtmlNode newNode = new HtmlNode(tag.tojstring());
+                    HtmlNode newNode = new HtmlNode(tag);
                     if (!newId.isnil()) {
                         String nid = newId.tojstring();
                         newNode.id = nid;
@@ -230,9 +253,9 @@ public class ClientDOMAPI {
             }
         });
 
-        element.set("remove", new ZeroArgFunction() {
+        element.set("remove", new VarArgFunction() {
             @Override
-            public LuaValue call() {
+            public Varargs invoke(Varargs args) {
                 HtmlNode node = findNodeLocally(id);
                 if (node != null && node.parent != null) {
                     node.parent.children.remove(node);
@@ -243,9 +266,9 @@ public class ClientDOMAPI {
             }
         });
 
-        element.set("clear", new ZeroArgFunction() {
+        element.set("clear", new VarArgFunction() {
             @Override
-            public LuaValue call() {
+            public Varargs invoke(Varargs args) {
                 HtmlNode node = findNodeLocally(id);
                 if (node != null) {
                     node.children.clear();
@@ -253,6 +276,48 @@ public class ClientDOMAPI {
                     return LuaValue.TRUE;
                 }
                 return LuaValue.FALSE;
+            }
+        });
+
+        element.set("setSpeed", new VarArgFunction() {
+            @Override
+            public Varargs invoke(Varargs args) {
+                String speedStr = getArg(args, 1).tojstring();
+                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, "data-video-speed", speedStr, false);
+
+                HtmlNode node = findNodeLocally(id);
+                if (node != null && node.attrs.containsKey("src")) {
+                    try {
+                        float spd = Float.parseFloat(speedStr);
+                        String srcUrl = node.attrs.get("src");
+                        ClientMediaManager.VideoTexture tex = ClientMediaManager.getVideoTexture(srcUrl);
+                        if (tex != null) {
+                            tex.setPlaybackSpeed(spd);
+                        }
+                    } catch (Exception ignored) {}
+                }
+                return element;
+            }
+        });
+
+        element.set("seek", new VarArgFunction() {
+            @Override
+            public Varargs invoke(Varargs args) {
+                String secondsStr = getArg(args, 1).tojstring();
+                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, "data-video-seek", secondsStr, false);
+
+                HtmlNode node = findNodeLocally(id);
+                if (node != null && node.attrs.containsKey("src")) {
+                    try {
+                        double sec = Double.parseDouble(secondsStr);
+                        String srcUrl = node.attrs.get("src");
+                        ClientMediaManager.VideoTexture tex = ClientMediaManager.getVideoTexture(srcUrl);
+                        if (tex != null) {
+                            tex.seekTo(sec);
+                        }
+                    } catch (Exception ignored) {}
+                }
+                return element;
             }
         });
 

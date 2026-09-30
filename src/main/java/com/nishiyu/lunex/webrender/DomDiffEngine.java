@@ -1,3 +1,4 @@
+// 上書き: DomDiffEngine.java
 package com.nishiyu.lunex.webrender;
 
 import java.util.Arrays;
@@ -28,6 +29,7 @@ public class DomDiffEngine {
         }
 
         // 2. 属性(Attributes)のDiff
+        // ★修正：イベントリスナー等も含めて完全に同期する
         Iterator<String> it = realNode.attrs.keySet().iterator();
         while (it.hasNext()) {
             String key = it.next();

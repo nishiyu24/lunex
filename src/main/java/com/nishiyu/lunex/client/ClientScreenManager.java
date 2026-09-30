@@ -1,6 +1,7 @@
 package com.nishiyu.lunex.client;
 
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
+import com.nishiyu.lunex.client.renderer.ARGlassesHudRenderer;
 import com.nishiyu.lunex.client.renderer.ScreenAnimator;
 import com.nishiyu.lunex.webrender.*;
 import net.minecraft.nbt.CompoundTag;
@@ -50,6 +51,9 @@ public class ClientScreenManager {
             }
             DOM_HASH_CACHE.put(sessionId, currentHash);
 
+            ClientPubSubManager.clearSession(sessionId);
+            com.nishiyu.lunex.client.renderer.ARGlassesHudRenderer.clearSession(sessionId);
+
             int rootW = tag.contains("RootW") ? tag.getInt("RootW") : 1920;
             int rootH = tag.contains("RootH") ? tag.getInt("RootH") : 1080;
 
@@ -67,7 +71,6 @@ public class ClientScreenManager {
             HtmlNode virtualRoot = rootNode.cloneNode();
             VIRTUAL_DOM_CACHE.put(sessionId, virtualRoot);
 
-            // ★ 追加: HTMLが構築された瞬間に、data-* 属性（仮想リストやデータバインディング）を走査して自動購読を開始する
             DeclarativeBindingManager.initializeBindings(sessionId, virtualRoot);
 
             Map<String, String> currentEnv = SESSION_ENV.getOrDefault(sessionId, new HashMap<>());
@@ -425,8 +428,8 @@ public class ClientScreenManager {
         DIRTY_SESSIONS.remove(sessionId);
         SESSION_ENV.remove(sessionId);
         DOM_HASH_CACHE.remove(sessionId);
-        // ★ 追加: セッション終了時にPubSubバインディングも確実にクリーンアップ
         ClientPubSubManager.clearSession(sessionId);
+        ARGlassesHudRenderer.clearSession(sessionId);
     }
 
     public static UIParser.Document getDocument(String sessionId) {

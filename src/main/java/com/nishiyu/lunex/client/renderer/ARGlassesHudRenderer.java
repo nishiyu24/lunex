@@ -72,9 +72,6 @@ public class ARGlassesHudRenderer {
 
     private static int lastSentWidth = -1;
     private static int lastSentHeight = -1;
-    private static int currentTargetWidth = -1;
-    private static int currentTargetHeight = -1;
-    private static long lastResizeTime = 0;
 
     public static void requestSubscriptionSync() {
         pendingSubscriptionSync = true;
@@ -174,8 +171,6 @@ public class ARGlassesHudRenderer {
         if (screenKey == null) return;
 
         if (!isRouterActiveAndInRange(mc, headItem)) {
-            ClientScreenManager.clearSession(screenKey);
-            clearSession(screenKey);
             return;
         }
 
@@ -196,23 +191,14 @@ public class ARGlassesHudRenderer {
         int virtualHeight = (int) VIRTUAL_HEIGHT;
         int virtualWidth = (int) (VIRTUAL_HEIGHT * ((float) screenWidth / screenHeight));
 
-        if (lastSentWidth == -1) {
-            lastSentWidth = virtualWidth;
-            lastSentHeight = virtualHeight;
-            currentTargetWidth = virtualWidth;
-            currentTargetHeight = virtualHeight;
+        // ★ 修正: PortableScreenと同様に、常に正しい解像度を保証するように変更
+        if (ClientScreenManager.getLastRootW(screenKey) != virtualWidth ||
+                ClientScreenManager.getLastRootH(screenKey) != virtualHeight) {
             ClientScreenManager.recomputeLayout(screenKey, virtualWidth, virtualHeight);
         }
-        if (virtualWidth != currentTargetWidth || virtualHeight != currentTargetHeight) {
-            currentTargetWidth = virtualWidth;
-            currentTargetHeight = virtualHeight;
-            lastResizeTime = System.currentTimeMillis();
-        }
-        if ((lastSentWidth != currentTargetWidth || lastSentHeight != currentTargetHeight) && (System.currentTimeMillis() - lastResizeTime > 200)) {
-            lastSentWidth = currentTargetWidth;
-            lastSentHeight = currentTargetHeight;
-            ClientScreenManager.recomputeLayout(screenKey, lastSentWidth, lastSentHeight);
-        }
+
+        lastSentWidth = virtualWidth;
+        lastSentHeight = virtualHeight;
     }
 
     private static void processHudTemplates(Minecraft mc, String screenKey) {
@@ -330,16 +316,47 @@ public class ARGlassesHudRenderer {
         dataMap.put("hp_percent", String.valueOf(Math.round((le.getHealth() / le.getMaxHealth()) * 100)));
         dataMap.put("armor", String.valueOf(le.getArmorValue()));
 
+        com.google.gson.JsonArray effectsArray = new com.google.gson.JsonArray();
+        for (net.minecraft.world.effect.MobEffectInstance effect : le.getActiveEffects()) {
+            com.google.gson.JsonObject obj = new com.google.gson.JsonObject();
+            net.minecraft.resources.ResourceLocation id = BuiltInRegistries.MOB_EFFECT.getKey(effect.getEffect().value());
+            if (id != null) {
+                obj.addProperty("id", id.toString());
+                obj.addProperty("amplifier", effect.getAmplifier());
+                obj.addProperty("duration", effect.getDuration());
+                effectsArray.add(obj);
+            }
+        }
+        if (effectsArray.size() > 0) {
+            dataMap.put("active_effects", effectsArray.toString());
+            dataMap.put("nbt.active_effects", effectsArray.toString());
+        }
+
         JsonObject syncedData = serverSyncedTrackerData.get(le.getId());
         if (syncedData != null) {
+            Map<String, String> flatData = new HashMap<>();
+            flattenJsonToMap(syncedData, "", flatData);
+
             for (String path : currentTrackerConfig.requireNbt) {
-                if (syncedData.has(path)) {
-                    JsonElement elem = syncedData.get(path);
-                    if (elem.isJsonPrimitive()) {
-                        dataMap.put("nbt." + path, elem.getAsString());
-                    } else {
-                        dataMap.put("nbt." + path, elem.toString());
+                String searchKey1 = "nbt." + path;
+                String searchKey2 = path;
+
+                String rawValue = flatData.containsKey(searchKey1) ? flatData.get(searchKey1) :
+                        flatData.containsKey(searchKey2) ? flatData.get(searchKey2) : null;
+
+                if (rawValue != null) {
+                    if ((rawValue.startsWith("[") || rawValue.startsWith("{")) && !rawValue.startsWith("{\"")) {
+                        try {
+                            net.minecraft.nbt.CompoundTag dummy = net.minecraft.nbt.TagParser.parseTag("{data:" + rawValue + "}");
+                            net.minecraft.nbt.Tag parsedTag = dummy.get("data");
+                            com.google.gson.JsonElement jsonElem = toJsonElement(parsedTag);
+                            if (jsonElem != null) {
+                                rawValue = jsonElem.toString();
+                            }
+                        } catch (Exception ignored) {
+                        }
                     }
+                    dataMap.put("nbt." + path, rawValue);
                 }
             }
         }
@@ -440,6 +457,20 @@ public class ARGlassesHudRenderer {
                 map.put("is_on_fire", String.valueOf(le.isOnFire()));
                 map.put("type", "entity");
                 map.put("is_entity", "true");
+
+                com.google.gson.JsonArray effectsArray = new com.google.gson.JsonArray();
+                for (net.minecraft.world.effect.MobEffectInstance effect : le.getActiveEffects()) {
+                    com.google.gson.JsonObject obj = new com.google.gson.JsonObject();
+                    net.minecraft.resources.ResourceLocation id = BuiltInRegistries.MOB_EFFECT.getKey(effect.getEffect().value());
+                    if (id != null) {
+                        obj.addProperty("id", id.toString());
+                        obj.addProperty("amplifier", effect.getAmplifier());
+                        obj.addProperty("duration", effect.getDuration());
+                        effectsArray.add(obj);
+                    }
+                }
+                map.put("active_effects", effectsArray.toString());
+                map.put("nbt.active_effects", effectsArray.toString());
             }
         } else if (hitResult.getType() == HitResult.Type.BLOCK) {
             BlockHitResult bhr = (BlockHitResult) hitResult;
@@ -636,11 +667,33 @@ public class ARGlassesHudRenderer {
         }
     }
 
-    // ★ 修正：すべてのオブジェクト型(ListやArray含む)を網羅的にJSONへ変換するヘルパーメソッド
     private static com.google.gson.JsonElement toJsonElement(Object v) {
+        if (v == null) return null;
         if (v instanceof String s) return new com.google.gson.JsonPrimitive(s);
         if (v instanceof Number n) return new com.google.gson.JsonPrimitive(n);
         if (v instanceof Boolean b) return new com.google.gson.JsonPrimitive(b);
+        if (v instanceof net.minecraft.resources.ResourceLocation rl) return new com.google.gson.JsonPrimitive(rl.toString());
+
+        if (v instanceof net.minecraft.nbt.CompoundTag tag) {
+            JsonObject obj = new JsonObject();
+            for (String key : tag.getAllKeys()) {
+                com.google.gson.JsonElement child = toJsonElement(tag.get(key));
+                if (child != null) obj.add(key, child);
+            }
+            return obj;
+        }
+        if (v instanceof net.minecraft.nbt.ListTag listTag) {
+            com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+            for (net.minecraft.nbt.Tag child : listTag) {
+                com.google.gson.JsonElement element = toJsonElement(child);
+                if (element != null) arr.add(element);
+            }
+            return arr;
+        }
+        if (v instanceof net.minecraft.nbt.StringTag strTag) return new com.google.gson.JsonPrimitive(strTag.getAsString());
+        if (v instanceof net.minecraft.nbt.NumericTag numTag) return new com.google.gson.JsonPrimitive(numTag.getAsNumber());
+        if (v instanceof net.minecraft.nbt.ByteTag boolTag) return new com.google.gson.JsonPrimitive(boolTag.getAsByte() != 0);
+
         if (v instanceof Map<?, ?> m) {
             JsonObject obj = new JsonObject();
             for (Map.Entry<?, ?> entry : m.entrySet()) {
@@ -659,7 +712,7 @@ public class ARGlassesHudRenderer {
             }
             return arr;
         }
-        if (v != null && v.getClass().isArray()) {
+        if (v.getClass().isArray()) {
             com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
             int length = java.lang.reflect.Array.getLength(v);
             for (int i = 0; i < length; i++) {
@@ -671,7 +724,6 @@ public class ARGlassesHudRenderer {
         return null;
     }
 
-    // ★ 修正：ヘルパーメソッドを使用して、抜け落ちなくJSONオブジェクトを生成するように変更
     private static JsonObject mapToJson(Map<String, Object> map) {
         com.google.gson.JsonElement el = toJsonElement(map);
         return el != null && el.isJsonObject() ? el.getAsJsonObject() : new JsonObject();

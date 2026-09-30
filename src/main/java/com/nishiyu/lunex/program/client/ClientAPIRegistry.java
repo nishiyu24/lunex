@@ -30,9 +30,5 @@ public class ClientAPIRegistry extends APIRegistry {
         suggestions.add(new SuggestionDef("api", "element", "clear", new ArrayList<>(), new ArrayList<>(), "子要素を全てクリアします。", "Clears all child elements.", false, false, new ArrayList<>()));
         suggestions.add(new SuggestionDef("api", "element", "setSpeed", List.of("num:speed"), new ArrayList<>(), "動画等の再生速度を設定します。", "Sets playback speed.", false, false, new ArrayList<>()));
         suggestions.add(new SuggestionDef("api", "element", "seek", List.of("num:seconds"), new ArrayList<>(), "動画等の再生位置をシークします。", "Seeks playback position.", false, false, new ArrayList<>()));
-        suggestions.add(new SuggestionDef("api", "element", "enableHud", List.of("val:options"), new ArrayList<>(), "HUDとして有効化します。", "Enables as HUD.", false, false, new ArrayList<>()));
-        suggestions.add(new SuggestionDef("api", "element", "bindHud", List.of("val:options"), new ArrayList<>(), "HUDデータのバインドを設定します。", "Binds HUD data.", false, false, new ArrayList<>()));
-        suggestions.add(new SuggestionDef("api", "element", "enableTracker", List.of("val:options"), new ArrayList<>(), "トラッカーとして有効化します。", "Enables as tracker.", false, false, new ArrayList<>()));
-        suggestions.add(new SuggestionDef("api", "element", "bindTracker", List.of("val:options"), new ArrayList<>(), "トラッカーデータのバインドを設定します。", "Binds tracker data.", false, false, new ArrayList<>()));
     }
 }

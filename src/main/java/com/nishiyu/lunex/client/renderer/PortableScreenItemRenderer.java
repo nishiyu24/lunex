@@ -61,26 +61,37 @@ public class PortableScreenItemRenderer extends BlockEntityWithoutLevelRenderer 
         CompoundTag tag = customData.copyTag();
         Minecraft mc = Minecraft.getInstance();
 
+        boolean shouldRenderUI = true;
+
         if (tag.contains("RouterPos") && mc.player != null && mc.level != null) {
             net.minecraft.core.BlockPos routerPos = net.minecraft.core.BlockPos.of(tag.getLong("RouterPos"));
             String routerDim = tag.getString("RouterDim");
             double maxDist = tag.getDouble("RouterRange");
             boolean isSameDim = mc.level.dimension().location().toString().equals(routerDim);
 
-            if (!isSameDim && maxDist != Double.MAX_VALUE) return;
-            if (isSameDim && maxDist != Double.MAX_VALUE && mc.player.blockPosition().distSqr(routerPos) > (maxDist * maxDist)) return;
+            if (!isSameDim && maxDist != Double.MAX_VALUE) {
+                shouldRenderUI = false;
+            } else if (isSameDim && maxDist != Double.MAX_VALUE && mc.player.blockPosition().distSqr(routerPos) > (maxDist * maxDist)) {
+                shouldRenderUI = false;
+            }
         }
 
         poseStack.pushPose();
 
         if (mc.player != null && (displayContext == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || displayContext == ItemDisplayContext.FIRST_PERSON_LEFT_HAND)) {
             float pitch = mc.player.getXRot();
+            if (Float.isNaN(pitch)) pitch = 0.0f;
+
             float lookDownAmount = Mth.clamp(pitch / 90.0f, 0.0f, 1.0f);
             float yShift = lookDownAmount * 0.3f;
             float zShift = 0.0f;
 
-            boolean holdingBoth = mc.player.getMainHandItem().getItem() == stack.getItem() &&
-                    mc.player.getOffhandItem().getItem() == stack.getItem();
+            ItemStack mainHand = mc.player.getMainHandItem();
+            ItemStack offHand = mc.player.getOffhandItem();
+
+            boolean holdingBoth = mainHand != null && offHand != null &&
+                    mainHand.getItem() == stack.getItem() &&
+                    offHand.getItem() == stack.getItem();
 
             if (holdingBoth) {
                 if (displayContext == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) zShift = 0.08f;
@@ -93,12 +104,19 @@ public class PortableScreenItemRenderer extends BlockEntityWithoutLevelRenderer 
         VertexConsumer vc = buffer.getBuffer(RenderType.entityCutout(TEXTURE));
         drawJSONBox(vc, matrix, packedLight, packedOverlay);
 
-        if (tag.contains("IPAddress")) {
+        if (shouldRenderUI && tag.contains("IPAddress")) {
             String ip = tag.getString("IPAddress");
             String networkId = tag.contains("NetworkId") ? tag.getUUID("NetworkId").toString() : "global";
             String screenKey = networkId + ":" + ip;
 
             com.nishiyu.lunex.client.ClientScreenInteractionManager.ensureSynced(screenKey);
+
+            // ★ 修正: メニューを開いていなくてもPortableScreenの解像度に合致させるため、必要なら再計算を行う
+            if (ClientScreenManager.getLastRootW(screenKey) != (int) PortableScreenScreen.VIRTUAL_WIDTH ||
+                    ClientScreenManager.getLastRootH(screenKey) != (int) PortableScreenScreen.VIRTUAL_HEIGHT) {
+                ClientScreenManager.recomputeLayout(screenKey, (int) PortableScreenScreen.VIRTUAL_WIDTH, (int) PortableScreenScreen.VIRTUAL_HEIGHT);
+            }
+
             List<ScreenBlockEntity.UIElement> elements = ClientScreenManager.getElements(screenKey);
 
             if (elements != null && !elements.isEmpty()) {
@@ -115,7 +133,6 @@ public class PortableScreenItemRenderer extends BlockEntityWithoutLevelRenderer 
                 int logicWidthBlocks = (int) Math.ceil(PortableScreenScreen.VIRTUAL_WIDTH / ScreenBlockEntity.RESOLUTION);
                 int logicHeightBlocks = (int) Math.ceil(PortableScreenScreen.VIRTUAL_HEIGHT / ScreenBlockEntity.RESOLUTION);
 
-                // FBOを廃止し、直接描画する
                 ScreenRenderCore.renderElements(
                         elements, logicWidthBlocks, logicHeightBlocks,
                         poseStack, buffer, packedLight, packedOverlay,
@@ -127,7 +144,7 @@ public class PortableScreenItemRenderer extends BlockEntityWithoutLevelRenderer 
                         playAudio, true, screenKey,
                         null,
                         null,
-                        0 // 0 = 全てを一度に描画
+                        0
                 );
 
                 poseStack.popPose();
