@@ -1,6 +1,7 @@
 package com.nishiyu.lunex.item;
 
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.datagen.AutoLanguageProvider;
 import com.nishiyu.lunex.datagen.ITranslationGatherer;
 import com.nishiyu.lunex.datagen.Translatable;
@@ -67,9 +68,10 @@ public class PortableScreenItem extends Item implements IMCNetDevice {
         }
 
         BlockEntity be = level.getBlockEntity(context.getClickedPos());
-        if (be instanceof RouterBlockEntity router) {
+        // ★修正: RouterBlockEntity からルーター機能付きの SimpleMachineBlockEntity へ変更
+        if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
             MCNetUtil.registerPortableDevice(
-                    level, router, context.getItemInHand(), context.getPlayer(),
+                    level, sm, context.getItemInHand(), context.getPlayer(),
                     this.getDeviceType(), MSG_REGISTERED, MSG_FAILED_IP, MSG_DHCP_DISABLED
             );
             return InteractionResult.SUCCESS;

@@ -1,0 +1,9 @@
+{
+  "sources": [
+    {
+      "type": "directory",
+      "source": "lunex:block",
+      "prefix": "lunex:block/"
+    }
+  ]
+}

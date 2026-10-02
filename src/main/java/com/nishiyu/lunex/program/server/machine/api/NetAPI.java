@@ -1,11 +1,13 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
-import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.mcnet.DeviceAPIRegistry;
 import com.nishiyu.lunex.mcnet.IPUtils;
 import com.nishiyu.lunex.mcnet.McNetManager;
+import com.nishiyu.lunex.mcnet.MCNetUtil;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
 import net.minecraft.core.BlockPos;
@@ -15,18 +17,26 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.luaj.vm2.LuaTable;
 
-import java.util.Map;
+import java.util.List;
 
-public class NetAPI {
-    private final ServerLuaVM vm;
+public class NetAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
 
-    public NetAPI(ServerLuaVM vm) {
-        this.vm = vm;
+    public NetAPI() {}
+    public NetAPI(ServerLuaVM vm) { this.vm = vm; }
+
+    @Override
+    public String getNamespace() { return "net"; }
+
+    @Override
+    public String getRequiredFeature() { return ""; }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        return new NetAPI(vm);
     }
 
     private CompoundTag getBeData(BlockEntity be) {
-        if (be instanceof AdvancedMachineBlockEntity machine) return machine.persistentData;
-        if (be instanceof RouterBlockEntity router) return router.persistentData;
         return be.getPersistentData();
     }
 
@@ -36,21 +46,27 @@ public class NetAPI {
         return DeviceAPIRegistry.getDeviceTypeFromBlockName(rawType);
     }
 
-    private RouterBlockEntity findConnectedRouter() {
-        if (vm.hardware == null || vm.hardware.getLevel() == null) return null;
-        CompoundTag data = getBeData(vm.hardware);
+    private SimpleMachineBlockEntity findConnectedRouter() {
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null || machine.getLevel() == null) return null;
 
+        if (machine.isMainframeMaster && machine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            return machine;
+        }
+
+        CompoundTag data = getBeData(machine);
         if (data != null && data.contains("RouterPos")) {
             BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
-            BlockEntity be = vm.hardware.getLevel().getBlockEntity(routerPos);
-            if (be instanceof RouterBlockEntity router) return router;
+            BlockEntity be = machine.getLevel().getBlockEntity(routerPos);
+            if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                return router;
+            }
         }
         return null;
     }
 
     @LuaFunction(
             value = "ネットワーク設定を行います。",
-            en = "Configures the network settings.",
             args = {"str:ip", "str:subnet", "str:gateway"},
             rets = {"bool:success"},
             isAsync = true
@@ -58,23 +74,15 @@ public class NetAPI {
     public boolean setConfig(String ip, String subnet, String gateway) {
         if (!IPUtils.isValidIp(ip) || !IPUtils.isValidIp(subnet) || !IPUtils.isValidIp(gateway)) return false;
         return vm.executeInMainThreadSync(() -> {
-            BlockEntity be = vm.hardware != null ? vm.hardware : null;
-            if (be == null) return false;
+            SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+            if (machine == null) return false;
 
-            CompoundTag data = getBeData(be);
+            CompoundTag data = getBeData(machine);
             if (data != null) {
-                String oldIp = data.getString("IPAddress");
-                RouterBlockEntity router = findConnectedRouter();
-                if (router != null && oldIp != null && !oldIp.isEmpty()) {
-                    router.localRoutes.remove(oldIp);
-                }
                 data.putString("IPAddress", ip);
                 data.putString("SubnetMask", subnet);
                 data.putString("DefaultGateway", gateway);
-                be.setChanged();
-                if (router != null && !"0.0.0.0".equals(ip) && vm.isRunning) {
-                    router.localRoutes.put(ip, be.getBlockPos());
-                }
+                machine.setChanged();
                 return true;
             }
             return false;
@@ -83,49 +91,45 @@ public class NetAPI {
 
     @LuaFunction(
             value = "現在のIPアドレスを取得します。",
-            en = "Gets the current IP address.",
             args = {},
             rets = {"str:ip"},
             isAsync = false
     )
     public String getIp() {
-        BlockEntity be = vm.hardware != null ? vm.hardware : null;
-        if (be == null) return "0.0.0.0";
-        CompoundTag data = getBeData(be);
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null) return "0.0.0.0";
+        CompoundTag data = getBeData(machine);
         return (data != null && data.contains("IPAddress")) ? data.getString("IPAddress") : "0.0.0.0";
     }
 
     @LuaFunction(
             value = "現在のサブネットマスクを取得します。",
-            en = "Gets the current subnet mask.",
             args = {},
             rets = {"str:subnet"},
             isAsync = false
     )
     public String getSubnet() {
-        BlockEntity be = vm.hardware != null ? vm.hardware : null;
-        if (be == null) return "0.0.0.0";
-        CompoundTag data = getBeData(be);
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null) return "0.0.0.0";
+        CompoundTag data = getBeData(machine);
         return (data != null && data.contains("SubnetMask")) ? data.getString("SubnetMask") : "0.0.0.0";
     }
 
     @LuaFunction(
             value = "現在のデフォルトゲートウェイを取得します。",
-            en = "Gets the current default gateway.",
             args = {},
             rets = {"str:gateway"},
             isAsync = false
     )
     public String getGateway() {
-        BlockEntity be = vm.hardware != null ? vm.hardware : null;
-        if (be == null) return "0.0.0.0";
-        CompoundTag data = getBeData(be);
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null) return "0.0.0.0";
+        CompoundTag data = getBeData(machine);
         return (data != null && data.contains("DefaultGateway")) ? data.getString("DefaultGateway") : "0.0.0.0";
     }
 
     @LuaFunction(
             value = "指定したIPアドレスに向けてデータを送信します。",
-            en = "Sends data to the specified IP address.",
             args = {"str:targetIp", "num:port", "str:data"},
             rets = {"bool:success"},
             isAsync = true
@@ -142,7 +146,7 @@ public class NetAPI {
         }
 
         return vm.executeInMainThreadSync(() -> {
-            RouterBlockEntity router = findConnectedRouter();
+            SimpleMachineBlockEntity router = findConnectedRouter();
             if (router == null) {
                 vm.triggerEvent("print", "Network Error: Gateway unreachable. (No Router found)");
                 return false;
@@ -151,20 +155,33 @@ public class NetAPI {
             boolean isSameSubnet = IPUtils.isSameSubnet(myIp, targetIp, mySubnet);
 
             if (isSameSubnet) {
-                BlockPos targetPos = router.localRoutes.get(targetIp);
+                List<BlockPos> connected = MCNetUtil.getConnectedDevices(router.getLevel(), router.getBlockPos());
+                BlockPos targetPos = null;
+
+                for (BlockPos p : connected) {
+                    BlockEntity be = router.getLevel().getBlockEntity(p);
+                    if (be != null) {
+                        CompoundTag tag = getBeData(be);
+                        if (targetIp.equals(tag.getString("IPAddress"))) {
+                            targetPos = p;
+                            break;
+                        }
+                    }
+                }
+
                 if (targetPos != null) {
                     BlockEntity targetBe = router.getLevel().getBlockEntity(targetPos);
-                    if (targetBe instanceof AdvancedMachineBlockEntity machine && machine.vm.isRunning) {
-                        machine.vm.triggerEvent("net_receive", myIp, port, data);
+                    if (targetBe instanceof SimpleMachineBlockEntity targetMachine && targetMachine.vm != null && targetMachine.vm.isRunning) {
+                        targetMachine.vm.triggerEvent("net_receive", myIp, port, data);
                         return true;
                     }
                 }
             } else {
-                // サブネット外（WAN）への送信
-                if (router.isRunning()) {
+                if (router.persistentData.getBoolean("IsRunningStatus") || (router.vm != null && router.vm.isRunning)) {
                     boolean sent = false;
                     for (ServerLuaVM wanNode : McNetManager.getAllWanNodes().values()) {
-                        wanNode.triggerEvent("net_wan_receive", router.getWanIp(), port, data);
+                        String routerWanIp = router.persistentData.contains("AssignedWanIP") ? router.persistentData.getString("AssignedWanIP") : "0.0.0.0";
+                        wanNode.triggerEvent("net_wan_receive", routerWanIp, port, data);
                         sent = true;
                     }
                     return sent;
@@ -176,7 +193,6 @@ public class NetAPI {
 
     @LuaFunction(
             value = "ドメイン名からIPを解決します。",
-            en = "Resolves a domain name to an IP address via the connected router.",
             args = {"str:domain"},
             rets = {"str:ip"},
             isAsync = true
@@ -186,7 +202,7 @@ public class NetAPI {
         if (IPUtils.isValidIp(domain)) return domain;
 
         return vm.executeInMainThreadSync(() -> {
-            RouterBlockEntity router = findConnectedRouter();
+            SimpleMachineBlockEntity router = findConnectedRouter();
             if (router != null) {
                 CompoundTag rData = router.persistentData;
                 if (rData != null && rData.getBoolean("DNSServerEnabled")) {
@@ -202,7 +218,6 @@ public class NetAPI {
 
     @LuaFunction(
             value = "ネットワークに接続されている全デバイスのリスト(ip, type, tag)を返します。",
-            en = "Returns a list (ip, type, tag) of all devices connected to the network.",
             args = {},
             rets = {"table:devices"},
             isAsync = true
@@ -210,26 +225,27 @@ public class NetAPI {
     public LuaTable scan() {
         return vm.executeInMainThreadSync(() -> {
             LuaTable result = new LuaTable();
-            RouterBlockEntity router = findConnectedRouter();
+            SimpleMachineBlockEntity router = findConnectedRouter();
             if (router == null) return result;
             Level level = router.getLevel();
             if (level == null) return result;
 
             int index = 1;
 
-            for (Map.Entry<String, BlockPos> entry : router.localRoutes.entrySet()) {
-                String ip = entry.getKey();
-                BlockPos pos = entry.getValue();
+            List<BlockPos> connected = MCNetUtil.getConnectedDevices(level, router.getBlockPos());
+            for (BlockPos pos : connected) {
                 BlockEntity be = level.getBlockEntity(pos);
-
                 if (be != null) {
                     CompoundTag data = getBeData(be);
-                    if (data != null) {
-                        LuaTable dev = new LuaTable();
-                        dev.set("ip", ip);
-                        dev.set("type", getDeviceType(be));
-                        dev.set("tag", data.getString("NetworkTag"));
-                        result.set(index++, dev);
+                    if (data != null && data.contains("IPAddress")) {
+                        String ip = data.getString("IPAddress");
+                        if (ip != null && !ip.isEmpty() && !"0.0.0.0".equals(ip)) {
+                            LuaTable dev = new LuaTable();
+                            dev.set("ip", ip);
+                            dev.set("type", getDeviceType(be));
+                            dev.set("tag", data.getString("NetworkTag"));
+                            result.set(index++, dev);
+                        }
                     }
                 }
             }
@@ -254,7 +270,6 @@ public class NetAPI {
 
     @LuaFunction(
             value = "指定したブロックタイプのIP一覧を取得します。",
-            en = "Gets a list of IPs for the specified block type.",
             args = {"str:type"},
             rets = {"table:ips"},
             isAsync = true
@@ -276,7 +291,6 @@ public class NetAPI {
 
     @LuaFunction(
             value = "指定したネットワークタグのIP一覧を取得します。",
-            en = "Gets a list of IPs matching the specified network tag.",
             args = {"str:tag"},
             rets = {"table:ips"},
             isAsync = true
@@ -298,37 +312,17 @@ public class NetAPI {
 
     @LuaFunction(
             value = "このデバイスにネットワークタグを設定します。（検索用）",
-            en = "Sets a network tag for this device (for searching).",
             args = {"str:tag"},
             rets = {"bool:success"},
             isAsync = true
     )
     public boolean setTag(String tag) {
         return vm.executeInMainThreadSync(() -> {
-            BlockEntity be = vm.hardware != null ? vm.hardware : null;
-            if (be == null) return false;
+            SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+            if (machine == null) return false;
 
-            if (be instanceof ProbeBlockEntity probe) {
-                probe.setNetworkTag(tag);
-                return true;
-            } else if (be instanceof AdvancedMachineBlockEntity machine) {
-                machine.setMachineLabel(tag);
-                return true;
-            } else if (be instanceof RouterBlockEntity targetRouter) {
-                targetRouter.setMachineLabel(tag);
-                return true;
-            } else {
-                CompoundTag data = getBeData(be);
-                if (data != null) {
-                    data.putString("NetworkTag", tag);
-                    be.setChanged();
-                    if (be.getLevel() != null) {
-                        be.getLevel().sendBlockUpdated(be.getBlockPos(), be.getBlockState(), be.getBlockState(), 2);
-                    }
-                    return true;
-                }
-            }
-            return false;
+            machine.setMachineLabel(tag);
+            return true;
         });
     }
 }

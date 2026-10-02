@@ -94,8 +94,8 @@ public class CustomBehaviorRegistry implements ITranslationGatherer {
                 mob.goalSelector.addGoal(prio, Objects.requireNonNull(MobGoalRegistry.createGoal("Fisher", mob, 1.0D, null, null)));
             }),
             // ★ 表記を "Lua Control" に変更
-            new BehaviorDef(19, "mechanical", "Lua Control", false, List.of(Lunex.ADVANCED_MACHINE_ITEM.get()), counts -> {
-                Item machineItem = Lunex.ADVANCED_MACHINE_ITEM.get();
+            new BehaviorDef(19, "mechanical", "Lua Control", false, List.of(Lunex.SIMPLE_MACHINE_ITEM.get()), counts -> {
+                Item machineItem = Lunex.SIMPLE_MACHINE_ITEM.get();
                 int machineBlocks = BioMobGenerator.getCount(counts, machineItem);
                 if (machineBlocks < 1) return false;
                 int machinePoints = BioMobGenerator.getMachinePoints(counts);

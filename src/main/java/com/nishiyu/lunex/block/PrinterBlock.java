@@ -74,13 +74,24 @@ public class PrinterBlock extends Block implements EntityBlock, IMCNetBlock {
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (!level.isClientSide()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof PrinterBlockEntity) {
-                if (player instanceof ServerPlayer serverPlayer) {
-                    serverPlayer.openMenu(new SimpleMenuProvider(
-                            (id, inv, p) -> new PrinterMenu(id, inv, pos),
+
+            // 1. 合体時はマスターブロックに処理を委譲
+            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+                InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
+                if (delegateResult != null) {
+                    return delegateResult;
+                }
+            }
+
+            // 2. 未合体時はプリンター本来のGUIを開く
+            if (be instanceof com.nishiyu.lunex.blockentity.PrinterBlockEntity) {
+                if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                    serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                            (id, inv, p) -> new com.nishiyu.lunex.menu.PrinterMenu(id, inv, pos),
                             net.minecraft.network.chat.Component.translatable("block.lunex.printer")
                     ), pos);
                 }
+                return InteractionResult.CONSUME;
             }
         }
         return InteractionResult.sidedSuccess(level.isClientSide());

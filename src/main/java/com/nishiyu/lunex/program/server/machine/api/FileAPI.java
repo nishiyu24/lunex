@@ -2,10 +2,12 @@ package com.nishiyu.lunex.program.server.machine.api;
 
 import com.nishiyu.lunex.Config;
 import com.nishiyu.lunex.Lunex;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
-// ★ 追加: SystemAPI のインポート
 import com.nishiyu.lunex.program.server.SystemAPI;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.lib.OneArgFunction;
@@ -20,26 +22,38 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;
 
-public class FileAPI {
-    private final ServerLuaVM vm;
+public class FileAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
 
-    public FileAPI(ServerLuaVM vm) {
-        this.vm = vm;
+    public FileAPI() {}
+    public FileAPI(ServerLuaVM vm) { this.vm = vm; }
+
+    @Override
+    public String getNamespace() { return "fs"; }
+
+    @Override
+    public String getRequiredFeature() { return ""; }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        return new FileAPI(vm);
     }
 
     private Path getWorkspaceDir() {
         String baseDirName = Config.WORKSPACE_DIR.get();
         if (baseDirName == null || baseDirName.isEmpty()) baseDirName = "lunex_programs";
-        String wsId = this.vm.machine.getWorkspaceId();
-        if (wsId == null || wsId.isEmpty() || wsId.contains("..") || wsId.contains("/") || wsId.contains("\\")) {
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) this.vm).simpleMachine;
+
+        String wsId = machine.getPersistentData().getString("WorkspaceId");
+        if (wsId.isEmpty() || wsId.contains("..") || wsId.contains("/") || wsId.contains("\\")) {
             wsId = java.util.UUID.randomUUID().toString();
-            this.vm.machine.setWorkspaceId(wsId);
+            machine.getPersistentData().putString("WorkspaceId", wsId);
+            machine.setChanged();
         }
         Path dir = Paths.get(baseDirName, wsId).toAbsolutePath().normalize();
         try {
             if (!Files.exists(dir)) Files.createDirectories(dir);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
         return dir;
     }
 
@@ -57,7 +71,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "ファイル全体を読み込みます。内容がJSON形式の場合は自動的にテーブルに変換して返します。",
-            en = "Reads the entire file. If the content is in JSON format, it is automatically converted to a table and returned.",
             args = {"str:path"},
             rets = {"any:content"},
             isAsync = true
@@ -77,7 +90,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "非同期でファイルを読み込み、完了時に指定したイベントを発火させます。",
-            en = "Reads a file asynchronously and triggers the specified event upon completion.",
             args = {"str:path", "str:callbackName"},
             rets = {"bool:success"},
             isAsync = true,
@@ -102,7 +114,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "ファイルにデータを保存します。",
-            en = "Saves data to a file.",
             args = {"str:path", "str:content"},
             rets = {"bool:success"},
             isAsync = true
@@ -122,7 +133,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "指定したディレクトリ内のファイルやフォルダの一覧を取得します。",
-            en = "Gets a list of files and folders in the specified directory.",
             args = {"str:path"},
             rets = {"table:files"},
             isAsync = true
@@ -147,7 +157,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "指定したパスにファイルやフォルダが存在するか確認します。",
-            en = "Checks if a file or folder exists at the specified path.",
             args = {"str:path"},
             rets = {"bool:exists"},
             isAsync = true
@@ -159,7 +168,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "指定したパスがディレクトリ(フォルダ)かどうかを確認します。",
-            en = "Checks if the specified path is a directory (folder).",
             args = {"str:path"},
             rets = {"bool:isDir"},
             isAsync = true
@@ -171,7 +179,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "新しいディレクトリを作成します。",
-            en = "Creates a new directory.",
             args = {"str:path"},
             rets = {"bool:success"},
             isAsync = true
@@ -189,7 +196,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "指定したファイルまたはディレクトリを削除します。",
-            en = "Deletes the specified file or directory.",
             args = {"str:path"},
             rets = {"bool:success"},
             isAsync = true
@@ -206,7 +212,6 @@ public class FileAPI {
 
     @LuaFunction(
             value = "ファイルを開き、読み書き用のハンドル（テーブル）を返します。modeは 'r'(読込), 'w'(書込), 'a'(追記) を指定します。",
-            en = "Opens a file and returns a handle (table) for reading/writing. mode can be 'r' (read), 'w' (write), or 'a' (append).",
             args = {"str:path", "str:mode"},
             rets = {"table:handle"},
             isAsync = true
@@ -228,9 +233,7 @@ public class FileAPI {
                         try {
                             String line = reader.readLine();
                             return line != null ? LuaValue.valueOf(line) : LuaValue.NIL;
-                        } catch (Exception e) {
-                            return LuaValue.NIL;
-                        }
+                        } catch (Exception e) { return LuaValue.NIL; }
                     }
                 });
 
@@ -242,19 +245,14 @@ public class FileAPI {
                             String line;
                             while ((line = reader.readLine()) != null) sb.append(line).append("\n");
                             return LuaValue.valueOf(sb.toString());
-                        } catch (Exception e) {
-                            return LuaValue.NIL;
-                        }
+                        } catch (Exception e) { return LuaValue.NIL; }
                     }
                 });
 
                 handle.set("close", new ZeroArgFunction() {
                     @Override
                     public LuaValue call() {
-                        try {
-                            reader.close();
-                        } catch (Exception ignored) {
-                        }
+                        try { reader.close(); } catch (Exception ignored) {}
                         return LuaValue.NIL;
                     }
                 });
@@ -271,8 +269,7 @@ public class FileAPI {
                         try {
                             writer.write(arg.tojstring());
                             writer.flush();
-                        } catch (Exception ignored) {
-                        }
+                        } catch (Exception ignored) {}
                         return LuaValue.NIL;
                     }
                 });
@@ -284,8 +281,7 @@ public class FileAPI {
                             writer.write(arg.tojstring());
                             writer.newLine();
                             writer.flush();
-                        } catch (Exception ignored) {
-                        }
+                        } catch (Exception ignored) {}
                         return LuaValue.NIL;
                     }
                 });
@@ -293,10 +289,7 @@ public class FileAPI {
                 handle.set("close", new ZeroArgFunction() {
                     @Override
                     public LuaValue call() {
-                        try {
-                            writer.close();
-                        } catch (Exception ignored) {
-                        }
+                        try { writer.close(); } catch (Exception ignored) {}
                         return LuaValue.NIL;
                     }
                 });

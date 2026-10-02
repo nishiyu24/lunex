@@ -1,7 +1,11 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
 import com.nishiyu.lunex.block.ProbeBlock;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
 import net.minecraft.core.BlockPos;
@@ -10,17 +14,28 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 
-public class ProbeAPI {
-    private final ServerLuaVM vm;
+public class ProbeAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
 
-    public ProbeAPI(ServerLuaVM vm) {
-        this.vm = vm;
+    public ProbeAPI() {}
+    public ProbeAPI(ServerLuaVM vm) { this.vm = vm; }
+
+    @Override
+    public String getNamespace() { return "probe"; } // API_PROBEの定数が無い場合は直接指定
+
+    @Override
+    public String getRequiredFeature() { return MainframeConstants.FEATURE_PROBE; }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        return new ProbeAPI(vm);
     }
 
     private ProbeBlockEntity getProbe(String targetStr) {
-        if (vm.hardware == null || vm.hardware.getLevel() == null || targetStr == null) return null;
-        BlockPos pos = vm.hardware.resolveDevice(targetStr);
-        if (pos != null && vm.hardware.getLevel().getBlockEntity(pos) instanceof ProbeBlockEntity probe) {
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null || machine.getLevel() == null || targetStr == null) return null;
+        BlockPos pos = machine.resolveDevice(targetStr);
+        if (pos != null && machine.getLevel().getBlockEntity(pos) instanceof ProbeBlockEntity probe) {
             return probe;
         }
         return null;
@@ -36,8 +51,7 @@ public class ProbeAPI {
 
     @LuaFunction(
             value = "指定した面の接続状態を有効/無効に設定します。",
-            en = "Enables or disables the connection state of the specified face.",
-            args = {"str:face", "bool:enabled"},
+            args = {"str:target", "str:face", "bool:enabled"},
             rets = {"bool:success"},
             isAsync = true
     )
@@ -48,6 +62,7 @@ public class ProbeAPI {
             if (probe == null || dir == null) return false;
 
             Level level = probe.getLevel();
+            if (level == null) return false;
             BlockPos pos = probe.getBlockPos();
             BlockState state = level.getBlockState(pos);
 
@@ -65,8 +80,7 @@ public class ProbeAPI {
 
     @LuaFunction(
             value = "指定した面の接続状態を取得します。",
-            en = "Gets the connection state of the specified face.",
-            args = {"str:face"},
+            args = {"str:target", "str:face"},
             rets = {"bool:enabled"},
             isAsync = false
     )
@@ -74,7 +88,7 @@ public class ProbeAPI {
         return vm.executeInMainThreadSync(() -> {
             ProbeBlockEntity probe = getProbe(targetStr);
             Direction dir = parseDirection(face);
-            if (probe == null || dir == null) return false;
+            if (probe == null || dir == null || probe.getLevel() == null) return false;
 
             BlockState state = probe.getLevel().getBlockState(probe.getBlockPos());
             if (state.getBlock() instanceof ProbeBlock) {
@@ -86,8 +100,7 @@ public class ProbeAPI {
 
     @LuaFunction(
             value = "指定した面に対してレッドストーン信号(0~15)を出力します。",
-            en = "Outputs a redstone signal (0-15) to the specified face.",
-            args = {"str:face", "num:power"},
+            args = {"str:target", "str:face", "num:power"},
             rets = {"bool:success"},
             isAsync = true
     )
@@ -95,13 +108,12 @@ public class ProbeAPI {
         return vm.executeInMainThreadSync(() -> {
             ProbeBlockEntity probe = getProbe(targetStr);
             Direction dir = parseDirection(face);
-            if (probe == null || dir == null) return false;
+            if (probe == null || dir == null || probe.getLevel() == null) return false;
 
-            int clampedPower = Math.clamp(power, 0, 15);
+            int clampedPower = Math.max(0, Math.min(15, power)); // Math.clampの代替
             probe.redstoneOutputs.put(dir, clampedPower);
             probe.setChanged();
 
-            // 周囲のブロックにレッドストーンの更新を通知
             probe.getLevel().updateNeighborsAt(probe.getBlockPos(), probe.getBlockState().getBlock());
             probe.getLevel().updateNeighborsAt(probe.getBlockPos().relative(dir), probe.getBlockState().getBlock());
             return true;
@@ -110,8 +122,7 @@ public class ProbeAPI {
 
     @LuaFunction(
             value = "指定した面に隣接するブロックからのレッドストーン入力信号(0~15)を取得します。",
-            en = "Gets the redstone input signal (0-15) from the block adjacent to the specified face.",
-            args = {"str:face"},
+            args = {"str:target", "str:face"},
             rets = {"num:power"},
             isAsync = false
     )
@@ -119,7 +130,7 @@ public class ProbeAPI {
         return vm.executeInMainThreadSync(() -> {
             ProbeBlockEntity probe = getProbe(targetStr);
             Direction dir = parseDirection(face);
-            if (probe == null || dir == null) return 0;
+            if (probe == null || dir == null || probe.getLevel() == null) return 0;
 
             BlockPos targetPos = probe.getBlockPos().relative(dir);
             return probe.getLevel().getSignal(targetPos, dir);
@@ -128,8 +139,7 @@ public class ProbeAPI {
 
     @LuaFunction(
             value = "指定した面に隣接するブロックのID(名前)を取得します。",
-            en = "Gets the ID (name) of the block adjacent to the specified face.",
-            args = {"str:face"},
+            args = {"str:target", "str:face"},
             rets = {"str:blockName"},
             isAsync = false
     )
@@ -137,7 +147,7 @@ public class ProbeAPI {
         return vm.executeInMainThreadSync(() -> {
             ProbeBlockEntity probe = getProbe(targetStr);
             Direction dir = parseDirection(face);
-            if (probe == null || dir == null) return "minecraft:air";
+            if (probe == null || dir == null || probe.getLevel() == null) return "minecraft:air";
 
             BlockPos targetPos = probe.getBlockPos().relative(dir);
             BlockState state = probe.getLevel().getBlockState(targetPos);

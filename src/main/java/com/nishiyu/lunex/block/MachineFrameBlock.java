@@ -1,15 +1,9 @@
 package com.nishiyu.lunex.block;
 
 import com.nishiyu.lunex.blockentity.MachineFrameBlockEntity;
-import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.machine.IMainframePart;
 import com.nishiyu.lunex.machine.MainframeScanner;
-import com.nishiyu.lunex.menu.UpgradeMenu;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -20,8 +14,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
-
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public class MachineFrameBlock extends Block implements EntityBlock {
 
@@ -57,9 +50,9 @@ public class MachineFrameBlock extends Block implements EntityBlock {
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof IMainframePart part && part.getMasterPos() != null) {
+            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part && part.getMasterPos() != null) {
                 BlockEntity masterBe = level.getBlockEntity(part.getMasterPos());
-                if (masterBe instanceof SimpleMachineBlockEntity master) {
+                if (masterBe instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity master) {
                     master.disassembleMainframe();
                 }
             }
@@ -70,22 +63,14 @@ public class MachineFrameBlock extends Block implements EntityBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (!level.isClientSide()) {
-            // ★共通化
-            if (state.getValue(ASSEMBLED)) {
-                InteractionResult result = MainframeScanner.tryOpenMainframeTerminal(level, pos, player);
-                if (result.consumesAction()) return result;
-            }
-
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof MachineFrameBlockEntity) {
-                if (player instanceof ServerPlayer serverPlayer) {
-                    serverPlayer.openMenu(new SimpleMenuProvider(
-                            (id, inv, p) -> new UpgradeMenu(id, inv, pos),
-                            Component.literal("Machine Frame")
-                    ), pos);
+            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+                InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
+                if (delegateResult != null) {
+                    return delegateResult;
                 }
             }
         }
-        return InteractionResult.SUCCESS;
+        return InteractionResult.PASS;
     }
 }

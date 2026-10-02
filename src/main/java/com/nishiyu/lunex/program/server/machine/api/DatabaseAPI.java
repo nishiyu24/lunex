@@ -1,7 +1,9 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
 import net.minecraft.core.BlockPos;
@@ -11,18 +13,31 @@ import org.luaj.vm2.LuaValue;
 
 import java.nio.charset.StandardCharsets;
 
-public class DatabaseAPI {
-    private final ServerLuaVM vm;
+public class DatabaseAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
 
-    public DatabaseAPI(ServerLuaVM vm) {
-        this.vm = vm;
+    public DatabaseAPI() {}
+    public DatabaseAPI(ServerLuaVM vm) { this.vm = vm; }
+
+    @Override
+    public String getNamespace() { return "database"; }
+
+    @Override
+    public String getRequiredFeature() { return ""; }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        return new DatabaseAPI(vm);
     }
 
-    // ★ 変更: 対象をマスターノード(メインフレーム)として解決する
     private SimpleMachineBlockEntity getMainframe(String targetStr) {
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null) return null;
+        if ("self".equals(targetStr) || "localhost".equals(targetStr)) return machine;
+
         BlockPos pos = vm.getOrCreateAPI(DeviceAPI.class, DeviceAPI::new).getActionTargetPos(targetStr);
-        if (pos != null && vm.hardware != null && vm.hardware.getLevel() != null) {
-            BlockEntity be = vm.hardware.getLevel().getBlockEntity(pos);
+        if (pos != null && machine.getLevel() != null) {
+            BlockEntity be = machine.getLevel().getBlockEntity(pos);
             if (be instanceof SimpleMachineBlockEntity master && master.isMainframeMaster) {
                 return master;
             }
@@ -32,7 +47,6 @@ public class DatabaseAPI {
 
     @LuaFunction(
             value = "データベースのストレージ使用量をメガバイト(MB)形式の文字列で取得します。",
-            en = "Gets the storage usage of the database as a string in megabytes (MB).",
             args = {"str:target"},
             rets = {"str:usage"},
             isAsync = false
@@ -54,7 +68,6 @@ public class DatabaseAPI {
 
     @LuaFunction(
             value = "データベースの現在の使用容量（バイト数）を取得します。",
-            en = "Gets the current used capacity of the database in bytes.",
             args = {"str:target"},
             rets = {"num:usedBytes"},
             isAsync = false
@@ -62,10 +75,10 @@ public class DatabaseAPI {
     public int getUsedBytes(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
-            if (master == null) return 0;
+            if (master == null || master.getLevel() == null) return 0;
 
             int totalUsed = 0;
-            for (BlockPos dbPos : master.mainframeDatabases) {
+            for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     totalUsed += db.getUsedBytes();
                 }
@@ -76,7 +89,6 @@ public class DatabaseAPI {
 
     @LuaFunction(
             value = "データベースの最大容量（バイト数）を取得します。",
-            en = "Gets the maximum capacity of the database in bytes.",
             args = {"str:target"},
             rets = {"num:maxBytes"},
             isAsync = false
@@ -90,7 +102,6 @@ public class DatabaseAPI {
 
     @LuaFunction(
             value = "プログラム（文字列コード）をデータベースにアップロード(保存)します。",
-            en = "Uploads a program (string code) to the database.",
             args = {"str:target", "str:programName", "str:code"},
             rets = {"bool:success"},
             isAsync = true
@@ -98,12 +109,11 @@ public class DatabaseAPI {
     public boolean uploadProgram(String targetStr, String programName, String code) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
-            if (master == null || programName == null || code == null) return false;
+            if (master == null || master.getLevel() == null || programName == null || code == null) return false;
 
             int newCodeLength = code.getBytes(StandardCharsets.UTF_8).length;
 
-            // 1. 既存のプログラムがあれば上書きを試みる
-            for (BlockPos dbPos : master.mainframeDatabases) {
+            for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     if (db.storedPrograms.containsKey(programName)) {
                         int current = db.getUsedBytes();
@@ -113,13 +123,12 @@ public class DatabaseAPI {
                             db.setChanged();
                             return true;
                         }
-                        return false; // 上書き対象があるが容量不足
+                        return false;
                     }
                 }
             }
 
-            // 2. 新規保存の場合は、空き容量があるデータベースを探して保存する
-            for (BlockPos dbPos : master.mainframeDatabases) {
+            for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     if (db.getUsedBytes() + newCodeLength <= db.getMaxCapacityBytes()) {
                         db.storedPrograms.put(programName, code);
@@ -134,7 +143,6 @@ public class DatabaseAPI {
 
     @LuaFunction(
             value = "データベースからプログラム（文字列コード）をダウンロード(取得)します。",
-            en = "Downloads a program (string code) from the database.",
             args = {"str:target", "str:programName"},
             rets = {"str:code"},
             isAsync = false
@@ -142,9 +150,9 @@ public class DatabaseAPI {
     public String downloadProgram(String targetStr, String programName) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
-            if (master == null) return null;
+            if (master == null || master.getLevel() == null) return null;
 
-            for (BlockPos dbPos : master.mainframeDatabases) {
+            for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     if (db.storedPrograms.containsKey(programName)) {
                         return db.storedPrograms.get(programName);
@@ -157,7 +165,6 @@ public class DatabaseAPI {
 
     @LuaFunction(
             value = "データベースに保存されているプログラム名のリストを取得します。",
-            en = "Gets a list of program names stored in the database.",
             args = {"str:target"},
             rets = {"table:programs"},
             isAsync = false
@@ -166,10 +173,10 @@ public class DatabaseAPI {
         return vm.executeInMainThreadSync(() -> {
             LuaTable result = new LuaTable();
             SimpleMachineBlockEntity master = getMainframe(targetStr);
-            if (master == null) return result;
+            if (master == null || master.getLevel() == null) return result;
 
             int i = 1;
-            for (BlockPos dbPos : master.mainframeDatabases) {
+            for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     for (String name : db.storedPrograms.keySet()) {
                         result.set(i++, LuaValue.valueOf(name));

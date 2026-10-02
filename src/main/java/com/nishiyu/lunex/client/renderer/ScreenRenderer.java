@@ -47,14 +47,6 @@ public class ScreenRenderer implements BlockEntityRenderer<ScreenBlockEntity> {
 
         List<ScreenBlockEntity.UIElement> elementsToRender = new ArrayList<>(ClientScreenManager.getElements(sessionId));
 
-        // ★修正: 複雑なUI構築処理を専用クラス(MainframeScreenUIBuilder)に分離しました
-        if (elementsToRender.isEmpty() && be.mainframeMasterPos != null && be.getLevel() != null) {
-            net.minecraft.world.level.block.entity.BlockEntity masterBe = be.getLevel().getBlockEntity(be.mainframeMasterPos);
-            if (masterBe instanceof SimpleMachineBlockEntity master) {
-                MainframeScreenUIBuilder.buildElements(be, master, elementsToRender);
-            }
-        }
-
         if (elementsToRender.isEmpty() && be.lodColor == 0x00000000) return;
 
         Minecraft mc = Minecraft.getInstance();

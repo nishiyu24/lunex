@@ -1,9 +1,9 @@
 package com.nishiyu.lunex.machine;
 
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class VirtualStorage {
-    private final RouterBlockEntity router;
+    private final SimpleMachineBlockEntity router;
 
     private final Map<String, Integer> itemCache = new ConcurrentHashMap<>();
     public final List<LogisticsRule> rules = new CopyOnWriteArrayList<>();
@@ -51,7 +51,7 @@ public class VirtualStorage {
     private boolean isEvaluating = false;
     private int tickCount = 0;
 
-    public VirtualStorage(RouterBlockEntity router) {
+    public VirtualStorage(SimpleMachineBlockEntity router) {
         this.router = router;
     }
 
@@ -66,9 +66,11 @@ public class VirtualStorage {
         scanKeys.clear();
         itemCache.clear();
 
-        for (Map.Entry<String, BlockPos> entry : router.localRoutes.entrySet()) {
-            addDeviceNode(entry.getValue(), level, true);
+        List<BlockPos> connectedNodes = com.nishiyu.lunex.mcnet.MCNetUtil.getConnectedDevices(level, router.getBlockPos());
+        for (BlockPos p : connectedNodes) {
+            addDeviceNode(p, level, true);
         }
+
         forceFullScan();
         updateRuleIndex();
     }
@@ -113,59 +115,21 @@ public class VirtualStorage {
                     }
                 }
             }
-            // ★追加: メインフレーム時はMainframeNetworkTagとmainframeStorageを認識させる
             case com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity sm when sm.isMainframeMaster -> {
                 String mTag = tag;
                 if (data.contains("MainframeNetworkTag") && !data.getString("MainframeNetworkTag").isEmpty()) {
                     mTag = data.getString("MainframeNetworkTag");
                 }
 
-                InventoryNode node = new InventoryNode(devicePos, devicePos, sm.mainframeStorage, mTag);
-                inventoryCache.put(devicePos, node);
-                allPhysicalNodes.add(node);
-                physicalNodesByTag.computeIfAbsent(mTag, k -> new CopyOnWriteArrayList<>()).add(node);
-                if (!scanKeys.contains(devicePos)) scanKeys.add(devicePos);
-                if (!isRebuilding) {
-                    if (node.updateDeltaAndCheck(this, false)) wakeUpRulesForTag(mTag);
-                }
-
-                for (Direction dir : Direction.values()) {
-                    BlockPos targetPos = devicePos.relative(dir);
-                    IItemHandler handler = level.getCapability(Capabilities.ItemHandler.BLOCK, targetPos, dir.getOpposite());
-                    if (handler != null) {
-                        InventoryNode subNode = new InventoryNode(devicePos, targetPos, handler, mTag);
-                        inventoryCache.put(targetPos, subNode);
-                        allPhysicalNodes.add(subNode);
-                        physicalNodesByTag.computeIfAbsent(mTag, k -> new CopyOnWriteArrayList<>()).add(subNode);
-                        if (!scanKeys.contains(targetPos)) scanKeys.add(targetPos);
-                        if (!isRebuilding) {
-                            if (subNode.updateDeltaAndCheck(this, false)) wakeUpRulesForTag(mTag);
-                        }
-                    }
-                }
-            }
-            case AdvancedMachineBlockEntity machine -> {
-                InventoryNode node = new InventoryNode(devicePos, devicePos, machine.itemHandler, tag);
-                inventoryCache.put(devicePos, node);
-                allPhysicalNodes.add(node);
-                physicalNodesByTag.computeIfAbsent(tag, k -> new CopyOnWriteArrayList<>()).add(node);
-                if (!scanKeys.contains(devicePos)) scanKeys.add(devicePos);
-                if (!isRebuilding) {
-                    if (node.updateDeltaAndCheck(this, false)) wakeUpRulesForTag(tag);
-                }
-
-                for (Direction dir : Direction.values()) {
-                    BlockPos targetPos = devicePos.relative(dir);
-                    IItemHandler handler = level.getCapability(Capabilities.ItemHandler.BLOCK, targetPos, dir.getOpposite());
-                    if (handler != null) {
-                        InventoryNode subNode = new InventoryNode(devicePos, targetPos, handler, tag);
-                        inventoryCache.put(targetPos, subNode);
-                        allPhysicalNodes.add(subNode);
-                        physicalNodesByTag.computeIfAbsent(tag, k -> new CopyOnWriteArrayList<>()).add(subNode);
-                        if (!scanKeys.contains(targetPos)) scanKeys.add(targetPos);
-                        if (!isRebuilding) {
-                            if (subNode.updateDeltaAndCheck(this, false)) wakeUpRulesForTag(tag);
-                        }
+                IItemHandler smHandler = sm.mainframeStorage;
+                if(smHandler != null) {
+                    InventoryNode node = new InventoryNode(devicePos, devicePos, smHandler, mTag);
+                    inventoryCache.put(devicePos, node);
+                    allPhysicalNodes.add(node);
+                    physicalNodesByTag.computeIfAbsent(mTag, k -> new CopyOnWriteArrayList<>()).add(node);
+                    if (!scanKeys.contains(devicePos)) scanKeys.add(devicePos);
+                    if (!isRebuilding) {
+                        if (node.updateDeltaAndCheck(this, false)) wakeUpRulesForTag(mTag);
                     }
                 }
             }
@@ -428,7 +392,6 @@ public class VirtualStorage {
         boolean success = false;
         List<InventoryNode> targetPhysicalNodes = physicalNodesByTag.getOrDefault(tag, Collections.emptyList());
 
-        // ★追加: Priority順にソートして搬入先を決定する
         List<DatabaseNode> targetDigitalNodes = new ArrayList<>(digitalNodesByTag.getOrDefault(tag, Collections.emptyList()));
         targetDigitalNodes.sort((a, b) -> Integer.compare(b.db.getPersistentData().getInt("Priority"), a.db.getPersistentData().getInt("Priority")));
 
@@ -520,7 +483,6 @@ public class VirtualStorage {
         DestWrapper(DatabaseNode d) { this.dNode = d; }
         DestWrapper(InventoryNode p, IItemHandler h) { this.pNode = p; this.handler = h; }
 
-        // ★追加: Priority取得用
         int getPriority() {
             if (dNode != null) return dNode.db.getPersistentData().getInt("Priority");
             return 0;
@@ -559,7 +521,6 @@ public class VirtualStorage {
 
         if ((srcPhysical.isEmpty() && srcDigital.isEmpty()) || validDsts.isEmpty()) return 0;
 
-        // ★修正: Priorityに対応
         if ("random".equals(rule.distribution)) Collections.shuffle(validDsts);
         else if ("least_full".equals(rule.distribution)) validDsts.sort(Comparator.comparingDouble(w -> w.getFullness(rule)));
         else if ("round_robin".equals(rule.distribution)) {
@@ -694,8 +655,6 @@ public class VirtualStorage {
     }
 
     private CompoundTag getBeData(BlockEntity be) {
-        if (be instanceof AdvancedMachineBlockEntity machine) return machine.persistentData;
-        if (be instanceof RouterBlockEntity rbe) return rbe.persistentData;
         if (be instanceof DatabaseBlockEntity db) return db.getPersistentData();
         return be.getPersistentData();
     }

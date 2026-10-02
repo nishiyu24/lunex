@@ -26,7 +26,7 @@ public class BioMobGenerator {
             Items.IRON_SWORD, Items.BONE, Items.DIAMOND_SWORD, Items.NETHERITE_SWORD,
             Items.PORKCHOP, Items.CHICKEN, Items.MUTTON, Items.RABBIT,
             Items.NETHER_STAR, Items.EXPERIENCE_BOTTLE, Items.BOOK, Items.GOLD_INGOT,
-            Items.CHEST, Items.REDSTONE, Lunex.ADVANCED_MACHINE_ITEM.get()
+            Items.CHEST, Items.REDSTONE, Lunex.SIMPLE_MACHINE_ITEM.get()
     );
 
     public static MobStatus calculateStatus(Map<String, Integer> materialCounts, List<String> traits) {

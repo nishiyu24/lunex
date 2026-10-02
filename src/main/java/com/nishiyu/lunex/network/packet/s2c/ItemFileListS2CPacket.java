@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.network.packet.s2c;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.menu.MachineSettings.MachineSettingsScreen;
+import com.nishiyu.lunex.menu.turtle.TurtleSettingsScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -29,7 +29,7 @@ public record ItemFileListS2CPacket(List<String> files) implements CustomPacketP
 
     public static void handle(ItemFileListS2CPacket packet, net.neoforged.neoforge.network.handling.IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (Minecraft.getInstance().screen instanceof MachineSettingsScreen screen) {
+            if (Minecraft.getInstance().screen instanceof TurtleSettingsScreen screen) {
                 screen.receiveItemFiles(packet.files());
             }
         });

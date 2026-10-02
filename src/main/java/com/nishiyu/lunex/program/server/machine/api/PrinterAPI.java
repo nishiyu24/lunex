@@ -1,41 +1,43 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.PrinterBlockEntity;
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
-import com.nishiyu.lunex.util.TargetUtil;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.luaj.vm2.LuaValue;
 
-public class PrinterAPI {
-    private final ServerLuaVM vm;
+public class PrinterAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
 
-    public PrinterAPI(ServerLuaVM vm) {
-        this.vm = vm;
+    public PrinterAPI() {}
+    public PrinterAPI(ServerLuaVM vm) { this.vm = vm; }
+
+    @Override
+    public String getNamespace() { return MainframeConstants.API_PRINTER; }
+
+    @Override
+    public String getRequiredFeature() { return MainframeConstants.FEATURE_PRINTER; }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        return new PrinterAPI(vm);
     }
 
     private PrinterBlockEntity getPrinter(String targetStr) {
-        if (!(vm.hardware instanceof AdvancedMachineBlockEntity machine)) return null;
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null || targetStr == null) return null;
 
         BlockPos targetPos = machine.resolveDevice(targetStr);
-        if (targetPos == null) {
-            Direction dir = TargetUtil.getDirectionRelative(targetStr, machine.getBlockState());
-            if (dir != null) {
-                targetPos = machine.getBlockPos().relative(dir);
-            }
-        }
 
-        if (targetPos != null) {
-            Level level = machine.getLevel();
-            if (level != null) {
-                BlockEntity be = level.getBlockEntity(targetPos);
-                if (be instanceof PrinterBlockEntity printer) {
-                    return printer;
-                }
+        if (targetPos != null && machine.getLevel() != null) {
+            BlockEntity be = machine.getLevel().getBlockEntity(targetPos);
+            if (be instanceof PrinterBlockEntity printer) {
+                return printer;
             }
         }
         return null;

@@ -8,21 +8,17 @@ import com.nishiyu.lunex.datagen.DataGenerators;
 import com.nishiyu.lunex.datagen.Translatable;
 import com.nishiyu.lunex.item.ARGlassesItem;
 import com.nishiyu.lunex.item.ProgramDiskItem;
-import com.nishiyu.lunex.item.UpgradeItem;
 import com.nishiyu.lunex.item.WrenchItem;
+import com.nishiyu.lunex.item.InactiveBookItem;
 import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsMenu;
-import com.nishiyu.lunex.menu.MachineSettings.MachineSettingsMenu;
 import com.nishiyu.lunex.menu.*;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterMenu;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.component.DataComponents;
+import com.nishiyu.lunex.menu.turtle.TurtleBotMenu;
+import com.nishiyu.lunex.menu.turtle.TurtleSettingsMenu;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.*;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -41,11 +37,7 @@ import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
-
-import java.util.List;
-import java.util.Objects;
 
 @Mod(Lunex.MODID)
 public class Lunex {
@@ -58,24 +50,12 @@ public class Lunex {
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(BuiltInRegistries.MENU, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(BuiltInRegistries.CREATIVE_MODE_TAB, MODID);
     public static final DeferredRegister<net.minecraft.world.entity.EntityType<?>> ENTITY_TYPES = DeferredRegister.create(BuiltInRegistries.ENTITY_TYPE, MODID);
-
-    // 追加: DataComponent と AttachmentType のレジストリ
     public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENTS = DeferredRegister.create(BuiltInRegistries.DATA_COMPONENT_TYPE, MODID);
     public static final DeferredRegister<AttachmentType<?>> ATTACHMENTS = DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, MODID);
 
-    // =========================================
-    // Entity の登録
-    // =========================================
     @Translatable(en = "Custom Bio Mob", ja = "カスタムバイオモブ")
     public static final DeferredHolder<net.minecraft.world.entity.EntityType<?>, net.minecraft.world.entity.EntityType<com.nishiyu.lunex.entity.CustomBioMobEntity>> CUSTOM_BIO_MOB = ENTITY_TYPES.register("custom_bio_mob",
             () -> net.minecraft.world.entity.EntityType.Builder.of(com.nishiyu.lunex.entity.CustomBioMobEntity::new, net.minecraft.world.entity.MobCategory.CREATURE).sized(0.6F, 1.8F).build("custom_bio_mob"));
-
-    // =========================================
-    // Blockの登録
-    // =========================================
-    @Translatable(en = "Advanced Machine", ja = "アドバンスドマシン")
-    public static final DeferredHolder<Block, AdvancedMachineBlock> ADVANCED_MACHINE = BLOCKS.register("advanced_machine",
-            () -> new AdvancedMachineBlock(Block.Properties.of().strength(5.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()));
 
     @Translatable(en = "Simple Machine", ja = "シンプルマシン")
     public static final DeferredHolder<Block, SimpleMachineBlock> SIMPLE_MACHINE = BLOCKS.register("simple_machine",
@@ -117,32 +97,16 @@ public class Lunex {
     public static final DeferredHolder<Block, com.nishiyu.lunex.block.BioPrinterBlock> BIO_PRINTER_BLOCK = BLOCKS.register("bio_printer_block",
             () -> new com.nishiyu.lunex.block.BioPrinterBlock(Block.Properties.of().strength(3.0F).sound(SoundType.METAL).noOcclusion()));
 
-    @Translatable(en = "Database", ja = "データベース")
-    public static final DeferredHolder<Block, com.nishiyu.lunex.block.DatabaseBlock> DATABASE_BLOCK = BLOCKS.register("database_block",
-            () -> new com.nishiyu.lunex.block.DatabaseBlock(Block.Properties.of().strength(5.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()));
-
-    // カメラブロックの登録
     @Translatable(en = "Camera", ja = "カメラ")
     public static final DeferredHolder<Block, com.nishiyu.lunex.block.CameraBlock> CAMERA_BLOCK = BLOCKS.register("camera_block",
             () -> new com.nishiyu.lunex.block.CameraBlock(Block.Properties.of().strength(1.5F).sound(SoundType.METAL).noOcclusion()));
 
-    // =========================================
-    // Item の登録
-    // =========================================
-    @Translatable(en = "Advanced Machine", ja = "アドバンスドマシン")
-    public static final DeferredHolder<Item, BlockItem> ADVANCED_MACHINE_ITEM = ITEMS.register("advanced_machine",
-            () -> new BlockItem(ADVANCED_MACHINE.get(), new Item.Properties()) {
-                @Override
-                public void appendHoverText(@NotNull ItemStack stack, Item.@NotNull TooltipContext context, @NotNull List<Component> tooltipComponents, @NotNull TooltipFlag tooltipFlag) {
-                    super.appendHoverText(stack, context, tooltipComponents, tooltipFlag);
-                    CompoundTag tag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
-                    if (tag.contains("MachineLabel") && !tag.getString("MachineLabel").isEmpty()) {
-                        tooltipComponents.add(Component.literal("ラベル: " + tag.getString("MachineLabel")).withStyle(ChatFormatting.AQUA));
-                    } else {
-                        tooltipComponents.add(Component.literal("ラベル: 未設定").withStyle(ChatFormatting.GRAY));
-                    }
-                }
-            });
+    public static final DeferredHolder<Block, com.nishiyu.lunex.block.MainframeAdapterBlock> MAINFRAME_ADAPTER_BLOCK = BLOCKS.register("mainframe_adapter_block",
+            () -> new com.nishiyu.lunex.block.MainframeAdapterBlock(Block.Properties.of().strength(1.5F).sound(SoundType.METAL).noOcclusion().noLootTable()));
+
+    @Translatable(en = "Database", ja = "データベース")
+    public static final DeferredHolder<Block, DatabaseBlock> DATABASE_BLOCK = BLOCKS.register("database_block",
+            () -> new DatabaseBlock(Block.Properties.of().strength(5.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()));
 
     @Translatable(en = "Simple Machine", ja = "シンプルマシン")
     public static final DeferredHolder<Item, BlockItem> SIMPLE_MACHINE_ITEM = ITEMS.register("simple_machine", () -> new BlockItem(SIMPLE_MACHINE.get(), new Item.Properties()));
@@ -177,98 +141,27 @@ public class Lunex {
     @Translatable(en = "Bio Printer", ja = "バイオプリンター")
     public static final DeferredHolder<Item, BlockItem> BIO_PRINTER_BLOCK_ITEM = ITEMS.register("bio_printer_block", () -> new BlockItem(BIO_PRINTER_BLOCK.get(), new Item.Properties()));
 
-    @Translatable(en = "Database", ja = "データベース")
-    public static final DeferredHolder<Item, BlockItem> DATABASE_BLOCK_ITEM = ITEMS.register("database_block", () -> new BlockItem(DATABASE_BLOCK.get(), new Item.Properties()));
-
     @Translatable(en = "Screwdriver", ja = "ドライバー", descEn = "Used for configuring machines.", descJa = "マシンの設定に使用します。")
     public static final DeferredHolder<Item, WrenchItem> WRENCH = ITEMS.register("wrench", () -> new WrenchItem(new Item.Properties().stacksTo(1)));
 
     @Translatable(en = "Programmer Tablet", ja = "プログラム登録タブレット")
     public static final DeferredHolder<Item, com.nishiyu.lunex.item.TabletItem> PROGRAMMER_TABLET = ITEMS.register("programmer_tablet", () -> new com.nishiyu.lunex.item.TabletItem(new Item.Properties().stacksTo(1)));
 
-    @Translatable(en = "Machine Cartridge", ja = "マシンカートリッジ")
-    public static final DeferredHolder<Item, Item> MACHINE_CARTRIDGE = ITEMS.register("machine_cartridge", () -> new Item(new Item.Properties().stacksTo(1)));
-
-    @Translatable(en = "Paintball", ja = "ペイントボール")
-    public static final DeferredHolder<Item, com.nishiyu.lunex.item.PaintballItem> PAINTBALL = ITEMS.register("paintball", () -> new com.nishiyu.lunex.item.PaintballItem(new Item.Properties().stacksTo(1)));
-
-    @Translatable(en = "Upgrade Base", ja = "アップグレードベース")
-    public static final DeferredHolder<Item, Item> UPGRADE_BASE = ITEMS.register("upgrade_base", () -> new Item(new Item.Properties()));
-
     @Translatable(en = "Program Disk", ja = "プログラムディスク")
     public static final DeferredHolder<Item, ProgramDiskItem> PROGRAM_DISK = ITEMS.register("program_disk", () -> new ProgramDiskItem(new Item.Properties().stacksTo(1)));
-
-    @Translatable(en = "Inactive Enchanted Book", ja = "非活性エンチャント本")
-    public static final DeferredHolder<Item, com.nishiyu.lunex.item.InactiveBookItem> INACTIVE_BOOK = ITEMS.register("inactive_book", () -> new com.nishiyu.lunex.item.InactiveBookItem(new Item.Properties().stacksTo(16)));
-
-    @Translatable(en = "Execution Upgrade Mk1", ja = "作業枠アップグレード Mk1")
-    public static final DeferredHolder<Item, UpgradeItem> EXEC_UPGRADE_MK1 = ITEMS.register("exec_upgrade_mk1", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.EXECUTION, 1));
-    @Translatable(en = "Execution Upgrade Mk2", ja = "作業枠アップグレード Mk2")
-    public static final DeferredHolder<Item, UpgradeItem> EXEC_UPGRADE_MK2 = ITEMS.register("exec_upgrade_mk2", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.EXECUTION, 2));
-    @Translatable(en = "Execution Upgrade Mk3", ja = "作業枠アップグレード Mk3")
-    public static final DeferredHolder<Item, UpgradeItem> EXEC_UPGRADE_MK3 = ITEMS.register("exec_upgrade_mk3", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.EXECUTION, 3));
-
-    @Translatable(en = "Storage Upgrade Mk1", ja = "補完枠アップグレード Mk1")
-    public static final DeferredHolder<Item, UpgradeItem> STORAGE_UPGRADE_MK1 = ITEMS.register("storage_upgrade_mk1", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.STORAGE, 1));
-    @Translatable(en = "Storage Upgrade Mk2", ja = "補完枠アップグレード Mk2")
-    public static final DeferredHolder<Item, UpgradeItem> STORAGE_UPGRADE_MK2 = ITEMS.register("storage_upgrade_mk2", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.STORAGE, 2));
-    @Translatable(en = "Storage Upgrade Mk3", ja = "補完枠アップグレード Mk3")
-    public static final DeferredHolder<Item, UpgradeItem> STORAGE_UPGRADE_MK3 = ITEMS.register("storage_upgrade_mk3", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.STORAGE, 3));
-
-    @Translatable(en = "Speed Upgrade Mk1", ja = "速度アップグレード Mk1")
-    public static final DeferredHolder<Item, UpgradeItem> SPEED_UPGRADE_MK1 = ITEMS.register("speed_upgrade_mk1", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.SPEED, 1));
-    @Translatable(en = "Speed Upgrade Mk2", ja = "速度アップグレード Mk2")
-    public static final DeferredHolder<Item, UpgradeItem> SPEED_UPGRADE_MK2 = ITEMS.register("speed_upgrade_mk2", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.SPEED, 2));
-    @Translatable(en = "Speed Upgrade Mk3", ja = "速度アップグレード Mk3")
-    public static final DeferredHolder<Item, UpgradeItem> SPEED_UPGRADE_MK3 = ITEMS.register("speed_upgrade_mk3", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.SPEED, 3));
-
-    @Translatable(en = "Efficiency Upgrade Mk1", ja = "燃費アップグレード Mk1")
-    public static final DeferredHolder<Item, UpgradeItem> EFFICIENCY_UPGRADE_MK1 = ITEMS.register("efficiency_upgrade_mk1", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.EFFICIENCY, 1));
-    @Translatable(en = "Efficiency Upgrade Mk2", ja = "燃費アップグレード Mk2")
-    public static final DeferredHolder<Item, UpgradeItem> EFFICIENCY_UPGRADE_MK2 = ITEMS.register("efficiency_upgrade_mk2", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.EFFICIENCY, 2));
-    @Translatable(en = "Efficiency Upgrade Mk3", ja = "燃費アップグレード Mk3")
-    public static final DeferredHolder<Item, UpgradeItem> EFFICIENCY_UPGRADE_MK3 = ITEMS.register("efficiency_upgrade_mk3", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.EFFICIENCY, 3));
-
-    @Translatable(en = "Capacity Upgrade Mk1", ja = "容量アップグレード Mk1")
-    public static final DeferredHolder<Item, UpgradeItem> CAPACITY_UPGRADE_MK1 = ITEMS.register("capacity_upgrade_mk1", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.CAPACITY, 1));
-    @Translatable(en = "Capacity Upgrade Mk2", ja = "容量アップグレード Mk2")
-    public static final DeferredHolder<Item, UpgradeItem> CAPACITY_UPGRADE_MK2 = ITEMS.register("capacity_upgrade_mk2", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.CAPACITY, 2));
-    @Translatable(en = "Capacity Upgrade Mk3", ja = "容量アップグレード Mk3")
-    public static final DeferredHolder<Item, UpgradeItem> CAPACITY_UPGRADE_MK3 = ITEMS.register("capacity_upgrade_mk3", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.CAPACITY, 3));
-
-    @Translatable(en = "Generator Upgrade Mk1", ja = "発電アップグレード Mk1")
-    public static final DeferredHolder<Item, UpgradeItem> GENERATOR_UPGRADE_MK1 = ITEMS.register("generator_upgrade_mk1", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.GENERATOR, 1));
-    @Translatable(en = "Generator Upgrade Mk2", ja = "発電アップグレード Mk2")
-    public static final DeferredHolder<Item, UpgradeItem> GENERATOR_UPGRADE_MK2 = ITEMS.register("generator_upgrade_mk2", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.GENERATOR, 2));
-    @Translatable(en = "Generator Upgrade Mk3", ja = "発電アップグレード Mk3")
-    public static final DeferredHolder<Item, UpgradeItem> GENERATOR_UPGRADE_MK3 = ITEMS.register("generator_upgrade_mk3", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.GENERATOR, 3));
-
-    @Translatable(en = "Distance Upgrade Mk1", ja = "通信距離アップグレード Mk1")
-    public static final DeferredHolder<Item, UpgradeItem> DISTANCE_UPGRADE_MK1 = ITEMS.register("distance_upgrade_mk1", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.DISTANCE, 1));
-    @Translatable(en = "Distance Upgrade Mk2", ja = "通信距離アップグレード Mk2")
-    public static final DeferredHolder<Item, UpgradeItem> DISTANCE_UPGRADE_MK2 = ITEMS.register("distance_upgrade_mk2", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.DISTANCE, 2));
-    @Translatable(en = "Distance Upgrade Mk3", ja = "通信距離アップグレード Mk3")
-    public static final DeferredHolder<Item, UpgradeItem> DISTANCE_UPGRADE_MK3 = ITEMS.register("distance_upgrade_mk3", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.DISTANCE, 3));
-    @Translatable(en = "Distance Upgrade Mk4", ja = "通信距離アップグレード Mk4")
-    public static final DeferredHolder<Item, UpgradeItem> DISTANCE_UPGRADE_MK4 = ITEMS.register("distance_upgrade_mk4", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.DISTANCE, 4));
-
-    @Translatable(en = "Command Upgrade", ja = "コマンドアップグレード")
-    public static final DeferredHolder<Item, UpgradeItem> COMMAND_UPGRADE = ITEMS.register("command_upgrade", () -> new UpgradeItem(new Item.Properties().stacksTo(1).fireResistant().rarity(Rarity.EPIC), UpgradeItem.UpgradeType.COMMAND, 1));
-
-    @Translatable(en = "Router Module", ja = "ルーターモジュール")
-    public static final DeferredHolder<Item, UpgradeItem> ROUTER_MODULE = ITEMS.register("router_module", () -> new UpgradeItem(new Item.Properties().stacksTo(1), UpgradeItem.UpgradeType.ROUTER, 1));
 
     @Translatable(en = "Router", ja = "ルーター")
     public static final DeferredHolder<Item, BlockItem> ROUTER_BLOCK_ITEM = ITEMS.register("router_block", () -> new BlockItem(ROUTER_BLOCK.get(), new Item.Properties()));
 
-    // 追加: カメラブロックのItem版登録（CameraItemクラスを削除したため標準のBlockItemを使用）
     @Translatable(en = "Camera", ja = "カメラ")
     public static final DeferredHolder<Item, BlockItem> CAMERA_BLOCK_ITEM = ITEMS.register("camera_block", () -> new BlockItem(CAMERA_BLOCK.get(), new Item.Properties()));
 
-    // =========================================
-    // BlockEntity の登録
-    // =========================================
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AdvancedMachineBlockEntity>> ADVANCED_MACHINE_BE = BLOCK_ENTITIES.register("advanced_machine", () -> BlockEntityType.Builder.of(AdvancedMachineBlockEntity::new, ADVANCED_MACHINE.get()).build(null));
+    @Translatable(en = "Inactive Book", ja = "未活性の本")
+    public static final DeferredHolder<Item, InactiveBookItem> INACTIVE_BOOK = ITEMS.register("inactive_book", () -> new InactiveBookItem(new Item.Properties().stacksTo(1)));
+
+    @Translatable(en = "Database", ja = "データベース")
+    public static final DeferredHolder<Item, BlockItem> DATABASE_BLOCK_ITEM = ITEMS.register("database_block", () -> new BlockItem(DATABASE_BLOCK.get(), new Item.Properties()));
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SimpleMachineBlockEntity>> SIMPLE_MACHINE_BE = BLOCK_ENTITIES.register("simple_machine", () -> BlockEntityType.Builder.of(SimpleMachineBlockEntity::new, SIMPLE_MACHINE.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TurtleBotBlockEntity>> TURTLE_BOT_BE = BLOCK_ENTITIES.register("turtle_bot_block", () -> BlockEntityType.Builder.of(TurtleBotBlockEntity::new, TURTLE_BOT_BLOCK.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.ScreenBlockEntity>> SCREEN_BE = BLOCK_ENTITIES.register("screen_block", () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.ScreenBlockEntity::new, SCREEN_BLOCK.get()).build(null));
@@ -278,53 +171,29 @@ public class Lunex {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RouterBlockEntity>> ROUTER_BE = BLOCK_ENTITIES.register("router_block", () -> BlockEntityType.Builder.of(RouterBlockEntity::new, ROUTER_BLOCK.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PrinterBlockEntity>> PRINTER_BE = BLOCK_ENTITIES.register("printer", () -> BlockEntityType.Builder.of(PrinterBlockEntity::new, PRINTER.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.BioPrinterBlockEntity>> BIO_PRINTER_BE = BLOCK_ENTITIES.register("bio_printer_block", () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.BioPrinterBlockEntity::new, BIO_PRINTER_BLOCK.get()).build(null));
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.DatabaseBlockEntity>> DATABASE_BE = BLOCK_ENTITIES.register("database_block", () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.DatabaseBlockEntity::new, DATABASE_BLOCK.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.CameraBlockEntity>> CAMERA_BE = BLOCK_ENTITIES.register("camera_block", () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.CameraBlockEntity::new, CAMERA_BLOCK.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity>> MAINFRAME_ADAPTER_BE = BLOCK_ENTITIES.register("mainframe_adapter_block", () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity::new, MAINFRAME_ADAPTER_BLOCK.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DatabaseBlockEntity>> DATABASE_BE = BLOCK_ENTITIES.register("database_block", () -> BlockEntityType.Builder.of(DatabaseBlockEntity::new, DATABASE_BLOCK.get()).build(null));
 
-    // カメラブロックエンティティの登録
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.nishiyu.lunex.blockentity.CameraBlockEntity>> CAMERA_BE = BLOCK_ENTITIES.register("camera_block",
-            () -> BlockEntityType.Builder.of(com.nishiyu.lunex.blockentity.CameraBlockEntity::new, CAMERA_BLOCK.get()).build(null));
-
-    // =========================================
-    // Attachment の登録
-    // =========================================
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Boolean>> HAS_CAMERA_ATTACHMENT = ATTACHMENTS.register("has_camera",
             () -> AttachmentType.builder(() -> false).serialize(Codec.BOOL).build());
 
-    // =========================================
-    // Menu (GUI) の登録
-    // =========================================
-    public static final DeferredHolder<MenuType<?>, MenuType<AdvancedMachineMenu>> ADVANCED_MACHINE_MENU = MENUS.register("advanced_machine", () -> IMenuTypeExtension.create((windowId, inv, data) -> new AdvancedMachineMenu(windowId, inv, data.readBlockPos())));
     public static final DeferredHolder<MenuType<?>, MenuType<SimpleMachineMenu>> SIMPLE_MACHINE_MENU = MENUS.register("simple_machine", () -> IMenuTypeExtension.create((windowId, inv, data) -> new SimpleMachineMenu(windowId, inv, data.readBlockPos())));
-    public static final DeferredHolder<MenuType<?>, MenuType<UpgradeMenu>> UPGRADE_MENU = MENUS.register("upgrade_menu", () -> IMenuTypeExtension.create((windowId, inv, data) -> new UpgradeMenu(windowId, inv, data.readBlockPos())));
-    public static final DeferredHolder<MenuType<?>, MenuType<MachineSettingsMenu>> MACHINE_SETTINGS_MENU = MENUS.register("machine_settings", () -> IMenuTypeExtension.create((windowId, inv, data) -> {
-        if (data.readableBytes() == 8) {
-            return new MachineSettingsMenu(windowId, inv, data.readBlockPos());
-        } else {
-            data.readBoolean();
-            net.minecraft.world.item.ItemStack stack = net.minecraft.world.item.ItemStack.STREAM_CODEC.decode(data);
-            com.nishiyu.lunex.machine.ItemMachineContext ctx = new com.nishiyu.lunex.machine.ItemMachineContext(stack);
-            return new MachineSettingsMenu(windowId, inv, ctx);
-        }
-    }));
     public static final DeferredHolder<MenuType<?>, MenuType<ProbeMenu>> PROBE_MENU = MENUS.register("probe_menu", () -> IMenuTypeExtension.create((windowId, inv, data) -> new ProbeMenu(windowId, inv, data.readBlockPos())));
-    public static final DeferredHolder<MenuType<?>, MenuType<RouterDashboardMenu>> ROUTER_DASHBOARD_MENU = MENUS.register("router_dashboard", () -> IMenuTypeExtension.create(RouterDashboardMenu::new));
     public static final DeferredHolder<MenuType<?>, MenuType<com.nishiyu.lunex.menu.PortableScreenMenu>> PORTABLE_SCREEN_MENU = MENUS.register("portable_screen", () -> IMenuTypeExtension.create((windowId, inv, data) -> new com.nishiyu.lunex.menu.PortableScreenMenu(windowId, inv, data.readUtf())));
     public static final DeferredHolder<MenuType<?>, MenuType<PrinterMenu>> PRINTER_MENU = MENUS.register("printer", () -> IMenuTypeExtension.create((windowId, inv, data) -> new PrinterMenu(windowId, inv, data.readBlockPos())));
     public static final DeferredHolder<MenuType<?>, MenuType<BioPrinterMenu>> BIO_PRINTER_MENU = MENUS.register("bio_printer", () -> IMenuTypeExtension.create(BioPrinterMenu::new));
     public static final DeferredHolder<MenuType<?>, MenuType<BioEntitySettingsMenu>> BIO_MOB_SETTINGS_MENU = MENUS.register("bio_mob_settings", () -> IMenuTypeExtension.create(BioEntitySettingsMenu::new));
-    public static final DeferredHolder<MenuType<?>, MenuType<com.nishiyu.lunex.menu.DatabaseMenu>> DATABASE_MENU = MENUS.register("database_menu", () -> IMenuTypeExtension.create((windowId, inv, data) -> new com.nishiyu.lunex.menu.DatabaseMenu(windowId, inv, data.readBlockPos())));
     public static final DeferredHolder<MenuType<?>, MenuType<MainframeOverviewMenu>> MAINFRAME_OVERVIEW_MENU = MENUS.register("mainframe_overview", () -> IMenuTypeExtension.create((windowId, inv, data) -> new MainframeOverviewMenu(windowId, inv, data.readBlockPos())));
+    public static final DeferredHolder<MenuType<?>, MenuType<TurtleBotMenu>> TURTLE_BOT_MENU = MENUS.register("turtle_bot_menu", () -> IMenuTypeExtension.create((windowId, inv, data) -> new TurtleBotMenu(windowId, inv, data.readBlockPos())));
+    public static final DeferredHolder<MenuType<?>, MenuType<TurtleSettingsMenu>> TURTLE_SETTINGS_MENU = MENUS.register("turtle_settings_menu", () -> IMenuTypeExtension.create((windowId, inv, data) -> new TurtleSettingsMenu(windowId, inv, data.readBlockPos())));
 
-    // =========================================
-    // CreativeTabの登録
-    // =========================================
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> LUNEX_TAB = CREATIVE_MODE_TABS.register("lunex_tab", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.lunex"))
             .withTabsBefore(CreativeModeTabs.COMBAT)
-            .icon(() -> ADVANCED_MACHINE_ITEM.get().getDefaultInstance())
+            .icon(() -> SIMPLE_MACHINE_ITEM.get().getDefaultInstance())
             .displayItems((parameters, output) -> {
                 output.accept(MACHINE_FRAME_ITEM.get());
-                output.accept(ADVANCED_MACHINE_ITEM.get());
                 output.accept(SIMPLE_MACHINE_ITEM.get());
                 output.accept(TURTLE_BOT_BLOCK_ITEM.get());
                 output.accept(ROUTER_BLOCK_ITEM.get());
@@ -342,41 +211,10 @@ public class Lunex {
                 output.accept(PORTABLE_SCREEN.get());
                 output.accept(AR_GLASSES.get());
 
-                output.accept(MACHINE_CARTRIDGE.get());
-                output.accept(PAINTBALL.get());
-                output.accept(UPGRADE_BASE.get());
                 output.accept(PROGRAM_DISK.get());
                 output.accept(INACTIVE_BOOK.get());
-
-                output.accept(EXEC_UPGRADE_MK1.get());
-                output.accept(EXEC_UPGRADE_MK2.get());
-                output.accept(EXEC_UPGRADE_MK3.get());
-                output.accept(STORAGE_UPGRADE_MK1.get());
-                output.accept(STORAGE_UPGRADE_MK2.get());
-                output.accept(STORAGE_UPGRADE_MK3.get());
-                output.accept(SPEED_UPGRADE_MK1.get());
-                output.accept(SPEED_UPGRADE_MK2.get());
-                output.accept(SPEED_UPGRADE_MK3.get());
-                output.accept(EFFICIENCY_UPGRADE_MK1.get());
-                output.accept(EFFICIENCY_UPGRADE_MK2.get());
-                output.accept(EFFICIENCY_UPGRADE_MK3.get());
-                output.accept(CAPACITY_UPGRADE_MK1.get());
-                output.accept(CAPACITY_UPGRADE_MK2.get());
-                output.accept(CAPACITY_UPGRADE_MK3.get());
-                output.accept(GENERATOR_UPGRADE_MK1.get());
-                output.accept(GENERATOR_UPGRADE_MK2.get());
-                output.accept(GENERATOR_UPGRADE_MK3.get());
-                output.accept(DISTANCE_UPGRADE_MK1.get());
-                output.accept(DISTANCE_UPGRADE_MK2.get());
-                output.accept(DISTANCE_UPGRADE_MK3.get());
-                output.accept(DISTANCE_UPGRADE_MK4.get());
-                output.accept(ROUTER_MODULE.get());
-                output.accept(COMMAND_UPGRADE.get());
             }).build());
 
-    // =========================================
-    // Modの初期化・イベント登録
-    // =========================================
     public Lunex(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
@@ -394,11 +232,11 @@ public class Lunex {
         modEventBus.addListener(this::registerCapabilities);
         modEventBus.addListener(this::registerEntityAttributes);
 
+        // ★ネットワークパケットの登録処理
+        modEventBus.addListener(com.nishiyu.lunex.network.NetworkHandler::register);
+
         NeoForge.EVENT_BUS.addListener(this::onServerStarting);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
-        NeoForge.EVENT_BUS.addListener(this::onItemCrafted);
-        modEventBus.addListener(com.nishiyu.lunex.network.NetworkHandler::register);
-        modEventBus.addListener(DataGenerators::gatherData);
     }
 
     private void registerEntityAttributes(net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent event) {
@@ -406,53 +244,31 @@ public class Lunex {
     }
 
     private void setup(final FMLCommonSetupEvent event) {
+        event.enqueueWork(() -> {
+            com.nishiyu.lunex.api.mainframe.MainframeComponentRegistry.registerCoreComponents();
+
+            com.nishiyu.lunex.api.mainframe.MainframeComponentRegistry.register(MACHINE_FRAME.get(),
+                    com.nishiyu.lunex.api.mainframe.MainframeComponentData.builder()
+                            .addFeature("CPU_CORE")
+                            .build());
+
+            com.nishiyu.lunex.api.mainframe.MainframeComponentRegistry.register(PROBE_BLOCK.get(),
+                    com.nishiyu.lunex.api.mainframe.MainframeComponentData.builder()
+                            .addFeature("IO_PORT")
+                            .addApi("net")
+                            .build());
+        });
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
-        event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
-                ADVANCED_MACHINE_BE.get(),
-                (be, side) -> be.itemHandler
-        );
-        event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
-                TURTLE_BOT_BE.get(),
-                (be, side) -> be.itemHandler
-        );
-        event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
-                PRINTER_BE.get(),
-                (be, side) -> be.itemHandler
-        );
-        event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
-                BIO_PRINTER_BE.get(),
-                (be, side) -> be.itemHandler
-        );
-        event.registerBlockEntity(
-                Capabilities.EnergyStorage.BLOCK,
-                BIO_PRINTER_BE.get(),
-                (be, side) -> be.energyStorage
-        );
-    }
-
-    private void onItemCrafted(net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent event) {
-        net.minecraft.world.item.ItemStack crafted = event.getCrafting();
-        if (crafted.getItem() == TURTLE_BOT_BLOCK_ITEM.get()) {
-            net.minecraft.world.Container inventory = event.getInventory();
-            for (int i = 0; i < inventory.getContainerSize(); i++) {
-                net.minecraft.world.item.ItemStack slotStack = inventory.getItem(i);
-                if (slotStack.getItem() == ADVANCED_MACHINE_ITEM.get()) {
-                    net.minecraft.world.item.component.CustomData beData = slotStack.get(net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA);
-                    if (beData != null) {
-                        net.minecraft.nbt.CompoundTag tag = beData.copyTag();
-                        tag.putString("id", Objects.requireNonNull(BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(TURTLE_BOT_BE.get())).toString());
-                        crafted.set(net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA, net.minecraft.world.item.component.CustomData.of(tag));
-                    }
-                    break;
-                }
-            }
-        }
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, TURTLE_BOT_BE.get(), (be, side) -> be.itemHandler);
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, PRINTER_BE.get(), (be, side) -> be.itemHandler);
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.itemHandler);
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.energyStorage);
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, PROBE_BE.get(), (be, side) -> be.getItemHandler(side));
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, PROBE_BE.get(), (be, side) -> be.getEnergyStorage(side));
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, SIMPLE_MACHINE_BE.get(), (be, side) -> be.mainframeStorage);
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, SIMPLE_MACHINE_BE.get(), (be, side) -> be.energyStorage);
     }
 
     private void onServerStarting(ServerStartingEvent event) {

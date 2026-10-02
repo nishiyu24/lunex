@@ -2,7 +2,6 @@ package com.nishiyu.lunex.blockentity;
 
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.machine.IMainframePart;
-import com.nishiyu.lunex.menu.DatabaseMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -10,10 +9,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,7 +17,8 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class DatabaseBlockEntity extends BlockEntity implements MenuProvider, IMainframePart {
+// ★修正: 単体の MenuProvider を削除し、純粋なコンポーネント用 BlockEntity とする
+public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
 
     public static final int BASE_CAPACITY_BYTES = 2097152;
 
@@ -50,7 +46,11 @@ public class DatabaseBlockEntity extends BlockEntity implements MenuProvider, IM
         }
     };
 
+    // ★修正: DatabaseBlock の削除にともない、登録名を DATABASE_BE ではなく独自の物（もし残すなら）とするか、
+    // ここではエラー回避のため Lunex クラスの宣言に合わせています。
     public DatabaseBlockEntity(BlockPos pos, BlockState state) {
+        // ※ もし Lunex から DATABASE_BE の登録も消えている場合は、このクラス自体が不要（SimpleMachine拡張へ移行済）
+        // ここでは、Lunex への登録がまだ残っている想定で記述します（残っていなければ適宜ダミーか削除対応）
         super(Lunex.DATABASE_BE.get(), pos, state);
     }
 
@@ -342,15 +342,5 @@ public class DatabaseBlockEntity extends BlockEntity implements MenuProvider, IM
         if (tag != null) {
             handleUpdateTag(tag, provider);
         }
-    }
-
-    @Override
-    public Component getDisplayName() {
-        return Component.translatable("block.lunex.database_block");
-    }
-
-    @Override
-    public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
-        return new DatabaseMenu(containerId, playerInventory, this.worldPosition);
     }
 }

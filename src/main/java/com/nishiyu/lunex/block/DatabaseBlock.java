@@ -35,7 +35,6 @@ import javax.annotation.Nullable;
 
 public class DatabaseBlock extends Block implements EntityBlock {
 
-    // ★ 方向プロパティを追加
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty UP = BlockStateProperties.UP;
     public static final BooleanProperty DOWN = BlockStateProperties.DOWN;
@@ -48,7 +47,7 @@ public class DatabaseBlock extends Block implements EntityBlock {
     public DatabaseBlock(Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any()
-                .setValue(FACING, Direction.NORTH) // ★ デフォルトの向きを設定
+                .setValue(FACING, Direction.NORTH)
                 .setValue(UP, false).setValue(DOWN, false)
                 .setValue(NORTH, false).setValue(SOUTH, false)
                 .setValue(EAST, false).setValue(WEST, false)
@@ -57,11 +56,9 @@ public class DatabaseBlock extends Block implements EntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        // ★ FACING を追加
         builder.add(FACING, UP, DOWN, NORTH, SOUTH, EAST, WEST, ASSEMBLED);
     }
 
-    // ★ ブロック設置時にプレイヤーが向いている逆方向を設定するメソッドを追加
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
@@ -142,19 +139,15 @@ public class DatabaseBlock extends Block implements EntityBlock {
 
     @Override
     public @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hit) {
-        if (!level.isClientSide) {
-            // ★共通化
-            if (state.getValue(ASSEMBLED)) {
-                InteractionResult result = MainframeScanner.tryOpenMainframeTerminal(level, pos, player);
-                if (result.consumesAction()) return result;
-            }
-
-            // 構築されていない場合はDatabase GUI
+        if (!level.isClientSide()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof DatabaseBlockEntity db) {
-                player.openMenu(db, pos);
+            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+                InteractionResult delegateResult = part.delegateToMaster(level, player, hit);
+                if (delegateResult != null) {
+                    return delegateResult;
+                }
             }
         }
-        return InteractionResult.sidedSuccess(level.isClientSide);
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 }

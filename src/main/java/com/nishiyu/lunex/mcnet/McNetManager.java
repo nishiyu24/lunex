@@ -1,7 +1,9 @@
 package com.nishiyu.lunex.mcnet;
 
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,17 +32,18 @@ public class McNetManager {
         return ACTIVE_WAN_NODES;
     }
 
-    // ★ 追加: WAN経由の通信距離(通信可能)判定
     public static boolean canCommunicateWAN(String srcIp, String destIp) {
         ServerLuaVM srcVm = ACTIVE_WAN_NODES.get(srcIp);
         ServerLuaVM destVm = ACTIVE_WAN_NODES.get(destIp);
 
         if (srcVm == null || destVm == null) return false;
 
-        // ※VMからIMachineContextを取得するプロパティにアクセスします (環境に合わせて「machine」フィールド等を調整してください)
-        if (srcVm.machine instanceof RouterBlockEntity srcRouter && destVm.machine instanceof RouterBlockEntity destRouter) {
-            // 送信元ルーターの通信可能範囲内に、送信先ルーターが存在するか判定
-            return srcRouter.canCommunicateWith(destRouter.getLevel(), destRouter.getBlockPos());
+        // ★修正: CoreMachineServerLuaVM にキャストして simpleMachine から Router機能を判定
+        if (srcVm instanceof CoreMachineServerLuaVM cvmSrc && destVm instanceof CoreMachineServerLuaVM cvmDest) {
+            if (cvmSrc.simpleMachine != null && cvmDest.simpleMachine != null) {
+                return cvmSrc.simpleMachine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)
+                        && cvmDest.simpleMachine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER);
+            }
         }
         return false;
     }

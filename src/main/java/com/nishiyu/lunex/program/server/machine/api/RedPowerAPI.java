@@ -1,45 +1,60 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
-import com.nishiyu.lunex.util.TargetUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-public class RedPowerAPI {
-    private final ServerLuaVM vm;
+public class RedPowerAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
 
-    public RedPowerAPI(ServerLuaVM vm) {
-        this.vm = vm;
+    public RedPowerAPI() {}
+    public RedPowerAPI(ServerLuaVM vm) { this.vm = vm; }
+
+    @Override
+    public String getNamespace() { return MainframeConstants.API_RS; }
+
+    @Override
+    public String getRequiredFeature() { return MainframeConstants.FEATURE_PROBE; }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        return new RedPowerAPI(vm);
     }
 
     @LuaFunction(
             value = "このデバイスから特定の面に対して、レッドストーン信号（0〜15）を出力します。",
-            en = "Outputs a redstone signal (0-15) from this device to a specific face.",
-            args = {"num:power"},
+            args = {"str:target", "num:power"},
             rets = {},
             isAsync = true
     )
     public void setRedstoneOutput(String targetStr, int power) {
         vm.executeInMainThreadSync(() -> {
-            RSTargetInfo info = resolveOutputTarget(targetStr);
-            if (info != null) {
-                int clampedPower = Math.max(0, Math.min(15, power));
-                Level level = vm.hardware.getLevel();
+            SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+            if (machine == null) return null;
 
-                if (info.isProbe && info.probe != null) {
+            RSTargetInfo info = resolveOutputTarget(targetStr);
+            if (info != null && info.probe != null) {
+                int clampedPower = Math.max(0, Math.min(15, power));
+                Level level = machine.getLevel();
+
+                if (info.direction != null) {
                     info.probe.redstoneOutputs.put(info.direction, clampedPower);
-                    info.probe.sync();
-                    level.updateNeighborsAt(info.probe.getBlockPos(), info.probe.getBlockState().getBlock());
-                } else if (!info.isProbe) {
-                    vm.hardware.redstoneOutputs.put(info.direction, clampedPower);
-                    vm.hardware.sync();
-                    level.updateNeighborsAt(vm.hardware.getBlockPos(), vm.hardware.getBlockState().getBlock());
+                } else {
+                    for (Direction d : Direction.values()) {
+                        info.probe.redstoneOutputs.put(d, clampedPower);
+                    }
                 }
+
+                info.probe.sync();
+                if (level != null) level.updateNeighborsAt(info.probe.getBlockPos(), info.probe.getBlockState().getBlock());
             }
             return null;
         });
@@ -47,23 +62,39 @@ public class RedPowerAPI {
 
     @LuaFunction(
             value = "このデバイスが受けているレッドストーン信号の強さ（0〜15）を取得します。",
-            en = "Gets the strength (0-15) of the redstone signal received by this device.",
-            args = {},
+            args = {"str:target"},
             rets = {"num:power"},
             isAsync = false
     )
     public int getAnalogRedstoneInput(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
-            BlockPos targetPos = vm.getOrCreateAPI(DeviceAPI.class, DeviceAPI::new).getActionTargetPos(targetStr);
-            if (targetPos == null) return 0;
-            return vm.hardware.getLevel().getBestNeighborSignal(targetPos);
+            SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+            if (machine == null || machine.getLevel() == null || targetStr == null) return 0;
+            Level level = machine.getLevel();
+
+            if (targetStr.contains(":")) {
+                String[] parts = targetStr.split(":", 2);
+                BlockPos basePos = machine.resolveDevice(parts[0]);
+                if (basePos != null) {
+                    Direction dir = parseDirection(parts[1]);
+                    if (dir != null) {
+                        return level.getSignal(basePos.relative(dir), dir);
+                    }
+                }
+            }
+
+            BlockPos targetPos = machine.resolveDevice(targetStr);
+            if (targetPos != null) {
+                return level.getBestNeighborSignal(targetPos);
+            }
+
+            return 0;
         });
     }
 
     @LuaFunction(
             value = "このデバイスがレッドストーン信号を受けているか（ON/OFF）を真偽値で取得します。",
-            en = "Gets a boolean value indicating whether this device is receiving a redstone signal.",
-            args = {},
+            args = {"str:target"},
             rets = {"bool:isOn"},
             isAsync = false
     )
@@ -72,7 +103,7 @@ public class RedPowerAPI {
     }
 
     private RSTargetInfo resolveOutputTarget(String targetStr) {
-        AdvancedMachineBlockEntity machine = vm.hardware;
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
         if (machine == null || machine.getLevel() == null || targetStr == null) return null;
         Level level = machine.getLevel();
 
@@ -80,27 +111,40 @@ public class RedPowerAPI {
             String[] parts = targetStr.split(":", 2);
             BlockPos basePos = machine.resolveDevice(parts[0]);
             if (basePos != null) {
-                // ★変更: TargetUtilを使用
-                Direction dir = TargetUtil.getDirectionRelative(parts[1], level.getBlockState(basePos));
+                Direction dir = parseDirection(parts[1]);
                 if (dir != null) {
                     BlockEntity be = level.getBlockEntity(basePos);
                     if (be instanceof ProbeBlockEntity probe) {
-                        return new RSTargetInfo(true, probe, dir);
+                        return new RSTargetInfo(probe, dir);
                     }
                 }
             }
             return null;
         }
 
-        // ★変更: TargetUtilを使用
-        Direction dir = TargetUtil.getDirectionRelative(targetStr, machine.getBlockState());
-        if (dir != null) {
-            return new RSTargetInfo(false, null, dir);
+        BlockPos resolvedPos = machine.resolveDevice(targetStr);
+        if (resolvedPos != null) {
+            BlockEntity be = level.getBlockEntity(resolvedPos);
+            if (be instanceof ProbeBlockEntity probe) {
+                return new RSTargetInfo(probe, null);
+            }
         }
 
         return null;
     }
 
-    private record RSTargetInfo(boolean isProbe, ProbeBlockEntity probe, Direction direction) {
+    private Direction parseDirection(String str) {
+        if (str == null) return null;
+        return switch (str.toLowerCase()) {
+            case "up" -> Direction.UP;
+            case "down" -> Direction.DOWN;
+            case "north" -> Direction.NORTH;
+            case "south" -> Direction.SOUTH;
+            case "west" -> Direction.WEST;
+            case "east" -> Direction.EAST;
+            default -> null;
+        };
     }
+
+    private record RSTargetInfo(ProbeBlockEntity probe, Direction direction) {}
 }

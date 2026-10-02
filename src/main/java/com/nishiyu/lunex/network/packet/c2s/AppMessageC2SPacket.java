@@ -1,17 +1,15 @@
 package com.nishiyu.lunex.network.packet.c2s;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
-import com.nishiyu.lunex.machine.ItemMachineContext;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.blockentity.TurtleBotBlockEntity;
 import com.nishiyu.lunex.mcnet.ScreenSessionManager;
-import com.nishiyu.lunex.menu.MachineSettings.MachineSettingsMenu;
 import com.nishiyu.lunex.server.ServerProgramData;
 import com.nishiyu.lunex.network.packet.s2c.AppMessageS2CPacket;
 import com.nishiyu.lunex.util.WorkspaceManager;
 import com.nishiyu.lunex.network.packet.s2c.ErrorToastS2CPacket;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -62,9 +60,6 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     case "machine_command":
                         handleMachineCommand(player, payload);
                         break;
-                    case "item_machine_command":
-                        handleItemMachineCommand(player, payload);
-                        break;
                     case "bio_mob_command":
                         handleBioMobCommand(player, payload);
                         break;
@@ -93,7 +88,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         Level level = player.level();
         BlockEntity be = level.getBlockEntity(pos);
 
-        if (be instanceof AdvancedMachineBlockEntity machine) {
+        if (be instanceof TurtleBotBlockEntity machine) {
             if (machine.isPrivateMode && machine.ownerUUID != null && !machine.ownerUUID.equals(player.getUUID())) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] You do not have permission to modify this machine.§r"), true);
                 return;
@@ -238,7 +233,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                 case "boot":
                 case "reboot":
                     if (cmd.equals("boot") && !machine.installedPrograms.contains(arg)) break;
-                    String pName = cmd.equals("boot") ? arg : machine.getProgramName();
+                    String pName = cmd.equals("boot") ? arg : machine.programName;
                     if (pName != null && !pName.isEmpty()) {
                         if (cmd.equals("boot")) machine.setProgramName(arg);
                         machine.vm.currentPlayer = player;
@@ -298,84 +293,93 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("§e[System] Error history cleared.§r"), true);
                     break;
             }
-        } else if (be instanceof RouterBlockEntity router) {
-            if (router.isPrivateMode() && router.ownerUUID != null && !router.ownerUUID.equals(player.getUUID())) {
-                player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] You do not have permission to modify this router.§r"), true);
-                return;
+        } else if (be instanceof SimpleMachineBlockEntity master) {
+            // ★修正: ルーター機能を統合した SimpleMachineBlockEntity へのコマンド処理として実装
+
+            // （現状、SimpleMachineBlockEntity 側に所有者や稼働状態フラグが実装されていなければ拡張する必要があります。
+            // ここではタグ "OwnerUUID" を persistentData で保持していると仮定して権限チェックを行います）
+            if (master.persistentData.getBoolean("IsPrivateMode")) {
+                if (master.persistentData.contains("OwnerUUID")) {
+                    if (!master.persistentData.getUUID("OwnerUUID").equals(player.getUUID())) {
+                        player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] You do not have permission to modify this machine.§r"), true);
+                        return;
+                    }
+                }
             }
 
             switch (cmd) {
                 case "sync_router":
-                    router.sync();
+                    master.sync();
                     break;
                 case "boot":
-                    router.setRunning(true);
-                    router.setChanged();
-                    router.sync();
+                    if(master.vm != null) master.vm.isRunning = true; // または startProgram() 等を呼ぶ
+                    master.setChanged();
+                    master.sync();
                     break;
                 case "stop":
                 case "kill":
-                    router.setRunning(false);
-                    router.setChanged();
-                    router.sync();
+                    if(master.vm != null) master.vm.stopProgram();
+                    master.setChanged();
+                    master.sync();
                     break;
                 case "reboot":
-                    router.setRunning(false);
-                    router.setRunning(true);
-                    router.setChanged();
-                    router.sync();
+                    if(master.vm != null) master.vm.restartProgram(master.getProgramName());
+                    master.setChanged();
+                    master.sync();
                     break;
                 case "label":
-                    router.setMachineLabel(arg.startsWith("set ") ? arg.substring(4).trim() : (arg.equals("clear") ? "" : router.getMachineLabel()));
+                    master.setMachineLabel(arg.startsWith("set ") ? arg.substring(4).trim() : (arg.equals("clear") ? "" : master.getMachineLabel()));
                     break;
                 case "toggle_private":
-                    router.setPrivateMode(Boolean.parseBoolean(arg));
-                    router.setChanged();
-                    router.sync();
+                    master.persistentData.putBoolean("IsPrivateMode", Boolean.parseBoolean(arg));
+                    master.setChanged();
+                    master.sync();
                     break;
                 case "show_error":
-                    if (router.persistentData.contains("LastError")) {
-                        String errMsg = router.persistentData.getString("LastError");
+                    if (master.persistentData.contains("LastError")) {
+                        String errMsg = master.persistentData.getString("LastError");
                         PacketDistributor.sendToPlayer(player, new ErrorToastS2CPacket(errMsg));
                     } else {
                         player.displayClientMessage(net.minecraft.network.chat.Component.literal("§a[System] No recent errors found.§r"), true);
                     }
                     break;
                 case "clear_error":
-                    router.persistentData.remove("LastError");
-                    router.setChanged();
+                    master.persistentData.remove("LastError");
+                    master.setChanged();
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("§e[System] Error history cleared.§r"), true);
                     break;
                 case "update_dhcp":
-                    String[] updateParts = arg.split("\\|");
-                    if (updateParts.length >= 2) {
-                        String mac = updateParts[0];
-                        String ip = updateParts[1];
-                        String port = updateParts.length >= 3 ? updateParts[2] : "";
+                    if(master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                        String[] updateParts = arg.split("\\|");
+                        if (updateParts.length >= 2) {
+                            String mac = updateParts[0];
+                            String ip = updateParts[1];
+                            String port = updateParts.length >= 3 ? updateParts[2] : "";
 
-                        CompoundTag leases = router.persistentData.contains("DHCPLeases") ? router.persistentData.getCompound("DHCPLeases") : new CompoundTag();
-                        leases.putString(mac, ip);
-                        router.persistentData.put("DHCPLeases", leases);
+                            CompoundTag leases = master.persistentData.contains("DHCPLeases") ? master.persistentData.getCompound("DHCPLeases") : new CompoundTag();
+                            leases.putString(mac, ip);
+                            master.persistentData.put("DHCPLeases", leases);
 
-                        CompoundTag pfTag = router.persistentData.contains("PortForwards") ? router.persistentData.getCompound("PortForwards") : new CompoundTag();
-                        if (!port.isEmpty()) {
-                            pfTag.putString(port, ip);
+                            CompoundTag pfTag = master.persistentData.contains("PortForwards") ? master.persistentData.getCompound("PortForwards") : new CompoundTag();
+                            if (!port.isEmpty()) {
+                                pfTag.putString(port, ip);
+                            }
+                            master.persistentData.put("PortForwards", pfTag);
+
+                            master.setChanged();
+                            master.sync();
                         }
-                        router.persistentData.put("PortForwards", pfTag);
-
-                        router.setChanged();
-                        router.sync();
                     }
                     break;
                 case "remove_dhcp":
-                    if (!arg.isEmpty()) {
-                        CompoundTag leases = router.persistentData.contains("DHCPLeases") ? router.persistentData.getCompound("DHCPLeases") : new CompoundTag();
+                    if (!arg.isEmpty() && master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                        CompoundTag leases = master.persistentData.contains("DHCPLeases") ? master.persistentData.getCompound("DHCPLeases") : new CompoundTag();
                         String ipToRemove = leases.getString(arg);
                         leases.remove(arg);
-                        router.persistentData.put("DHCPLeases", leases);
+                        master.persistentData.put("DHCPLeases", leases);
 
                         if (!ipToRemove.isEmpty()) {
-                            CompoundTag pfTag = router.persistentData.contains("PortForwards") ? router.persistentData.getCompound("PortForwards") : new CompoundTag();
+                            CompoundTag pfTag = master.persistentData.contains("PortForwards") ? master.persistentData.getCompound("PortForwards") : new CompoundTag();
                             List<String> keysToRemove = new ArrayList<>();
                             for (String p : pfTag.getAllKeys()) {
                                 if (pfTag.getString(p).equals(ipToRemove)) {
@@ -385,167 +389,19 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                             for (String p : keysToRemove) {
                                 pfTag.remove(p);
                             }
-                            router.persistentData.put("PortForwards", pfTag);
+                            master.persistentData.put("PortForwards", pfTag);
                         }
-                        router.setChanged();
-                        router.sync();
+                        master.setChanged();
+                        master.sync();
                     }
                     break;
                 case "set_wan_target":
-                    router.persistentData.putString("WAN_Target", arg);
-                    router.setChanged();
-                    router.sync();
-                    break;
-            }
-        }
-    }
-
-    private void handleItemMachineCommand(ServerPlayer player, CompoundTag tag) {
-        String act = tag.getString("command");
-        String dat = tag.getString("arg");
-
-        if (player.containerMenu instanceof MachineSettingsMenu menu && menu.getMachineContext() instanceof ItemMachineContext itemCtx) {
-            String wsId = itemCtx.getWorkspaceId() != null && !itemCtx.getWorkspaceId().isEmpty() ? itemCtx.getWorkspaceId() : "default";
-
-            switch (act) {
-                case "setup":
-                    itemCtx.setWorkspaceId(dat);
-                    break;
-                case "label":
-                    itemCtx.setMachineLabel(dat.startsWith("set ") ? dat.substring(4) : "");
-                    break;
-                case "set_startup":
-                    itemCtx.setProgramName(dat);
-                    break;
-                case "clear_startup":
-                    itemCtx.setProgramName("");
-                    break;
-                case "toggle_private":
-                    itemCtx.setPrivateMode(Boolean.parseBoolean(dat));
-                    break;
-                case "toggle_wake":
-                    itemCtx.setWakeOnRedstone(Boolean.parseBoolean(dat));
-                    break;
-                case "toggle_debug":
-                    itemCtx.setDebugChat(Boolean.parseBoolean(dat));
-                    break;
-                case "boot":
-                    itemCtx.setProgramName(dat);
-                    itemCtx.setRunning(true);
-                    break;
-                case "stop":
-                    itemCtx.setRunning(false);
-                    com.nishiyu.lunex.event.ToolEventHandler.rebootToolVM(itemCtx.getItemStack());
-                    break;
-                case "reboot":
-                    com.nishiyu.lunex.event.ToolEventHandler.rebootToolVM(itemCtx.getItemStack());
-                    itemCtx.setRunning(false);
-                    itemCtx.setRunning(true);
-                    break;
-                case "wipe_memory":
-                    itemCtx.getItemStack().remove(DataComponents.CUSTOM_DATA);
-                    player.closeContainer();
-                    return;
-                case "touch":
-                    dat = enforceValidExtension(dat);
-                    if (isHiddenFile(dat)) {
-                        player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] Cannot create files starting with '.'§r"), true);
-                        break;
-                    }
-                    ServerProgramData.getPrograms(wsId).putIfAbsent(dat, "-- New File\n");
-                    ServerProgramData.save(wsId);
-                    break;
-                case "mkdir":
-                    if (isHiddenFile(dat)) {
-                        player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] Cannot create folders starting with '.'§r"), true);
-                        break;
-                    }
-                    ServerProgramData.getPrograms(wsId).putIfAbsent(dat, "");
-                    ServerProgramData.save(wsId);
-                    break;
-                case "rm":
-                    if (!dat.isEmpty()) {
-                        boolean removed = false;
-                        if (ServerProgramData.getPrograms(wsId).remove(dat) != null) removed = true;
-
-                        String dirPrefix = dat + "/";
-                        List<String> toRemove = new ArrayList<>();
-                        for (String key : ServerProgramData.getPrograms(wsId).keySet()) {
-                            if (key.equals(dirPrefix) || key.startsWith(dirPrefix)) toRemove.add(key);
-                        }
-                        for (String key : toRemove) {
-                            ServerProgramData.getPrograms(wsId).remove(key);
-                            removed = true;
-                        }
-                        if (removed) ServerProgramData.save(wsId);
+                    if(master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                        master.persistentData.putString("WAN_Target", arg);
+                        master.setChanged();
+                        master.sync();
                     }
                     break;
-                case "rename":
-                    String[] parts = dat.split(" ");
-                    if (parts.length == 2) {
-                        String oldName = parts[0];
-                        String rawNewName = parts[1];
-
-                        boolean isFolder = false;
-                        for (String key : ServerProgramData.getPrograms(wsId).keySet()) {
-                            if (key.equals(oldName + "/") || key.startsWith(oldName + "/")) {
-                                isFolder = true;
-                                break;
-                            }
-                        }
-                        String newName = isFolder ? rawNewName : enforceValidExtension(rawNewName);
-                        if (isHiddenFile(newName)) {
-                            player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] Cannot create files starting with '.'§r"), true);
-                            break;
-                        }
-                        boolean renamed = false;
-
-                        if (ServerProgramData.getPrograms(wsId).containsKey(oldName)) {
-                            String content = ServerProgramData.getPrograms(wsId).remove(oldName);
-                            ServerProgramData.getPrograms(wsId).put(newName, content);
-                            renamed = true;
-                        }
-
-                        String oldDirPrefix = oldName + "/";
-                        String newDirPrefix = newName + "/";
-                        List<String> keysToRename = new ArrayList<>();
-                        for (String key : ServerProgramData.getPrograms(wsId).keySet()) {
-                            if (key.equals(oldDirPrefix) || key.startsWith(oldDirPrefix)) {
-                                keysToRename.add(key);
-                            }
-                        }
-                        for (String key : keysToRename) {
-                            String content = ServerProgramData.getPrograms(wsId).remove(key);
-                            String newKey = newDirPrefix + key.substring(oldDirPrefix.length());
-                            ServerProgramData.getPrograms(wsId).put(newKey, content);
-                            renamed = true;
-                        }
-
-                        if (renamed) ServerProgramData.save(wsId);
-                    }
-                    break;
-                case "request_file":
-                    dat = enforceValidExtension(dat);
-                    String reqContent = ServerProgramData.getPrograms(wsId).getOrDefault(dat, "");
-                    CompoundTag replyTag = new CompoundTag();
-                    replyTag.putString("programName", dat);
-                    replyTag.putString("content", reqContent);
-                    PacketDistributor.sendToPlayer(player, new AppMessageS2CPacket("global", "file_content", replyTag));
-                    break;
-                case "sync_files":
-                case "clear_error":
-                case "show_error":
-                    break;
-            }
-
-            if (act.equals("sync_files") || act.equals("touch") || act.equals("rm") || act.equals("mkdir") || act.equals("rename")) {
-                ServerProgramData.load(wsId);
-                List<String> fileList = new ArrayList<>(ServerProgramData.getPrograms(wsId).keySet());
-                CompoundTag listTag = new CompoundTag();
-                ListTag nbtList = new ListTag();
-                for (String f : fileList) nbtList.add(StringTag.valueOf(f));
-                listTag.put("files", nbtList);
-                PacketDistributor.sendToPlayer(player, new AppMessageS2CPacket("global", "file_list", listTag));
             }
         }
     }
@@ -793,7 +649,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         }
 
         pName = enforceValidExtension(pName);
-        if (isHiddenFile(pName)) return; // Webエディタからの直接保存でも . ファイルを弾く
+        if (isHiddenFile(pName)) return;
 
         ServerProgramData.getPrograms(wsId).put(pName, code);
         MinecraftServer server = player.getServer();
@@ -829,10 +685,6 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         }
     }
 
-    /**
-     * 許可された拡張子(.html, .css, .json, .lua, .txt)であるか確認し、
-     * 該当しない場合（または拡張子がない場合）は末尾に .lua を自動付与します。
-     */
     private String enforceValidExtension(String fileName) {
         if (fileName == null || fileName.isEmpty()) return fileName;
         if (fileName.endsWith("/")) return fileName;
@@ -848,9 +700,6 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         return fileName + ".lua";
     }
 
-    /**
-     * . から始まる隠しファイル・隠しフォルダであるかを判定します
-     */
     private boolean isHiddenFile(String path) {
         if (path == null || path.isEmpty()) return false;
         for (String part : path.split("/")) {

@@ -1,9 +1,8 @@
 package com.nishiyu.lunex.menu.BioEntity;
 
 import com.nishiyu.lunex.entity.CustomBioMobEntity;
-import com.nishiyu.lunex.menu.MachineSettings.GuiRenderUtils;
 import com.nishiyu.lunex.menu.utiles.EditorLauncher;
-import com.nishiyu.lunex.menu.utiles.IMachineTab;
+import com.nishiyu.lunex.menu.utiles.GuiRenderUtils;
 import com.nishiyu.lunex.network.LocalWebSocketServer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;

@@ -4,6 +4,8 @@ import com.nishiyu.lunex.blockentity.SpeakerBlockEntity;
 import com.nishiyu.lunex.mcnet.IMCNetBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -14,6 +16,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.phys.BlockHitResult;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class SpeakerBlock extends Block implements EntityBlock, IMCNetBlock {
@@ -53,6 +57,20 @@ public class SpeakerBlock extends Block implements EntityBlock, IMCNetBlock {
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
         this.updateNetworkOnPlace(state, level, pos, oldState);
+    }
+
+    @Override
+    protected @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hitResult) {
+        if (!level.isClientSide()) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+                InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
+                if (delegateResult != null) {
+                    return delegateResult;
+                }
+            }
+        }
+        return super.useWithoutItem(state, level, pos, player, hitResult);
     }
 
     @Override

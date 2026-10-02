@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.item;
 
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.datagen.AutoLanguageProvider;
 import com.nishiyu.lunex.datagen.ITranslationGatherer;
 import com.nishiyu.lunex.datagen.Translatable;
@@ -98,38 +98,24 @@ public class ProgramDiskItem extends Item {
         BlockEntity be = level.getBlockEntity(pos);
         boolean installed = false;
 
-        if (be instanceof AdvancedMachineBlockEntity machine) {
-            String workspaceId = machine.getWorkspaceId();
-            if (workspaceId != null && !workspaceId.isEmpty()) {
-                installed = installToFileSystem((ServerLevel) level, workspaceId, programName, programCode);
-                if (installed) {
-                    player.displayClientMessage(Component.translatable(MSG_INSTALLED_MACHINE, programName).withStyle(ChatFormatting.GREEN), true);
-
-                    if (!machine.installedPrograms.contains(programName)) {
-                        machine.installedPrograms.add(programName);
-                        machine.setChanged();
-                    }
-                }
+        // ★修正: SimpleMachineBlockEntity にインストールするよう変更
+        if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && level instanceof ServerLevel serverLevel) {
+            String wsId = sm.getWorkspaceId();
+            if (wsId == null || wsId.isEmpty()) {
+                wsId = sm.machineId != null ? sm.machineId.toString() : java.util.UUID.randomUUID().toString();
+                sm.setWorkspaceId(wsId);
             }
-        } else if (be instanceof RouterBlockEntity router) {
-            String workspaceId = router.getWorkspaceId();
-            if (workspaceId != null && !workspaceId.isEmpty()) {
-                installed = installToFileSystem((ServerLevel) level, workspaceId, programName, programCode);
-                if (installed) {
+
+            if (installToFileSystem(serverLevel, wsId, programName, programCode)) {
+                ServerProgramData.saveProgram(wsId, programName, programCode);
+                installed = true;
+
+                if (sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                     player.displayClientMessage(Component.translatable(MSG_INSTALLED_ROUTER, programName).withStyle(ChatFormatting.GREEN), true);
-
-                    router.setProgramName(programName);
-                    String runName = programName.substring(0, programName.length() - 4);
-                    ServerProgramData.getPrograms(workspaceId).put(runName, programCode);
-
-                    if (router.isRunning()) {
-                        router.setRunning(false);
-                        router.setRunning(true);
-                    }
+                } else {
+                    player.displayClientMessage(Component.translatable(MSG_INSTALLED_MACHINE, programName).withStyle(ChatFormatting.GREEN), true);
                 }
             }
-        } else {
-            return InteractionResult.PASS;
         }
 
         if (installed) {

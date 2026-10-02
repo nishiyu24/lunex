@@ -63,7 +63,6 @@ public class ServerProgramData {
                         if (!relative.endsWith("/")) relative += "/";
                         savedPrograms.put(relative, "");
                     } else if (Files.isRegularFile(p)) {
-                        // ★修正: .luaや.txtの拡張子をカットせず、そのままファイル名としてメモリに登録する
                         String code = Files.readString(p, StandardCharsets.UTF_8);
                         savedPrograms.put(relative, code);
                     }
@@ -76,33 +75,30 @@ public class ServerProgramData {
         }
     }
 
+    public static void saveProgram(String workspaceId, String programName, String programCode) {
+        Map<String, String> progs = getPrograms(workspaceId);
+        progs.put(programName, programCode);
+        save(workspaceId);
+    }
+
     public static void save(String workspaceId) {
         if (workspaceId == null || workspaceId.isEmpty()) return;
         Map<String, String> savedPrograms = workspaces.computeIfAbsent(workspaceId, k -> new ConcurrentHashMap<>());
         Path dir = getWorkspaceDir(workspaceId);
 
-        // クリーンアップ：登録から外れたファイルを削除する
         try (Stream<Path> paths = Files.walk(dir)) {
             paths.filter(p -> !p.equals(dir)).forEach(p -> {
                 String relative = dir.relativize(p).toString().replace("\\", "/");
 
                 if (Files.isDirectory(p)) {
                     final String dirRelative = relative.endsWith("/") ? relative : relative + "/";
-
                     boolean needed = savedPrograms.keySet().stream().anyMatch(k -> k.startsWith(dirRelative));
                     if (!needed && !savedPrograms.containsKey(dirRelative)) {
-                        try {
-                            Files.delete(p);
-                        } catch (IOException ignored) {
-                        }
+                        try { Files.delete(p); } catch (IOException ignored) {}
                     }
                 } else if (Files.isRegularFile(p)) {
-                    // ★修正: 拡張子をカットせずに、マップ内のキーと直接照合して不要なファイルを削除する
                     if (!savedPrograms.containsKey(relative)) {
-                        try {
-                            Files.delete(p);
-                        } catch (IOException ignored) {
-                        }
+                        try { Files.delete(p); } catch (IOException ignored) {}
                     }
                 }
             });
@@ -110,22 +106,16 @@ public class ServerProgramData {
             Lunex.LOGGER.error("Failed to clean up old programs", e);
         }
 
-        // マップの内容を物理保存する
         for (Map.Entry<String, String> entry : savedPrograms.entrySet()) {
             String fileName = entry.getKey();
 
-            // ディレクトリのみの作成
             if (fileName.endsWith("/")) {
                 Path file = dir;
                 for (String part : fileName.split("/")) file = file.resolve(part);
-                try {
-                    Files.createDirectories(file);
-                } catch (IOException ignored) {
-                }
+                try { Files.createDirectories(file); } catch (IOException ignored) {}
                 continue;
             }
 
-            // ★修正: 許可された5種類の拡張子の場合はそのまま保存し、それ以外の場合は .lua を自動付与する
             String lower = fileName.toLowerCase();
             if (!lower.endsWith(".lua") && !lower.endsWith(".html") && !lower.endsWith(".css") && !lower.endsWith(".json") && !lower.endsWith(".txt")) {
                 fileName += ".lua";

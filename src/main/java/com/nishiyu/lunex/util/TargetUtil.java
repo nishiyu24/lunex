@@ -1,71 +1,35 @@
 package com.nishiyu.lunex.util;
 
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.mcnet.MCNetUtil;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+
+import java.util.List;
 
 public class TargetUtil {
-
-    public static Direction getDirectionRelative(String dirStr, BlockState state) {
-        if (dirStr == null) return null;
-        dirStr = dirStr.toLowerCase();
-        if (dirStr.equals("up")) return Direction.UP;
-        if (dirStr.equals("down")) return Direction.DOWN;
-
-        Direction facing = Direction.NORTH;
-        try {
-            if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
-                facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
-            } else if (state.hasProperty(BlockStateProperties.FACING)) {
-                facing = state.getValue(BlockStateProperties.FACING);
-                if (facing == Direction.UP || facing == Direction.DOWN) {
-                    facing = Direction.NORTH;
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        return switch (dirStr) {
-            case "front", "forward" -> facing;
-            case "back", "backward" -> facing.getOpposite();
-            case "left" -> facing.getCounterClockWise();
-            case "right" -> facing.getClockWise();
-            case "north" -> Direction.NORTH;
-            case "south" -> Direction.SOUTH;
-            case "west" -> Direction.WEST;
-            case "east" -> Direction.EAST;
-            default -> null;
-        };
-    }
 
     public static BlockPos resolveDevice(BlockEntity sourceBE, String targetStr) {
         if (targetStr == null || targetStr.isEmpty() || sourceBE == null || sourceBE.getLevel() == null) return null;
 
-        if (targetStr.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) {
-            Level level = sourceBE.getLevel();
-            if (sourceBE instanceof RouterBlockEntity router) {
-                return router.localRoutes.get(targetStr);
-            } else if (sourceBE instanceof AdvancedMachineBlockEntity machine) {
-                if (machine.persistentData.contains("RouterPos")) {
-                    BlockPos routerPos = BlockPos.of(machine.persistentData.getLong("RouterPos"));
-                    BlockEntity be = level.getBlockEntity(routerPos);
-                    if (be instanceof RouterBlockEntity router) {
-                        return router.localRoutes.get(targetStr);
+        Level level = sourceBE.getLevel();
+        // ★修正: 方角指定を廃止し、ネットワーク内の接続デバイスからタグ/IPで検索するように統一
+        List<BlockPos> connected = MCNetUtil.getConnectedDevices(level, sourceBE.getBlockPos());
+
+        for (BlockPos p : connected) {
+            BlockEntity be = level.getBlockEntity(p);
+            if (be != null) {
+                CompoundTag data = be.getPersistentData();
+                if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster) {
+                    if (data.contains("MainframeNetworkTag") && !data.getString("MainframeNetworkTag").isEmpty()) {
+                        if (targetStr.equals(data.getString("MainframeNetworkTag"))) return p;
                     }
                 }
+                if (targetStr.equals(data.getString("NetworkTag"))) return p;
             }
-            return null;
-        }
-
-        Direction dir = getDirectionRelative(targetStr, sourceBE.getBlockState());
-        if (dir != null) {
-            return sourceBE.getBlockPos().relative(dir);
         }
         return null;
     }
@@ -78,14 +42,17 @@ public class TargetUtil {
         if (targetStr == null || sourceBE == null || sourceBE.getLevel() == null) return false;
         if (!targetStr.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) return false;
 
-        RouterBlockEntity router = null;
-        if (sourceBE instanceof RouterBlockEntity r) {
-            router = r;
-        } else if (sourceBE instanceof AdvancedMachineBlockEntity machine) {
-            if (machine.persistentData.contains("RouterPos")) {
-                BlockPos routerPos = BlockPos.of(machine.persistentData.getLong("RouterPos"));
-                BlockEntity be = machine.getLevel().getBlockEntity(routerPos);
-                if (be instanceof RouterBlockEntity r) router = r;
+        SimpleMachineBlockEntity router = null;
+        if (sourceBE instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            router = sm;
+        } else {
+            CompoundTag data = sourceBE.getPersistentData();
+            if (data.contains("RouterPos")) {
+                BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
+                BlockEntity be = sourceBE.getLevel().getBlockEntity(routerPos);
+                if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                    router = sm;
+                }
             }
         }
 

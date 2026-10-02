@@ -3,7 +3,6 @@ package com.nishiyu.lunex.network.packet.s2c;
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.client.ClientScreenManager;
 import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsScreen;
-import com.nishiyu.lunex.menu.MachineSettings.MachineSettingsScreen;
 import com.nishiyu.lunex.program.client.ClientScriptManager;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -40,8 +39,6 @@ public record AppMessageS2CPacket(String sessionId, String action, CompoundTag p
                 String programName = payload.getString("programName");
                 String content = payload.getString("content");
 
-                // ★フロントから読み込めない問題への対策
-                // もしパケットにファイル名が含まれていなかった場合、WebSocket側が待機している名前を強制補完します
                 if (programName == null || programName.isEmpty()) {
                     programName = com.nishiyu.lunex.network.LocalWebSocketServer.currentLoadedProgramName;
                 }
@@ -57,9 +54,8 @@ public record AppMessageS2CPacket(String sessionId, String action, CompoundTag p
 
                 if (net.minecraft.client.Minecraft.getInstance().screen instanceof BioEntitySettingsScreen bioScreen) {
                     bioScreen.receiveItemFiles(list);
-                } else if (net.minecraft.client.Minecraft.getInstance().screen instanceof MachineSettingsScreen machineScreen) {
-                    machineScreen.receiveItemFiles(list);
                 }
+                // ★修正: MachineSettingsScreen への処理を削除
 
             } else if ("bio_info_sync".equals(action)) {
                 if (net.minecraft.client.Minecraft.getInstance().screen instanceof BioEntitySettingsScreen bioScreen) {

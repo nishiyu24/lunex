@@ -2,10 +2,10 @@ package com.nishiyu.lunex.client;
 
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.Config;
+import com.nishiyu.lunex.client.renderer.MachineFrameRenderer;
 import com.nishiyu.lunex.client.renderer.*;
 import com.nishiyu.lunex.client.renderer.blocks.*;
 import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsScreen;
-import com.nishiyu.lunex.menu.MachineSettings.MachineSettingsScreen;
 import com.nishiyu.lunex.menu.*;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterScreen;
 import com.nishiyu.lunex.network.LocalWebServer;
@@ -35,28 +35,30 @@ public class ClientModEvents {
 
     @SubscribeEvent
     public static void registerScreens(RegisterMenuScreensEvent event) {
-        event.register(Lunex.ADVANCED_MACHINE_MENU.get(), AdvancedMachineScreen::new);
         event.register(Lunex.SIMPLE_MACHINE_MENU.get(), SimpleMachineScreen::new);
-        event.register(Lunex.UPGRADE_MENU.get(), UpgradeScreen::new);
-        event.register(Lunex.MACHINE_SETTINGS_MENU.get(), MachineSettingsScreen::new);
         event.register(Lunex.PROBE_MENU.get(), ProbeScreen::new);
-        event.register(Lunex.ROUTER_DASHBOARD_MENU.get(), RouterDashboardScreen::new);
         event.register(Lunex.PORTABLE_SCREEN_MENU.get(), PortableScreenScreen::new);
         event.register(Lunex.PRINTER_MENU.get(), PrinterScreen::new);
         event.register(Lunex.BIO_PRINTER_MENU.get(), BioPrinterScreen::new);
         event.register(Lunex.BIO_MOB_SETTINGS_MENU.get(), BioEntitySettingsScreen::new);
-        event.register(Lunex.DATABASE_MENU.get(), DatabaseScreen::new);
         event.register(Lunex.MAINFRAME_OVERVIEW_MENU.get(), MainframeOverviewScreen::new);
     }
 
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(Lunex.TURTLE_BOT_BE.get(), TurtleBotRenderer::new);
+
         event.registerBlockEntityRenderer(Lunex.SCREEN_BE.get(), ScreenRenderer::new);
-        event.registerBlockEntityRenderer(Lunex.ADVANCED_MACHINE_BE.get(), MachineRenderer::new);
-        event.registerBlockEntityRenderer(Lunex.PROBE_BE.get(), ProbeRenderer::new);
         event.registerBlockEntityRenderer(Lunex.PRINTER_BE.get(), PrinterBlockEntityRenderer::new);
-        event.registerBlockEntityRenderer(Lunex.ROUTER_BE.get(), RouterRenderer::new);
+
+        event.registerBlockEntityRenderer(Lunex.PROBE_BE.get(), MachineFrameRenderer::new);
+        event.registerBlockEntityRenderer(Lunex.DATABASE_BE.get(), MachineFrameRenderer::new);
+        event.registerBlockEntityRenderer(Lunex.ROUTER_BE.get(), MachineFrameRenderer::new);
+        event.registerBlockEntityRenderer(Lunex.MACHINE_FRAME_BE.get(), MachineFrameRenderer::new);
+        event.registerBlockEntityRenderer(Lunex.MAINFRAME_ADAPTER_BE.get(), MachineFrameRenderer::new);
+
+        event.registerBlockEntityRenderer(Lunex.SIMPLE_MACHINE_BE.get(), MachineFrameRenderer::new);
+
         event.registerEntityRenderer(Lunex.CUSTOM_BIO_MOB.get(), CustomBioMobRenderer::new);
     }
 

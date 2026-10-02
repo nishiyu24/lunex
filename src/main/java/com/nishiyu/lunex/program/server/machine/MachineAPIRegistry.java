@@ -39,7 +39,6 @@ public class MachineAPIRegistry extends APIRegistry {
         registerAPIClass("commands", CommandAPI.class);
         registerAPIClass("screen", ScreenAPI.class);
         registerAPIClass("net", NetAPI.class);
-        registerAPIClass("lan", LanAPI.class);
         registerAPIClass("storage", StorageAPI.class);
         registerAPIClass("inventory", InventoryAPI.class);
         registerAPIClass("router", RouterAPI.class);

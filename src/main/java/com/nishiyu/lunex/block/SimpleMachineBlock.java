@@ -1,14 +1,15 @@
 package com.nishiyu.lunex.block;
 
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.machine.MainframeScanner;
-import com.nishiyu.lunex.machine.SimpleMachineVMCache;
+import com.nishiyu.lunex.machine.CoreMachineVMCache;
 import com.nishiyu.lunex.mcnet.IMCNetBlock;
+import com.nishiyu.lunex.menu.MainframeOverviewMenu;
 import com.nishiyu.lunex.menu.SimpleMachineMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
@@ -28,7 +29,6 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
     public static final BooleanProperty ASSEMBLED = BooleanProperty.create("assembled");
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
 
-    // JSONで要求されている6方向のプロパティを追加
     public static final BooleanProperty UP = BlockStateProperties.UP;
     public static final BooleanProperty DOWN = BlockStateProperties.DOWN;
     public static final BooleanProperty NORTH = BlockStateProperties.NORTH;
@@ -38,21 +38,16 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
 
     public SimpleMachineBlock(Properties properties) {
         super(properties);
-        // 全てのプロパティの初期値を設定
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(ASSEMBLED, false)
                 .setValue(FACING, Direction.NORTH)
-                .setValue(UP, false)
-                .setValue(DOWN, false)
-                .setValue(NORTH, false)
-                .setValue(SOUTH, false)
-                .setValue(EAST, false)
-                .setValue(WEST, false));
+                .setValue(UP, false).setValue(DOWN, false)
+                .setValue(NORTH, false).setValue(SOUTH, false)
+                .setValue(EAST, false).setValue(WEST, false));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        // ビルダーに全てのプロパティを登録
         builder.add(ASSEMBLED, FACING, UP, DOWN, NORTH, SOUTH, EAST, WEST);
     }
 
@@ -82,8 +77,7 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
                 if (blockEntity instanceof SimpleMachineBlockEntity machineEntity) {
                     if (machineEntity.isMainframeMaster) {
                         machineEntity.disassembleMainframe();
-                    }
-                    else if (machineEntity.getMasterPos() != null) {
+                    } else if (machineEntity.getMasterPos() != null) {
                         BlockEntity masterBe = level.getBlockEntity(machineEntity.getMasterPos());
                         if (masterBe instanceof SimpleMachineBlockEntity master) {
                             master.disassembleMainframe();
@@ -91,7 +85,7 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
                     }
 
                     if (machineEntity.machineId != null) {
-                        SimpleMachineVMCache.removeVM(machineEntity.machineId);
+                        CoreMachineVMCache.removeVM(machineEntity.machineId);
                     }
                 }
             }
@@ -103,17 +97,24 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
     @Override
     protected @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hitResult) {
         if (!level.isClientSide()) {
+            // ★修正: 合体完了後は SimpleMachineBlock 自身がOverview画面を開く
             if (state.getValue(ASSEMBLED)) {
-                InteractionResult result = MainframeScanner.tryOpenMainframeTerminal(level, pos, player);
-                if (result.consumesAction()) return result;
+                if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                    serverPlayer.openMenu(new SimpleMenuProvider(
+                            (id, inventory, p) -> new MainframeOverviewMenu(id, inventory, pos),
+                            Component.literal("Mainframe Overview")
+                    ), pos);
+                }
+                return InteractionResult.CONSUME;
             }
 
+            // 未合体の場合は CLIターミナルを開く
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof SimpleMachineBlockEntity) {
                 if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-                    serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                    serverPlayer.openMenu(new SimpleMenuProvider(
                             (id, inventory, p) -> new SimpleMachineMenu(id, inventory, pos),
-                            Component.literal("CLI Terminal")
+                            Component.literal("Core Terminal")
                     ), pos);
                 }
             }

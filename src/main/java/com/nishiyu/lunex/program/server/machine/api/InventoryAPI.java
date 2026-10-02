@@ -1,10 +1,11 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
-import com.nishiyu.lunex.util.TargetUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -26,17 +27,49 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class InventoryAPI {
-    private final ServerLuaVM vm;
+public class InventoryAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
+
+    public InventoryAPI() {}
 
     public InventoryAPI(ServerLuaVM vm) {
         this.vm = vm;
     }
 
+    @Override
+    public String getNamespace() {
+        return "inventory";
+    }
+
+    @Override
+    public String getRequiredFeature() {
+        return "";
+    }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        InventoryAPI instance = new InventoryAPI();
+        instance.vm = vm;
+        return instance;
+    }
+
     public record TargetInfo(Level level, BlockPos pos, Direction direction) {}
 
+    private Direction parseDirection(String str) {
+        if (str == null) return null;
+        return switch (str.toLowerCase()) {
+            case "up" -> Direction.UP;
+            case "down" -> Direction.DOWN;
+            case "north" -> Direction.NORTH;
+            case "south" -> Direction.SOUTH;
+            case "west" -> Direction.WEST;
+            case "east" -> Direction.EAST;
+            default -> null;
+        };
+    }
+
     public TargetInfo resolveTarget(String targetStr) {
-        AdvancedMachineBlockEntity machine = vm.hardware;
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
         if (machine == null || machine.getLevel() == null || targetStr == null) return null;
         Level level = machine.getLevel();
 
@@ -44,7 +77,7 @@ public class InventoryAPI {
             String[] parts = targetStr.split(":", 2);
             BlockPos basePos = machine.resolveDevice(parts[0]);
             if (basePos != null) {
-                Direction dir = TargetUtil.getDirectionRelative(parts[1], level.getBlockState(basePos));
+                Direction dir = parseDirection(parts[1]);
                 if (dir != null) {
                     return new TargetInfo(level, basePos.relative(dir), dir.getOpposite());
                 }
@@ -55,11 +88,6 @@ public class InventoryAPI {
         BlockPos resolvedPos = machine.resolveDevice(targetStr);
         if (resolvedPos != null) {
             return new TargetInfo(level, resolvedPos, null);
-        }
-
-        Direction dir = TargetUtil.getDirectionRelative(targetStr, machine.getBlockState());
-        if (dir != null) {
-            return new TargetInfo(level, machine.getBlockPos().relative(dir), dir.getOpposite());
         }
 
         return null;
@@ -74,7 +102,7 @@ public class InventoryAPI {
     }
 
     public IItemHandler getTargetInventory(String targetStr) {
-        AdvancedMachineBlockEntity machine = vm.hardware;
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
         if (machine == null || machine.getLevel() == null || targetStr == null) return null;
         Level level = machine.getLevel();
 
@@ -90,7 +118,6 @@ public class InventoryAPI {
         if (resolvedPos != null) {
             BlockState state = level.getBlockState(resolvedPos);
             if (state.getBlock() instanceof com.nishiyu.lunex.block.ProbeBlock) {
-                // 純粋にProbeの面設定だけを参照する
                 List<IItemHandlerModifiable> handlers = new ArrayList<>();
                 for (Direction dir : Direction.values()) {
                     if (state.getValue(com.nishiyu.lunex.block.ProbeBlock.getPropertyByDirection(dir))) {
@@ -104,11 +131,6 @@ public class InventoryAPI {
             } else {
                 return level.getCapability(Capabilities.ItemHandler.BLOCK, resolvedPos, null);
             }
-        }
-
-        Direction dir = TargetUtil.getDirectionRelative(targetStr, machine.getBlockState());
-        if (dir != null) {
-            return level.getCapability(Capabilities.ItemHandler.BLOCK, machine.getBlockPos().relative(dir), dir.getOpposite());
         }
 
         return null;
@@ -142,7 +164,8 @@ public class InventoryAPI {
 
                 if (actuallyMoved > 0) {
                     targetInv.extractItem(fSlot, actuallyMoved, false);
-                    if (vm.hardware != null) vm.hardware.setChanged();
+                    SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+                    if (machine != null) machine.setChanged();
                     return true;
                 }
                 return false;
@@ -160,10 +183,12 @@ public class InventoryAPI {
     public boolean pushItem(String targetStr, int machineSlot, int amount) {
         return vm.executeInMainThreadSync(() -> {
             try {
-                AdvancedMachineBlockEntity machine = vm.hardware;
+                SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
                 if (machine == null || amount <= 0) return false;
+                IItemHandler storage = machine.mainframeStorage;
+                if (storage == null) return false;
 
-                ItemStack extractSim = machine.itemHandler.extractItem(machineSlot - 1, amount, true);
+                ItemStack extractSim = storage.extractItem(machineSlot - 1, amount, true);
                 if (extractSim.isEmpty()) return false;
 
                 DatabaseBlockEntity db = getTargetDatabase(targetStr);
@@ -171,7 +196,7 @@ public class InventoryAPI {
                     ItemStack leftover = db.insertItem(extractSim.copy(), true);
                     int inserted = extractSim.getCount() - leftover.getCount();
                     if (inserted > 0) {
-                        db.insertItem(machine.itemHandler.extractItem(machineSlot - 1, inserted, false), false);
+                        db.insertItem(storage.extractItem(machineSlot - 1, inserted, false), false);
                         machine.setChanged();
                         return true;
                     }
@@ -183,7 +208,7 @@ public class InventoryAPI {
                     ItemStack remaining = ItemHandlerHelper.insertItem(targetInv, extractSim, false);
                     int inserted = extractSim.getCount() - remaining.getCount();
                     if (inserted > 0) {
-                        machine.itemHandler.extractItem(machineSlot - 1, inserted, false);
+                        storage.extractItem(machineSlot - 1, inserted, false);
                         machine.setChanged();
                         return true;
                     }
@@ -203,8 +228,10 @@ public class InventoryAPI {
     public boolean pullItem(String targetStr, int targetSlot, int amount) {
         return vm.executeInMainThreadSync(() -> {
             try {
-                AdvancedMachineBlockEntity machine = vm.hardware;
+                SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
                 if (machine == null || amount <= 0) return false;
+                IItemHandler storage = machine.mainframeStorage;
+                if (storage == null) return false;
 
                 DatabaseBlockEntity db = getTargetDatabase(targetStr);
                 if (db != null) {
@@ -214,10 +241,10 @@ public class InventoryAPI {
                     ItemStack extractSim = db.extractItem(targetId, amount, true);
                     if (extractSim.isEmpty()) return false;
 
-                    ItemStack leftover = ItemHandlerHelper.insertItem(machine.itemHandler, extractSim.copy(), true);
+                    ItemStack leftover = ItemHandlerHelper.insertItem(storage, extractSim.copy(), true);
                     int accepted = extractSim.getCount() - leftover.getCount();
                     if (accepted > 0) {
-                        ItemHandlerHelper.insertItem(machine.itemHandler, db.extractItem(targetId, accepted, false), false);
+                        ItemHandlerHelper.insertItem(storage, db.extractItem(targetId, accepted, false), false);
                         machine.setChanged();
                         return true;
                     }
@@ -229,7 +256,7 @@ public class InventoryAPI {
                     ItemStack extractSim = targetInv.extractItem(targetSlot - 1, amount, true);
                     if (extractSim.isEmpty()) return false;
 
-                    ItemStack remaining = ItemHandlerHelper.insertItem(machine.itemHandler, extractSim, false);
+                    ItemStack remaining = ItemHandlerHelper.insertItem(storage, extractSim, false);
                     int inserted = extractSim.getCount() - remaining.getCount();
 
                     if (inserted > 0) {
@@ -341,7 +368,8 @@ public class InventoryAPI {
                 if (targetInv == null || slot < 1 || slot > targetInv.getSlots()) return LuaValue.NIL;
                 ItemStack stack = targetInv.getStackInSlot(slot - 1);
                 if (stack.isEmpty()) return LuaValue.NIL;
-                Tag tag = stack.saveOptional(Objects.requireNonNull(vm.hardware.getLevel()).registryAccess());
+                SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+                Tag tag = stack.saveOptional(Objects.requireNonNull(machine.getLevel()).registryAccess());
                 return vm.loadFromNBT(tag);
             } catch (Exception e) { return LuaValue.NIL; }
         });

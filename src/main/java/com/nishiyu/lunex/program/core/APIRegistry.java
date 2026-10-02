@@ -3,7 +3,6 @@ package com.nishiyu.lunex.program.core;
 import com.nishiyu.lunex.program.client.ClientAPIRegistry;
 import com.nishiyu.lunex.program.server.SystemAPI;
 import com.nishiyu.lunex.program.server.machine.MachineAPIRegistry;
-import com.nishiyu.lunex.program.server.tool.ToolAPIRegistry;
 import com.nishiyu.lunex.program.server.turtle.TurtleAPIRegistry;
 
 import java.lang.reflect.Method;
@@ -28,7 +27,6 @@ public abstract class APIRegistry {
         if (vmId == null) return new MachineAPIRegistry();
         String id = vmId.toLowerCase();
 
-        if (id.startsWith("tool_")) return new ToolAPIRegistry();
         if (id.startsWith("turtle_")) return new TurtleAPIRegistry();
         if (id.startsWith("client_") || id.startsWith("screen_") || id.startsWith("ui_"))
             return new ClientAPIRegistry();

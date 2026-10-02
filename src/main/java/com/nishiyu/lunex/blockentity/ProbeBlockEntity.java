@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.blockentity;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.machine.IDisguisable;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeExtension;
 import com.nishiyu.lunex.machine.IMainframePart;
 import com.nishiyu.lunex.mcnet.IMCNetDevice;
 import com.nishiyu.lunex.menu.ProbeMenu;
@@ -12,6 +12,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -19,6 +20,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -26,7 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNetDevice, IDisguisable, IMainframePart {
+public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNetDevice, IMainframePart {
 
     public final Map<Direction, Integer> redstoneOutputs = new ConcurrentHashMap<>();
     public boolean isDetected = true;
@@ -53,6 +55,7 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
 
         String filter = be.getPersistentData().getString("NBTFilter");
 
+        // 自動転送ロジック (既存)
         for (Direction dir : Direction.values()) {
             BlockEntity neighbor = level.getBlockEntity(pos.relative(dir));
             if (neighbor == null || neighbor instanceof IMainframePart) continue;
@@ -77,7 +80,6 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
     }
 
     private static void transferItems(IItemHandler from, IItemHandler to, String filter) {
-        // ★修正: NBT部分一致フィルターの判定
         boolean isNbtFilter = filter.startsWith("{") && filter.endsWith("}");
         String searchStr = isNbtFilter ? filter.substring(1, filter.length() - 1) : filter;
 
@@ -123,6 +125,10 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
         return this.mainframeMasterPos;
     }
 
+    // ==========================================
+    // ★ ポート（中継）機能群
+    // ==========================================
+
     @Nullable
     public IItemHandler getItemHandler(@Nullable Direction side) {
         if (this.mainframeMasterPos != null && this.level != null) {
@@ -133,6 +139,36 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
         }
         return null;
     }
+
+    @Nullable
+    public IEnergyStorage getEnergyStorage(@Nullable Direction side) {
+        if (this.mainframeMasterPos != null && this.level != null) {
+            BlockEntity masterBe = this.level.getBlockEntity(this.mainframeMasterPos);
+            if (masterBe instanceof SimpleMachineBlockEntity master && master.isMainframeMaster) {
+                return master.energyStorage;
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public <T> T getExtensionCapability(ResourceLocation extensionId) {
+        if (this.mainframeMasterPos != null && this.level != null) {
+            BlockEntity masterBe = this.level.getBlockEntity(this.mainframeMasterPos);
+            if (masterBe instanceof SimpleMachineBlockEntity master && master.isMainframeMaster) {
+                IMainframeExtension ext = master.getExtension(extensionId);
+                if (ext != null) {
+                    return (T) ext.getCapabilityInstance();
+                }
+            }
+        }
+        return null;
+    }
+
+    // ==========================================
+    // 既存機能
+    // ==========================================
 
     public String getNetworkTag() {
         return this.getPersistentData().getString("NetworkTag");
@@ -157,8 +193,8 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
         if (data.contains("RouterPos")) {
             BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
             BlockEntity be = this.level.getBlockEntity(routerPos);
-            if (be instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-                router.virtualStorage.onStorageChanged(this.level);
+            if (be instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity master) {
+                master.virtualStorage.onStorageChanged(this.level);
             }
         }
     }
@@ -169,8 +205,8 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
         if (data.contains("RouterPos")) {
             BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
             BlockEntity be = this.level.getBlockEntity(routerPos);
-            if (be instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-                router.virtualStorage.addDeviceNode(this.getBlockPos(), this.level, false);
+            if (be instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity master) {
+                master.virtualStorage.addDeviceNode(this.getBlockPos(), this.level, false);
             }
         }
     }
@@ -188,8 +224,8 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
                 BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
                 if (this.level.isLoaded(routerPos)) {
                     BlockEntity be = this.level.getBlockEntity(routerPos);
-                    if (be instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-                        router.virtualStorage.removeDeviceNode(this.getBlockPos());
+                    if (be instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity master) {
+                        master.virtualStorage.removeDeviceNode(this.getBlockPos());
                     }
                 }
             }
@@ -267,24 +303,5 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
     @Override
     public AbstractContainerMenu createMenu(int containerId, @NotNull Inventory playerInventory, @NotNull Player player) {
         return new ProbeMenu(containerId, playerInventory, this.worldPosition);
-    }
-
-    @Override
-    public BlockState getDisguiseState() {
-        return this.disguiseState;
-    }
-
-    @Override
-    public void setDisguiseState(BlockState state) {
-        this.disguiseState = state;
-    }
-
-    @Override
-    public void applyDisguiseState(boolean isDisguised) {
-        if (this.level != null && !this.level.isClientSide) {
-            this.level.setBlockAndUpdate(this.worldPosition, this.getBlockState().setValue(com.nishiyu.lunex.block.ProbeBlock.IS_DISGUISED, isDisguised));
-            this.setChanged();
-            this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3);
-        }
     }
 }

@@ -4,7 +4,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.client.ClientScreenInteractionManager;
 import com.nishiyu.lunex.client.ClientScreenManager;
@@ -144,10 +145,14 @@ public class ARGlassesHudRenderer {
 
         if (isSameDim && mc.level.isLoaded(routerPos)) {
             net.minecraft.world.level.block.entity.BlockEntity be = mc.level.getBlockEntity(routerPos);
-            if (be instanceof RouterBlockEntity router) {
-                if (!router.isRunning()) {
+            // 複合マシンのマスターノードか確認
+            if (be instanceof SimpleMachineBlockEntity master) {
+                // マスターとして成立していない、またはルーター機能が組み込まれていない場合は無効
+                if (!master.isMainframeMaster || !master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                     return false;
                 }
+            } else {
+                return false;
             }
         }
 
@@ -191,7 +196,6 @@ public class ARGlassesHudRenderer {
         int virtualHeight = (int) VIRTUAL_HEIGHT;
         int virtualWidth = (int) (VIRTUAL_HEIGHT * ((float) screenWidth / screenHeight));
 
-        // ★ 修正: PortableScreenと同様に、常に正しい解像度を保証するように変更
         if (ClientScreenManager.getLastRootW(screenKey) != virtualWidth ||
                 ClientScreenManager.getLastRootH(screenKey) != virtualHeight) {
             ClientScreenManager.recomputeLayout(screenKey, virtualWidth, virtualHeight);

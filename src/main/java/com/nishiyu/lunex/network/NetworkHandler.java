@@ -1,5 +1,6 @@
 package com.nishiyu.lunex.network;
 
+import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.network.packet.c2s.*;
 import com.nishiyu.lunex.network.packet.s2c.*;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -8,12 +9,12 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 public class NetworkHandler {
 
     public static void register(final RegisterPayloadHandlersEvent event) {
-        final PayloadRegistrar registrar = event.registrar("1.0");
+        // registrarの引数にMODIDを渡し、バージョンを指定
+        final PayloadRegistrar registrar = event.registrar(Lunex.MODID).versioned("1.0");
 
         registrar.playToServer(SubscribeC2SPacket.TYPE, SubscribeC2SPacket.STREAM_CODEC, SubscribeC2SPacket::handle);
         registrar.playToServer(AppMessageC2SPacket.TYPE, AppMessageC2SPacket.STREAM_CODEC, AppMessageC2SPacket::handle);
         registrar.playToServer(ProbeUpdateC2SPacket.TYPE, ProbeUpdateC2SPacket.STREAM_CODEC, ProbeUpdateC2SPacket::handle);
-        registrar.playToServer(AssembleMachineC2SPacket.TYPE, AssembleMachineC2SPacket.STREAM_CODEC, AssembleMachineC2SPacket::handle);
         registrar.playToServer(SimpleMachineActionC2SPacket.TYPE, SimpleMachineActionC2SPacket.STREAM_CODEC, SimpleMachineActionC2SPacket::handle);
         registrar.playToServer(MainframeOverviewActionC2SPacket.TYPE, MainframeOverviewActionC2SPacket.STREAM_CODEC, MainframeOverviewActionC2SPacket::handle);
 

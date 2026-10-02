@@ -1,8 +1,9 @@
 package com.nishiyu.lunex.mcnet;
 
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.util.TargetUtil;
 import com.nishiyu.lunex.webrender.HtmlNodeSerializer;
 import net.minecraft.core.BlockPos;
@@ -35,17 +36,22 @@ public class ScreenSessionManager {
         }
 
         String determinedId = UUID.randomUUID().toString();
-        if (vm.hardware != null) {
-            CompoundTag data = vm.hardware.persistentData;
+
+        // ★修正: vm.hardware / vm.machine を cvm.simpleMachine で取得する
+        SimpleMachineBlockEntity sm = (vm instanceof CoreMachineServerLuaVM cvm) ? cvm.simpleMachine : null;
+        if (sm != null) {
+            CompoundTag data = sm.persistentData;
             if (data.contains("NetworkId")) {
                 determinedId = data.getString("NetworkId");
             } else {
                 data.putString("NetworkId", determinedId);
-                vm.hardware.setChanged();
+                sm.setChanged();
             }
-        } else if (vm.machine instanceof RouterBlockEntity r && r.machineId != null) {
-            determinedId = r.machineId.toString();
+            if (sm.isMainframeMaster && sm.machineId != null) {
+                determinedId = sm.machineId.toString();
+            }
         }
+
         this.fallbackSessionId = determinedId;
 
         for (ScreenBlockEntity screen : getScreensFast("all")) {
@@ -98,19 +104,21 @@ public class ScreenSessionManager {
     }
 
     public String getUniversalSessionId() {
-        if (vm.hardware != null && vm.hardware.getLevel() != null) {
-            if (vm.hardware.persistentData.contains("RouterPos")) {
-                BlockPos routerPos = BlockPos.of(vm.hardware.persistentData.getLong("RouterPos"));
-                BlockEntity be = vm.hardware.getLevel().getBlockEntity(routerPos);
-                if (be instanceof RouterBlockEntity router && router.machineId != null) {
+        SimpleMachineBlockEntity sm = (vm instanceof CoreMachineServerLuaVM cvm) ? cvm.simpleMachine : null;
+        if (sm != null && sm.getLevel() != null) {
+            if (sm.persistentData.contains("RouterPos")) {
+                BlockPos routerPos = BlockPos.of(sm.persistentData.getLong("RouterPos"));
+                BlockEntity be = sm.getLevel().getBlockEntity(routerPos);
+                if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.machineId != null) {
                     return router.machineId.toString();
                 }
             }
-            if (vm.hardware.persistentData.contains("NetworkId")) {
-                return vm.hardware.persistentData.getString("NetworkId");
+            if (sm.isMainframeMaster && sm.machineId != null) {
+                return sm.machineId.toString();
             }
-        } else if (vm.machine instanceof RouterBlockEntity r && r.machineId != null) {
-            return r.machineId.toString();
+            if (sm.persistentData.contains("NetworkId")) {
+                return sm.persistentData.getString("NetworkId");
+            }
         }
         return this.fallbackSessionId;
     }
@@ -191,39 +199,31 @@ public class ScreenSessionManager {
 
     public List<ScreenBlockEntity> getScreensFast(String targetStr) {
         List<ScreenBlockEntity> screens = new ArrayList<>();
-        if (vm.hardware == null || vm.hardware.getLevel() == null) return screens;
+        SimpleMachineBlockEntity sm = (vm instanceof CoreMachineServerLuaVM cvm) ? cvm.simpleMachine : null;
+        if (sm == null || sm.getLevel() == null) return screens;
 
         if (targetStr != null && targetStr.matches("^\\d+\\.\\d+\\.\\d+\\.\\d+$")) {
             return screens;
         }
 
-        Level level = vm.hardware.getLevel();
-        BlockPos pos = vm.hardware.getBlockPos();
+        Level level = sm.getLevel();
+        BlockPos pos = sm.getBlockPos();
 
         if (targetStr != null && !targetStr.equals("all")) {
-            BlockPos resolvedPos = vm.hardware.resolveDevice(targetStr);
+            BlockPos resolvedPos = TargetUtil.resolveDevice(sm, targetStr);
             if (resolvedPos != null) {
                 if (level.getBlockEntity(resolvedPos) instanceof ScreenBlockEntity screen) {
                     forceSyncNetworkIdToScreen(screen);
                     screens.add(screen);
                 }
-                return screens;
             }
-
-            Direction dir = TargetUtil.getDirectionRelative(targetStr, vm.hardware.getBlockState());
-            if (dir != null) {
-                if (level.getBlockEntity(pos.relative(dir)) instanceof ScreenBlockEntity screen) {
-                    forceSyncNetworkIdToScreen(screen);
-                    screens.add(screen);
-                }
-                return screens;
-            }
-
             return screens;
         }
 
-        for (Direction dir : Direction.values()) {
-            if (level.getBlockEntity(pos.relative(dir)) instanceof ScreenBlockEntity screen) {
+        // ★修正: "all" の場合は方角ではなくネットワーク全体から ScreenBlockEntity を探す
+        List<BlockPos> connected = MCNetUtil.getConnectedDevices(level, pos, 2048);
+        for (BlockPos p : connected) {
+            if (level.getBlockEntity(p) instanceof ScreenBlockEntity screen) {
                 forceSyncNetworkIdToScreen(screen);
                 screens.add(screen);
             }
@@ -246,7 +246,6 @@ public class ScreenSessionManager {
             master.networkId = targetUuid;
             master.sync();
 
-            // ★ 修正: マルチブロックの場合、マスターだけでなく構成するすべての子ブロックにもIDを配る
             Level level = master.getLevel();
             if (level != null && master.getBlockState().getBlock() instanceof com.nishiyu.lunex.block.ScreenBlock) {
                 Direction facing = master.getBlockState().getValue(com.nishiyu.lunex.block.ScreenBlock.FACING);
@@ -254,7 +253,7 @@ public class ScreenSessionManager {
 
                 for (int x = 0; x < master.screenWidth; x++) {
                     for (int y = 0; y < master.screenHeight; y++) {
-                        if (x == 0 && y == 0) continue; // マスター自身はスキップ
+                        if (x == 0 && y == 0) continue;
 
                         BlockPos p = master.getBlockPos().relative(screenRight, x).above(y);
                         if (level.getBlockEntity(p) instanceof ScreenBlockEntity sbe) {
@@ -267,7 +266,6 @@ public class ScreenSessionManager {
                 }
             }
         } else if (screen.networkId == null || !screen.networkId.equals(targetUuid)) {
-            // マスターは正しいが、アクセスされた子ブロックだけがズレていた場合の救済
             screen.networkId = targetUuid;
             screen.sync();
         }

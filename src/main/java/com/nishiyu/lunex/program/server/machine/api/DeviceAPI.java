@@ -1,6 +1,9 @@
-// 上書き: DeviceAPI.java
 package com.nishiyu.lunex.program.server.machine.api;
 
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.mcnet.DeviceAPIRegistry;
 import com.nishiyu.lunex.mcnet.ScreenSessionManager;
 import com.nishiyu.lunex.program.core.LuaFunction;
@@ -17,16 +20,38 @@ import org.luaj.vm2.lib.OneArgFunction;
 import org.luaj.vm2.lib.TwoArgFunction;
 import org.luaj.vm2.lib.ZeroArgFunction;
 
-public class DeviceAPI {
-    private final ServerLuaVM vm;
+public class DeviceAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
 
-    public DeviceAPI(ServerLuaVM vm) {
-        this.vm = vm;
+    public DeviceAPI() {}
+    public DeviceAPI(ServerLuaVM vm) { this.vm = vm; }
+
+    @Override
+    public String getNamespace() { return "device"; }
+
+    @Override
+    public String getRequiredFeature() { return ""; }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        return new DeviceAPI(vm);
+    }
+
+    private Direction parseDirection(String str) {
+        if (str == null) return null;
+        return switch (str.toLowerCase()) {
+            case "up" -> Direction.UP;
+            case "down" -> Direction.DOWN;
+            case "north" -> Direction.NORTH;
+            case "south" -> Direction.SOUTH;
+            case "west" -> Direction.WEST;
+            case "east" -> Direction.EAST;
+            default -> null;
+        };
     }
 
     @LuaFunction(
             value = "指定したターゲットのデバイスオブジェクトを取得し、操作用メソッドをまとめたテーブルを返します。",
-            en = "Gets the device object for the specified target and returns a table containing operation methods.",
             args = {"str:target", "str:type"},
             rets = {"table:device"}
     )
@@ -62,12 +87,10 @@ public class DeviceAPI {
         wrapper.set("type", LuaValue.valueOf(typeKey));
 
         wrapper.set("getType", new ZeroArgFunction() {
-            @Override
-            public LuaValue call() { return LuaValue.valueOf(getType(targetStr)); }
+            @Override public LuaValue call() { return LuaValue.valueOf(getType(targetStr)); }
         });
         wrapper.set("isPresent", new ZeroArgFunction() {
-            @Override
-            public LuaValue call() { return LuaValue.valueOf(isPresent(targetStr)); }
+            @Override public LuaValue call() { return LuaValue.valueOf(isPresent(targetStr)); }
         });
 
         if (typeKey.equals("database")) {
@@ -83,37 +106,26 @@ public class DeviceAPI {
 
     public void buildScreenWrapper(LuaTable obj, String target) {
         ScreenAPI screen = vm.getOrCreateAPI(ScreenAPI.class, ScreenAPI::new);
-
         obj.set("getWidth", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(screen.getWidth(target)); } });
         obj.set("getHeight", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(screen.getHeight(target)); } });
-
         obj.set("load", new org.luaj.vm2.lib.VarArgFunction() {
             @Override
             public org.luaj.vm2.Varargs invoke(org.luaj.vm2.Varargs args) {
                 String source = args.arg(1).tojstring();
-
                 LuaValue arg2 = args.arg(2);
                 LuaTable bindings = null;
                 String css = null;
                 String script = null;
-
                 int nextArgIdx = 2;
                 if (arg2.istable()) {
                     bindings = (LuaTable) arg2;
                     nextArgIdx = 3;
                 }
-
-                if (args.narg() >= nextArgIdx && !args.arg(nextArgIdx).isnil()) {
-                    css = args.arg(nextArgIdx).tojstring();
-                }
-                if (args.narg() >= nextArgIdx + 1 && !args.arg(nextArgIdx + 1).isnil()) {
-                    script = args.arg(nextArgIdx + 1).tojstring();
-                }
-
+                if (args.narg() >= nextArgIdx && !args.arg(nextArgIdx).isnil()) css = args.arg(nextArgIdx).tojstring();
+                if (args.narg() >= nextArgIdx + 1 && !args.arg(nextArgIdx + 1).isnil()) script = args.arg(nextArgIdx + 1).tojstring();
                 return LuaValue.valueOf(screen.loadWithBindings(target, source, bindings, css, script));
             }
         });
-
         obj.set("reload", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(screen.reload(target)); } });
         obj.set("clearScreen", new ZeroArgFunction() { @Override public LuaValue call() { screen.clearScreen(target); return LuaValue.NIL; } });
         obj.set("setLODColor", new OneArgFunction() { @Override public LuaValue call(LuaValue color) { screen.setLODColor(target, color.toint()); return LuaValue.NIL; } });
@@ -221,16 +233,18 @@ public class DeviceAPI {
     public boolean isPresent(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
             if (targetStr == null) return false;
+            SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+            if (machine == null) return false;
 
             if (targetStr.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) {
                 return isIpDevicePresent(targetStr);
             }
 
-            if (TargetUtil.isPortableScreen(vm.hardware, targetStr)) return true;
+            if (TargetUtil.isPortableScreen(machine, targetStr)) return true;
 
             BlockPos pos = getActionTargetPos(targetStr);
-            if (pos != null && vm.hardware != null && vm.hardware.getLevel() != null) {
-                if (!vm.hardware.getLevel().isEmptyBlock(pos)) return true;
+            if (pos != null && machine.getLevel() != null) {
+                if (!machine.getLevel().isEmptyBlock(pos)) return true;
             }
 
             ScreenSessionManager sm = vm.getOrCreateAPI(ScreenSessionManager.class, ScreenSessionManager::new);
@@ -246,17 +260,19 @@ public class DeviceAPI {
     public String getType(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
             if (targetStr == null) return "none";
+            SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+            if (machine == null) return "none";
 
             if (targetStr.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) {
                 return resolveDeviceTypeFromIp(targetStr);
             }
 
-            if (TargetUtil.isPortableScreen(vm.hardware, targetStr)) {
+            if (TargetUtil.isPortableScreen(machine, targetStr)) {
                 return "portable_screen";
             }
 
             BlockPos pos = getActionTargetPos(targetStr);
-            Level level = vm.hardware != null ? vm.hardware.getLevel() : null;
+            Level level = machine.getLevel();
             if (pos != null && level != null && !level.isEmptyBlock(pos)) {
                 BlockState state = level.getBlockState(pos);
                 String rawType = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
@@ -280,20 +296,21 @@ public class DeviceAPI {
     }
 
     public BlockPos getActionTargetPos(String targetStr) {
-        if (vm.hardware == null || vm.hardware.getLevel() == null || targetStr == null) return null;
-        Level level = vm.hardware.getLevel();
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null || machine.getLevel() == null || targetStr == null) return null;
+        Level level = machine.getLevel();
 
         if (targetStr.contains(":")) {
             String[] parts = targetStr.split(":", 2);
-            BlockPos basePos = vm.hardware.resolveDevice(parts[0]);
+            BlockPos basePos = machine.resolveDevice(parts[0]);
             if (basePos != null) {
-                Direction dir = TargetUtil.getDirectionRelative(parts[1], level.getBlockState(basePos));
+                Direction dir = parseDirection(parts[1]);
                 if (dir != null) return basePos.relative(dir);
             }
             return null;
         }
 
-        BlockPos resolvedPos = vm.hardware.resolveDevice(targetStr);
+        BlockPos resolvedPos = machine.resolveDevice(targetStr);
         if (resolvedPos != null) {
             BlockState state = level.getBlockState(resolvedPos);
             if (state.getBlock() instanceof com.nishiyu.lunex.block.ProbeBlock) {
@@ -306,33 +323,28 @@ public class DeviceAPI {
             return resolvedPos;
         }
 
-        Direction dir = TargetUtil.getDirectionRelative(targetStr, vm.hardware.getBlockState());
-        if (dir != null) return vm.hardware.getBlockPos().relative(dir);
-
         return null;
     }
 
-    // ==========================================
-    // ネットワーク上のIPデバイス判別処理
-    // ==========================================
-
-    private com.nishiyu.lunex.blockentity.RouterBlockEntity getRouterForVM() {
-        if (vm.hardware != null && vm.hardware.getLevel() != null) {
-            if (vm.hardware.persistentData.contains("RouterPos")) {
-                long posLong = vm.hardware.persistentData.getLong("RouterPos");
-                net.minecraft.world.level.block.entity.BlockEntity be = vm.hardware.getLevel().getBlockEntity(net.minecraft.core.BlockPos.of(posLong));
-                if (be instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-                    return router;
+    private SimpleMachineBlockEntity getRouterForVM() {
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine != null && machine.getLevel() != null) {
+            if (machine.isMainframeMaster && machine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                return machine;
+            }
+            if (machine.getPersistentData().contains("RouterPos")) {
+                long posLong = machine.getPersistentData().getLong("RouterPos");
+                net.minecraft.world.level.block.entity.BlockEntity be = machine.getLevel().getBlockEntity(net.minecraft.core.BlockPos.of(posLong));
+                if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                    return sm;
                 }
             }
-        } else if (vm.machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-            return router;
         }
         return null;
     }
 
     private boolean isIpDevicePresent(String ip) {
-        com.nishiyu.lunex.blockentity.RouterBlockEntity router = getRouterForVM();
+        SimpleMachineBlockEntity router = getRouterForVM();
         if (router == null) return false;
 
         if (router.persistentData.contains("DHCPLeases")) {
@@ -347,7 +359,7 @@ public class DeviceAPI {
     }
 
     private String resolveDeviceTypeFromIp(String ip) {
-        com.nishiyu.lunex.blockentity.RouterBlockEntity router = getRouterForVM();
+        SimpleMachineBlockEntity router = getRouterForVM();
         if (router == null) return "none";
 
         if (!router.persistentData.contains("DHCPLeases")) return "none";
@@ -362,7 +374,6 @@ public class DeviceAPI {
                     return deviceTypes.getString(key);
                 }
 
-                // 互換性フォールバック: UUID(長さ36)ならポータブル、それ以外ならマシン
                 if (key.length() == 36) {
                     return "portable_screen";
                 } else {

@@ -27,6 +27,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
@@ -137,7 +139,6 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
             String mode = screen.getPersistentData().getString("DisplayMode");
             if (mode.isEmpty()) mode = "CAPACITY";
 
-            // ★修正: 配列で定義することで、将来 "FLUID" や "STATUS" などを簡単に追加できるように変更
             Button modeBtn = Button.builder(Component.literal("Mode: " + mode), btn -> {
                 String current = screen.getPersistentData().getString("DisplayMode");
                 if (current.isEmpty()) current = "CAPACITY";
@@ -316,6 +317,15 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
             BlockState state = level.getBlockState(p);
             if (state.isAir()) continue;
 
+            // ★修正: アダプターの場合、描画対象を元のブロック状態（originalState）に差し替える
+            BlockEntity partBe = level.getBlockEntity(p);
+            if (partBe instanceof com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity adapter) {
+                BlockState original = adapter.getOriginalState();
+                if (original != null) {
+                    state = original;
+                }
+            }
+
             poseStack.pushPose();
             poseStack.translate(p.getX() - cx - 0.5f, p.getY() - cy - 0.5f, p.getZ() - cz - 0.5f);
 
@@ -359,6 +369,15 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
             Level level = this.menu.getLevel();
             BlockState state = level.getBlockState(this.selectedPos);
             BlockEntity be = level.getBlockEntity(this.selectedPos);
+
+            // ★修正: UIのテキスト表示時にも、アダプターの場合は元のブロック情報に差し替える
+            if (be instanceof com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity adapter) {
+                BlockState original = adapter.getOriginalState();
+                if (original != null) {
+                    state = original;
+                }
+            }
+
             String name = state.getBlock().getName().getString();
 
             int panelX = (int) (this.width / 1.5f);
@@ -384,28 +403,18 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
             if (be instanceof com.nishiyu.lunex.blockentity.DatabaseBlockEntity db) {
                 if (db.getMasterPos() != null && level.getBlockEntity(db.getMasterPos()) instanceof SimpleMachineBlockEntity master) {
                     double maxMB = master.mainframeTotalCapacityBytes / 1048576.0;
-                    double itemMB = master.mainframeUsedItemBytes / 1048576.0;
-                    double fluidMB = master.mainframeUsedFluidBytes / 1048576.0;
-                    double dataMB = master.mainframeUsedProgramBytes / 1048576.0;
-                    double usedMB = itemMB + fluidMB + dataMB;
+                    double usedMB = master.mainframeUsedItemBytes / 1048576.0;
 
                     guiGraphics.drawString(this.font, String.format(Locale.US, "Usage: %.2f MB", usedMB), panelX + 5, textY, 0x00E5FF);
                     guiGraphics.drawString(this.font, String.format(Locale.US, "/ %.2f MB", maxMB), panelX + 5, textY + 15, 0x00E5FF);
                 }
             } else if (be instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity machine) {
                 double maxMB = machine.mainframeTotalCapacityBytes / 1048576.0;
-                double itemMB = machine.mainframeUsedItemBytes / 1048576.0;
-                double fluidMB = machine.mainframeUsedFluidBytes / 1048576.0;
-                double dataMB = machine.mainframeUsedProgramBytes / 1048576.0;
-                double usedMB = itemMB + fluidMB + dataMB;
+                double usedMB = machine.mainframeUsedItemBytes / 1048576.0;
 
                 guiGraphics.drawString(this.font, "Machines: " + machine.mainframeMachines, panelX + 5, textY, 0x00E5FF);
                 guiGraphics.drawString(this.font, String.format(Locale.US, "Capacity: %.2f / %.2f MB", usedMB, maxMB), panelX + 5, textY + 15, 0x00E5FF);
-                guiGraphics.drawString(this.font, String.format(Locale.US, " - Item: %.2f MB", itemMB), panelX + 5, textY + 28, 0x88CCFF);
-                guiGraphics.drawString(this.font, String.format(Locale.US, " - Fluid: %.2f MB", fluidMB), panelX + 5, textY + 39, 0x88CCFF);
-                guiGraphics.drawString(this.font, String.format(Locale.US, " - Data: %.2f MB", dataMB), panelX + 5, textY + 50, 0x88CCFF);
 
-                int dbCount = machine.mainframeDatabases.size();
                 int screenCount = 0;
                 int probeCount = 0;
                 for (BlockPos p : machine.mainframeParts) {
@@ -414,11 +423,10 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
                     if (b instanceof com.nishiyu.lunex.block.ProbeBlock) probeCount++;
                 }
                 guiGraphics.drawString(this.font, "Total Parts: " + machine.mainframeParts.size(), panelX + 5, textY + 70, 0xFFFFFF);
-                guiGraphics.drawString(this.font, "- Databases: " + dbCount, panelX + 5, textY + 85, 0x88CCFF);
-                guiGraphics.drawString(this.font, "- Screens: " + screenCount, panelX + 5, textY + 100, 0x88CCFF);
-                guiGraphics.drawString(this.font, "- Probes: " + probeCount, panelX + 5, textY + 115, 0x88CCFF);
+                guiGraphics.drawString(this.font, "- Screens: " + screenCount, panelX + 5, textY + 85, 0x88CCFF);
+                guiGraphics.drawString(this.font, "- Probes: " + probeCount, panelX + 5, textY + 100, 0x88CCFF);
 
-                guiGraphics.drawString(this.font, "Mainframe Tag:", panelX + 5, textY + 140, 0xFFFFFF);
+                guiGraphics.drawString(this.font, "Mainframe Tag:", panelX + 5, textY + 125, 0xFFFFFF);
             } else if (be instanceof com.nishiyu.lunex.blockentity.ScreenBlockEntity screen) {
                 guiGraphics.drawString(this.font, "Display Settings:", panelX + 5, textY, 0x00E5FF);
                 String mode = screen.getPersistentData().getString("DisplayMode");
@@ -432,21 +440,25 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
                     if (screen.mainframeMasterPos != null && level.getBlockEntity(screen.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
                         boolean isNbtFilter = filter.startsWith("{") && filter.endsWith("}");
                         String searchStr = isNbtFilter ? filter.substring(1, filter.length() - 1) : filter;
-                        for (int i = 0; i < master.mainframeStorage.getSlots(); i++) {
-                            ItemStack stack = master.mainframeStorage.getStackInSlot(i);
-                            if (!stack.isEmpty()) {
-                                if (filter.isEmpty()) {
-                                    count += stack.getCount();
-                                } else if (isNbtFilter) {
-                                    net.minecraft.world.item.component.CustomData customData = stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.EMPTY);
-                                    String nbtStr = customData.copyTag().toString();
-                                    if (nbtStr.contains(searchStr)) {
+
+                        IItemHandler handler = level.getCapability(Capabilities.ItemHandler.BLOCK, master.getBlockPos(), null);
+                        if(handler != null) {
+                            for (int i = 0; i < handler.getSlots(); i++) {
+                                ItemStack stack = handler.getStackInSlot(i);
+                                if (!stack.isEmpty()) {
+                                    if (filter.isEmpty()) {
                                         count += stack.getCount();
-                                    }
-                                } else {
-                                    String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
-                                    if (id.contains(searchStr) || stack.getHoverName().getString().contains(searchStr)) {
-                                        count += stack.getCount();
+                                    } else if (isNbtFilter) {
+                                        net.minecraft.world.item.component.CustomData customData = stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.EMPTY);
+                                        String nbtStr = customData.copyTag().toString();
+                                        if (nbtStr.contains(searchStr)) {
+                                            count += stack.getCount();
+                                        }
+                                    } else {
+                                        String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+                                        if (id.contains(searchStr) || stack.getHoverName().getString().contains(searchStr)) {
+                                            count += stack.getCount();
+                                        }
                                     }
                                 }
                             }
@@ -456,10 +468,7 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
                 } else {
                     if (screen.mainframeMasterPos != null && level.getBlockEntity(screen.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
                         double maxMB = master.mainframeTotalCapacityBytes / 1048576.0;
-                        double itemMB = master.mainframeUsedItemBytes / 1048576.0;
-                        double fluidMB = master.mainframeUsedFluidBytes / 1048576.0;
-                        double dataMB = master.mainframeUsedProgramBytes / 1048576.0;
-                        double usedMB = itemMB + fluidMB + dataMB;
+                        double usedMB = master.mainframeUsedItemBytes / 1048576.0;
                         guiGraphics.drawString(this.font, String.format(Locale.US, "Capacity: %.2f / %.2f MB", usedMB, maxMB), panelX + 5, textY + 45, 0x00E5FF);
                     } else {
                         guiGraphics.drawString(this.font, "Capacity: 0.00 / 0.00 MB", panelX + 5, textY + 45, 0x00E5FF);

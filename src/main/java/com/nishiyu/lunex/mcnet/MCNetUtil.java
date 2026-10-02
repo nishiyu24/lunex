@@ -1,10 +1,10 @@
 package com.nishiyu.lunex.mcnet;
 
 import com.nishiyu.lunex.block.LANCableBlock;
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.machine.IMainframePart;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -101,15 +101,19 @@ public class MCNetUtil {
         for (BlockPos start : searchStarts) {
             List<BlockPos> connected = getConnectedDevices(level, start, 2048);
             for (BlockPos p : connected) {
-                if (level.getBlockEntity(p) instanceof RouterBlockEntity) {
+                if (level.getBlockEntity(p) instanceof SimpleMachineBlockEntity sm
+                        && sm.isMainframeMaster
+                        && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                     routersToUpdate.add(p);
                 }
             }
         }
 
         for (BlockPos p : routersToUpdate) {
-            if (level.getBlockEntity(p) instanceof RouterBlockEntity router) {
-                router.requestNetworkUpdate();
+            if (level.getBlockEntity(p) instanceof SimpleMachineBlockEntity sm) {
+                if (sm.vm != null && sm.vm.isRunning) {
+                    sm.vm.forceTriggerEvent("network_updated");
+                }
             }
         }
     }
@@ -132,11 +136,7 @@ public class MCNetUtil {
         for (BlockPos pos : connected) {
             BlockEntity be = level.getBlockEntity(pos);
             if (isMCNetDevice(be)) {
-                net.minecraft.nbt.CompoundTag data;
-                if (be instanceof AdvancedMachineBlockEntity machine) data = machine.persistentData;
-                else if (be instanceof RouterBlockEntity router) data = router.persistentData;
-                else data = be.getPersistentData();
-
+                CompoundTag data = be.getPersistentData();
                 String tag = data.getString("NetworkTag");
 
                 if (be instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity sm && sm.isMainframeMaster) {
@@ -171,7 +171,14 @@ public class MCNetUtil {
     /**
      * ポータブルデバイス(アイテム)をルーターに登録する共通メソッド
      */
-    public static boolean registerPortableDevice(Level level, RouterBlockEntity router, ItemStack stack, Player player, String deviceType, String msgRegistered, String msgFailedIp, String msgDhcpDisabled) {
+    public static boolean registerPortableDevice(Level level, SimpleMachineBlockEntity router, ItemStack stack, Player player, String deviceType, String msgRegistered, String msgFailedIp, String msgDhcpDisabled) {
+        if (!router.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            if (player != null) {
+                player.displayClientMessage(Component.translatable(msgDhcpDisabled).withStyle(net.minecraft.ChatFormatting.RED), true);
+            }
+            return false;
+        }
+
         CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
         CompoundTag tag = customData.copyTag();
 
@@ -186,9 +193,8 @@ public class MCNetUtil {
 
         tag.putLong("RouterPos", router.getBlockPos().asLong());
         tag.putString("RouterDim", level.dimension().location().toString());
-        int upgradeLevel = router.getDistanceUpgradeLevel();
-        double maxDist = upgradeLevel == 1 ? 256.0 : (upgradeLevel == 2 ? 1024.0 : (upgradeLevel >= 3 ? Double.MAX_VALUE : 64.0));
-        tag.putDouble("RouterRange", maxDist);
+        // ★ルーターアップグレードの概念が消えたため無制限として設定
+        tag.putDouble("RouterRange", Double.MAX_VALUE);
 
         CompoundTag rData = router.persistentData;
         if (rData != null && rData.getBoolean("DHCPServerEnabled")) {

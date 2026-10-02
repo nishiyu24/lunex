@@ -132,13 +132,26 @@ public class SimpleMachineScreen extends AbstractContainerScreen<SimpleMachineMe
     }
 
     private List<String> getSuggestions() {
+
+        // ★修正: サーバーからの同期を待たずに、確実によく使うAPIをサジェストに追加
+        List<String> list = new ArrayList<>(List.of(
+                "print(\"\")", "system.chat(\"\")", "system.sleep(0)", "system.getTime()",
+                "system.startTimer(0, \"\")", "system.startTimeout(0, \"\")", "system.stopTimer(0)",
+                "system.loadProgram(\"\")", "system.compile(\"\")", "system.isJson(\"\")",
+                "system.parseJson(\"\")", "system.toJson(nil)"
+        ));
+
         if (this.minecraft != null && this.minecraft.level != null) {
             BlockEntity be = this.minecraft.level.getBlockEntity(this.menu.blockPos);
             if (be instanceof SimpleMachineBlockEntity machineEntity) {
-                return machineEntity.clientSuggestions;
+                for (String s : machineEntity.clientSuggestions) {
+                    if (!list.contains(s)) {
+                        list.add(s);
+                    }
+                }
             }
         }
-        return new ArrayList<>();
+        return list;
     }
 
     private void updateSuggestion() {

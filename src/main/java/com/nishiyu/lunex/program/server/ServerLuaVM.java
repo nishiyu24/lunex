@@ -1,8 +1,6 @@
 package com.nishiyu.lunex.program.server;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
-import com.nishiyu.lunex.machine.IMachineContext;
 import com.nishiyu.lunex.program.core.BaseLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.server.ServerProgramData;
@@ -10,9 +8,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.phys.AABB;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.Varargs;
@@ -25,7 +20,6 @@ import java.util.concurrent.*;
 
 public class ServerLuaVM extends BaseLuaVM {
 
-    // ★ 修正: storage, pubsub, inventory, printer, speaker などのAPI名を追加
     protected static final Set<String> BASE_SYSTEM_GLOBALS = new HashSet<>(Set.of(
             "_G", "_VERSION", "assert", "error", "getmetatable", "next", "pcall", "print", "rawequal", "rawget", "rawlen", "rawset",
             "select", "setmetatable", "tonumber", "tostring", "type", "xpcall", "coroutine", "math", "string", "table", "io", "os",
@@ -41,11 +35,8 @@ public class ServerLuaVM extends BaseLuaVM {
     private static final ExecutorService SCRIPT_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
     public final Map<Class<?>, Object> apiCache = new ConcurrentHashMap<>();
 
-    // ★ 追加: registerAPI で登録された名前を動的に記録し、NBT保存・復元から除外する
     protected final Set<String> dynamicSystemGlobals = ConcurrentHashMap.newKeySet();
 
-    public IMachineContext machine;
-    public AdvancedMachineBlockEntity hardware;
     public CompoundTag memoryBuffer;
     public Player currentPlayer;
     public ConcurrentLinkedQueue<Runnable> mainThreadTasks = new ConcurrentLinkedQueue<>();
@@ -55,28 +46,18 @@ public class ServerLuaVM extends BaseLuaVM {
     public volatile Thread mainServerThread = null;
     protected LinkedBlockingQueue<LuaEvent> pendingEvents = new LinkedBlockingQueue<>();
     protected Future<?> taskFuture;
+    public String workspaceId = "default"; // 実行環境ごとに異なるIDを想定
 
-    public ServerLuaVM(IMachineContext machine) {
+    public ServerLuaVM() {
         super();
-        setContext(machine);
     }
 
     protected Set<String> getSystemGlobals() {
         return BASE_SYSTEM_GLOBALS;
     }
 
-    // ★ 追加: システム予約語かどうかを動的登録も含めて判定
     public boolean isSystemGlobal(String name) {
         return getSystemGlobals().contains(name) || dynamicSystemGlobals.contains(name);
-    }
-
-    public void setContext(IMachineContext context) {
-        this.machine = context;
-        if (context instanceof AdvancedMachineBlockEntity be) {
-            this.hardware = be;
-        } else {
-            this.hardware = null;
-        }
     }
 
     public void takeOverFrom(ServerLuaVM oldVm) {
@@ -89,7 +70,7 @@ public class ServerLuaVM extends BaseLuaVM {
         this.globals = oldVm.globals;
         this.apiCache.putAll(oldVm.apiCache);
         this.dynamicSystemGlobals.addAll(oldVm.dynamicSystemGlobals);
-        setContext(this.machine);
+        this.workspaceId = oldVm.workspaceId;
     }
 
     @SuppressWarnings("unchecked")
@@ -108,7 +89,6 @@ public class ServerLuaVM extends BaseLuaVM {
     }
 
     protected void registerAPI(String namespace, Object apiInstance) {
-        // ルート名前空間（例: "system.io" なら "system"）を動的予約語に追加
         String rootName = namespace.split("\\.")[0];
         dynamicSystemGlobals.add(rootName);
 
@@ -163,8 +143,6 @@ public class ServerLuaVM extends BaseLuaVM {
 
         final int currentExecId = this.executionId.get();
 
-        registerAPI("system", getOrCreateAPI(SystemAPI.class, SystemAPI::new));
-
         globals.set("print", new org.luaj.vm2.lib.VarArgFunction() {
             @Override
             public org.luaj.vm2.Varargs invoke(org.luaj.vm2.Varargs args) {
@@ -179,51 +157,15 @@ public class ServerLuaVM extends BaseLuaVM {
                 if (messageStr.toLowerCase().contains("error:")) {
                     String cleanError = parseLuaErrorString(messageStr);
 
-                    if (hardware != null) {
-                        hardware.persistentData.putString("LastError", cleanError);
-                        hardware.setChanged();
-                    } else if (machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-                        router.persistentData.putString("LastError", cleanError);
-                        router.setChanged();
-                    }
-
                     if (currentPlayer instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
                                 serverPlayer,
                                 new com.nishiyu.lunex.network.packet.s2c.ErrorToastS2CPacket(cleanError)
                         );
                     }
-
-                    if (machine != null && machine.isDebugChat()) {
-                        final Level lvl = (hardware != null) ? hardware.getLevel() : ((machine instanceof BlockEntity be) ? be.getLevel() : null);
-                        if (lvl != null && !lvl.isClientSide && lvl.getServer() != null) {
-                            lvl.getServer().execute(() -> {
-                                AABB aabb = new AABB(machine.getPos()).inflate(10.0);
-                                for (Player player : lvl.getEntitiesOfClass(Player.class, aabb)) {
-                                    player.sendSystemMessage(Component.literal("§c=== Lua Error ==="));
-                                    for (String line : cleanError.split("\n")) {
-                                        player.sendSystemMessage(Component.literal("§c" + line));
-                                    }
-                                    player.sendSystemMessage(Component.literal("§c================="));
-                                }
-                            });
-                        }
-                    }
                     return LuaValue.NIL;
                 }
 
-                if (machine != null && machine.isDebugChat()) {
-                    Component msgComp = Component.literal("§b[Lua] " + messageStr);
-                    final Level lvl = (hardware != null) ? hardware.getLevel() : ((machine instanceof BlockEntity be) ? be.getLevel() : null);
-                    if (lvl != null && !lvl.isClientSide && lvl.getServer() != null) {
-                        lvl.getServer().execute(() -> {
-                            AABB aabb = new AABB(machine.getPos()).inflate(10.0);
-                            for (Player player : lvl.getEntitiesOfClass(Player.class, aabb)) {
-                                player.sendSystemMessage(msgComp);
-                            }
-                        });
-                    }
-                }
                 return LuaValue.NIL;
             }
         });
@@ -287,8 +229,7 @@ public class ServerLuaVM extends BaseLuaVM {
         taskFuture = SCRIPT_EXECUTOR.submit(() -> {
             Thread thisThread = Thread.currentThread();
             this.currentExecutingThread = thisThread;
-            String locationStr = (machine.getPos() != null) ? machine.getPos().toString() : "Tool-" + machine.getWorkspaceId();
-            thisThread.setName("Lunex-Lua-VM-" + locationStr + "-" + processName);
+            thisThread.setName("Lunex-Lua-VM-" + workspaceId + "-" + processName);
 
             try {
                 initSandboxAndAPIs();
@@ -305,26 +246,11 @@ public class ServerLuaVM extends BaseLuaVM {
                 }
 
                 if (isWipingMemory) {
-                    if (hardware != null && hardware.persistentData.contains("AutoMemory")) {
-                        hardware.persistentData.remove("AutoMemory");
-                    } else if (machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-                        router.persistentData.remove("AutoMemory");
-                    }
                     memoryBuffer = null;
                     isWipingMemory = false;
                 }
 
-                if (hardware != null) {
-                    hardware.persistentData.remove("LastError");
-                } else if (machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-                    router.persistentData.remove("LastError");
-                }
-
-                if (hardware != null && hardware.persistentData.contains("AutoMemory")) {
-                    loadMemoryFromTag(hardware.persistentData.getCompound("AutoMemory"));
-                } else if (machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router && router.persistentData.contains("AutoMemory")) {
-                    loadMemoryFromTag(router.persistentData.getCompound("AutoMemory"));
-                } else if (memoryBuffer != null) {
+                if (memoryBuffer != null) {
                     loadMemoryFromTag(memoryBuffer);
                 }
 
@@ -353,14 +279,6 @@ public class ServerLuaVM extends BaseLuaVM {
                     String cleanError = formatLuaError(e);
                     Lunex.LOGGER.error("[Lunex] Lua実行エラー: \n" + cleanError);
 
-                    if (hardware != null) {
-                        hardware.persistentData.putString("LastError", cleanError);
-                        hardware.setChanged();
-                    } else if (machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router) {
-                        router.persistentData.putString("LastError", cleanError);
-                        router.setChanged();
-                    }
-
                     if (currentPlayer instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
                                 serverPlayer,
@@ -368,33 +286,8 @@ public class ServerLuaVM extends BaseLuaVM {
                         );
                     }
 
-                    String vmId = "unknown";
-                    if (machine.getPos() != null) {
-                        if (machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity) {
-                            vmId = "router_" + machine.getPos().getX() + "_" + machine.getPos().getY() + "_" + machine.getPos().getZ();
-                        } else {
-                            vmId = "machine_" + machine.getPos().getX() + "_" + machine.getPos().getY() + "_" + machine.getPos().getZ();
-                        }
-                    } else {
-                        vmId = "tablet_" + System.identityHashCode(machine);
-                    }
+                    String vmId = "vm_" + workspaceId;
                     com.nishiyu.lunex.network.LocalWebSocketServer.sendVmError(vmId, cleanError);
-
-                    if (machine.isDebugChat()) {
-                        final Level lvl = (hardware != null) ? hardware.getLevel() : ((machine instanceof BlockEntity be) ? be.getLevel() : null);
-                        if (lvl != null && !lvl.isClientSide && lvl.getServer() != null) {
-                            lvl.getServer().execute(() -> {
-                                AABB aabb = new AABB(machine.getPos()).inflate(10.0);
-                                for (Player player : lvl.getEntitiesOfClass(Player.class, aabb)) {
-                                    player.sendSystemMessage(Component.literal("§c=== Lua Error ==="));
-                                    for (String line : cleanError.split("\n")) {
-                                        player.sendSystemMessage(Component.literal("§c" + line));
-                                    }
-                                    player.sendSystemMessage(Component.literal("§c================="));
-                                }
-                            });
-                        }
-                    }
                 }
             } finally {
                 if (this.executionId.get() == currentExecId) {
@@ -409,9 +302,8 @@ public class ServerLuaVM extends BaseLuaVM {
 
     public void startProgram(String programName) {
         try {
-            String wsId = machine.getWorkspaceId();
-            ServerProgramData.load(wsId);
-            Map<String, String> progs = ServerProgramData.getPrograms(wsId);
+            ServerProgramData.load(workspaceId);
+            Map<String, String> progs = ServerProgramData.getPrograms(workspaceId);
             String rawCode = progs.get(programName);
             if (rawCode == null) rawCode = "";
             startCode(rawCode, programName);
@@ -448,9 +340,6 @@ public class ServerLuaVM extends BaseLuaVM {
         isWipingMemory = true;
         stopProgram();
 
-        if (hardware != null) hardware.persistentData.remove("AutoMemory");
-        else if (machine instanceof com.nishiyu.lunex.blockentity.RouterBlockEntity router)
-            router.persistentData.remove("AutoMemory");
         memoryBuffer = null;
 
         cleanupAPIs();
@@ -494,16 +383,9 @@ public class ServerLuaVM extends BaseLuaVM {
     }
 
     public void applyDelay(int baseDelayMs, boolean isRender) {
-        if (!isValidRun(this.executionId.get()) || machine == null) throw new org.luaj.vm2.LuaError("VM Stopped");
-        double multiplier = 1.0;
-        if (hardware != null) multiplier = hardware.getSpeedMultiplier(isRender);
-        else {
-            int reduction = machine.getSpeedUpgradeLevel() * 30;
-            int maxReduction = isRender ? 100 : 95;
-            multiplier = Math.max(0.0, 1.0 - (Math.min(reduction, maxReduction) / 100.0));
-        }
+        if (!isValidRun(this.executionId.get())) throw new org.luaj.vm2.LuaError("VM Stopped");
 
-        long finalDelay = (long) (baseDelayMs * multiplier);
+        long finalDelay = (long) baseDelayMs; // BlockEntity関連の速度計算は削除
         if (finalDelay > 0) {
             try {
                 Thread.sleep(finalDelay);
@@ -551,7 +433,6 @@ public class ServerLuaVM extends BaseLuaVM {
 
     public void loadMemoryFromTag(CompoundTag memTag) {
         for (String key : memTag.getAllKeys()) {
-            // ★ 修正: 保存データ側に誤ってシステムAPIが入っていても上書き復元しないようガード
             if (isSystemGlobal(key)) continue;
 
             LuaValue loadedVal = loadFromNBT(memTag.get(key));
@@ -588,7 +469,6 @@ public class ServerLuaVM extends BaseLuaVM {
 
                 if (key.isstring()) {
                     String k = key.checkjstring();
-                    // ★ 修正: isSystemGlobal で動的APIも含めてセーブ対象から除外
                     if (isSystemGlobal(k)) continue;
 
                     LuaValue val = nextNode.arg(2);

@@ -1,9 +1,10 @@
 package com.nishiyu.lunex.program.server.turtle.api;
 
-import com.nishiyu.lunex.block.AdvancedMachineBlock;
+import com.nishiyu.lunex.block.TurtleBotBlock;
 import com.nishiyu.lunex.blockentity.TurtleBotBlockEntity;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
+import com.nishiyu.lunex.program.server.turtle.TurtleServerLuaVM;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -19,10 +20,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.List;
 
 public class TurtleAPI {
-    private final ServerLuaVM vm;
+    private final TurtleServerLuaVM vm;
 
     public TurtleAPI(ServerLuaVM vm) {
-        this.vm = vm;
+        // VMのインスタンスをTurtleServerLuaVMとして保持します
+        this.vm = (TurtleServerLuaVM) vm;
     }
 
     @LuaFunction(
@@ -33,7 +35,7 @@ public class TurtleAPI {
             isAsync = false
     )
     public boolean isTurtle() {
-        return vm.hardware instanceof TurtleBotBlockEntity;
+        return vm.turtleEntity != null;
     }
 
     @LuaFunction(
@@ -111,10 +113,10 @@ public class TurtleAPI {
     )
     public boolean dig(int toolSlot, int recoverySlot, String dirStr) {
         if (!isTurtle()) return false;
-        if (!vm.hardware.consumeActionEnergy(150)) return false;
+        if (!vm.turtleEntity.consumeActionEnergy(150)) return false;
 
         long baseSleepTime = vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = (TurtleBotBlockEntity) vm.hardware;
+            TurtleBotBlockEntity turtle = vm.turtleEntity;
             if (turtle.isRemoved() || turtle.hasPendingMove || turtle.hasPendingTurn) return -1L;
 
             Direction dir = parseDirection(turtle, dirStr);
@@ -146,7 +148,7 @@ public class TurtleAPI {
         if (!vm.isRunning) return false;
 
         return vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = (TurtleBotBlockEntity) vm.hardware;
+            TurtleBotBlockEntity turtle = vm.turtleEntity;
             if (turtle.isRemoved()) return false;
 
             Direction dir = parseDirection(turtle, dirStr);
@@ -191,10 +193,10 @@ public class TurtleAPI {
     )
     public boolean place(int slot, String dirStr) {
         if (!isTurtle()) return false;
-        if (!vm.hardware.consumeActionEnergy(50)) return false;
+        if (!vm.turtleEntity.consumeActionEnergy(50)) return false;
 
         return vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = (TurtleBotBlockEntity) vm.hardware;
+            TurtleBotBlockEntity turtle = vm.turtleEntity;
             if (turtle.isRemoved() || turtle.hasPendingMove || turtle.hasPendingTurn) return false;
 
             Direction dir = parseDirection(turtle, dirStr);
@@ -226,7 +228,7 @@ public class TurtleAPI {
         if (str.equals("up")) return Direction.UP;
         if (str.equals("down")) return Direction.DOWN;
 
-        Direction facing = turtle.getBlockState().getValue(AdvancedMachineBlock.FACING);
+        Direction facing = turtle.getBlockState().getValue(TurtleBotBlock.FACING);
         return switch (str) {
             case "front", "forward" -> facing;
             case "back", "backward" -> facing.getOpposite();
@@ -242,13 +244,13 @@ public class TurtleAPI {
 
     private boolean executeMove(Direction moveDir, boolean isRelative) {
         if (!isTurtle()) return false;
-        if (!vm.hardware.consumeActionEnergy(200)) return false;
+        if (!vm.turtleEntity.consumeActionEnergy(200)) return false;
 
         long animMs = vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = (TurtleBotBlockEntity) vm.hardware;
+            TurtleBotBlockEntity turtle = vm.turtleEntity;
             if (turtle.isRemoved() || turtle.hasPendingMove || turtle.hasPendingTurn) return -1L;
 
-            Direction facing = turtle.getBlockState().getValue(AdvancedMachineBlock.FACING);
+            Direction facing = turtle.getBlockState().getValue(TurtleBotBlock.FACING);
             Direction actualDir = moveDir;
 
             if (isRelative) {
@@ -273,7 +275,7 @@ public class TurtleAPI {
             if (!vm.isRunning) return false;
 
             vm.executeInMainThreadSync(() -> {
-                TurtleBotBlockEntity turtle = (TurtleBotBlockEntity) vm.hardware;
+                TurtleBotBlockEntity turtle = vm.turtleEntity;
                 if (!turtle.isRemoved()) {
                     turtle.executePendingActions(turtle.getLevel(), turtle.getBlockPos());
                 }
@@ -286,13 +288,13 @@ public class TurtleAPI {
 
     private boolean executeTurn(boolean isLeft) {
         if (!isTurtle()) return false;
-        if (!vm.hardware.consumeActionEnergy(50)) return false;
+        if (!vm.turtleEntity.consumeActionEnergy(50)) return false;
 
         long animMs = vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = (TurtleBotBlockEntity) vm.hardware;
+            TurtleBotBlockEntity turtle = vm.turtleEntity;
             if (turtle.isRemoved() || turtle.hasPendingMove || turtle.hasPendingTurn) return -1L;
 
-            Direction facing = turtle.getBlockState().getValue(AdvancedMachineBlock.FACING);
+            Direction facing = turtle.getBlockState().getValue(TurtleBotBlock.FACING);
             Direction newFacing = isLeft ? facing.getCounterClockWise() : facing.getClockWise();
 
             turtle.pendingTurnFacing = newFacing;
@@ -310,7 +312,7 @@ public class TurtleAPI {
             if (!vm.isRunning) return false;
 
             vm.executeInMainThreadSync(() -> {
-                TurtleBotBlockEntity turtle = (TurtleBotBlockEntity) vm.hardware;
+                TurtleBotBlockEntity turtle = vm.turtleEntity;
                 if (!turtle.isRemoved()) {
                     turtle.executePendingActions(turtle.getLevel(), turtle.getBlockPos());
                 }

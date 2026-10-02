@@ -4,9 +4,6 @@ import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.entity.CustomBehaviorRegistry;
 import com.nishiyu.lunex.entity.traits.ModTraits;
 import com.nishiyu.lunex.item.*;
-import com.nishiyu.lunex.jei.LunexJEIPlugin;
-import com.nishiyu.lunex.menu.AdvancedMachineScreen;
-import com.nishiyu.lunex.menu.RouterDashboardScreen;
 import net.minecraft.data.PackOutput;
 
 import java.lang.reflect.Field;
@@ -27,23 +24,16 @@ public class ModLanguageProviderJaJp extends AutoLanguageProvider {
         new CustomBehaviorRegistry().gatherTranslations(this, "ja_jp");
 
         // 3. アイテム固有、システムメッセージ等の収集
-        new UpgradeItem.Translations().gatherTranslations(this, "ja_jp");
         new ARGlassesItem.Translations().gatherTranslations(this, "ja_jp");
         new InactiveBookItem.Translations().gatherTranslations(this, "ja_jp");
-        new PaintballItem.Translations().gatherTranslations(this, "ja_jp");
         new PortableScreenItem.Translations().gatherTranslations(this, "ja_jp");
         new ProgramDiskItem.Translations().gatherTranslations(this, "ja_jp");
         new TabletItem.Translations().gatherTranslations(this, "ja_jp");
         new ModMessages().gatherTranslations(this, "ja_jp");
 
-        // 4. GUIスクリーンの @Translatable フィールドを自動収集
-        scanTranslatableFields(AdvancedMachineScreen.class);
-        scanTranslatableFields(RouterDashboardScreen.class);
         scanTranslatableFields(com.nishiyu.lunex.block.RouterBlock.class);
         scanTranslatableFields(com.nishiyu.lunex.menu.bioprinter.BioPrinterTranslations.class);
 
-        // 【追加】JEIプラグインの @Translatable フィールドを自動収集
-        scanTranslatableFields(LunexJEIPlugin.class);
     }
 
     /**

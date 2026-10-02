@@ -28,10 +28,8 @@ public class DeviceAPIRegistry {
         register("portable_screen", DeviceAPI::buildScreenWrapper);
         register("ar_glasses", DeviceAPI::buildScreenWrapper);
         register("speaker", DeviceAPI::buildSpeakerWrapper);
-        register("machine", DeviceAPI::buildMachineWrapper);
         register("self", DeviceAPI::buildMachineWrapper);
         register("probe", DeviceAPI::buildProbeWrapper);
-        register("router", DeviceAPI::buildRouterWrapper);
         register("printer", DeviceAPI::buildPrinterWrapper);
         register("database", DeviceAPI::buildDatabaseWrapper);
         register("camera", DeviceAPI::buildMachineWrapper);

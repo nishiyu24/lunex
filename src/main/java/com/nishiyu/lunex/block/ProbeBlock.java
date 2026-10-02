@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class ProbeBlock extends Block implements EntityBlock, IMCNetBlock {
 
@@ -32,10 +33,9 @@ public class ProbeBlock extends Block implements EntityBlock, IMCNetBlock {
     public static final BooleanProperty SOUTH = BlockStateProperties.SOUTH;
     public static final BooleanProperty EAST = BlockStateProperties.EAST;
     public static final BooleanProperty WEST = BlockStateProperties.WEST;
-
     public static final BooleanProperty IS_DISGUISED = BooleanProperty.create("is_disguised");
     public static final BooleanProperty ASSEMBLED = BooleanProperty.create("assembled");
-    public static final BooleanProperty ACTIVE = BooleanProperty.create("active"); // ★追加
+    public static final BooleanProperty ACTIVE = BooleanProperty.create("active");
 
     public ProbeBlock(Properties properties) {
         super(properties);
@@ -45,10 +45,11 @@ public class ProbeBlock extends Block implements EntityBlock, IMCNetBlock {
                 .setValue(EAST, false).setValue(WEST, false)
                 .setValue(IS_DISGUISED, false)
                 .setValue(ASSEMBLED, false)
-                .setValue(ACTIVE, false) // ★追加
+                .setValue(ACTIVE, false)
         );
     }
 
+    // ★追加: 削除してしまったメソッドを復活させます。ProbeScreen等から呼ばれます。
     public static BooleanProperty getPropertyByDirection(Direction dir) {
         return switch (dir) {
             case UP -> UP;
@@ -62,7 +63,6 @@ public class ProbeBlock extends Block implements EntityBlock, IMCNetBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        // ★ ACTIVE を追加
         builder.add(UP, DOWN, NORTH, SOUTH, EAST, WEST, IS_DISGUISED, ASSEMBLED, ACTIVE);
     }
 
@@ -73,8 +73,7 @@ public class ProbeBlock extends Block implements EntityBlock, IMCNetBlock {
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        if (state.getValue(IS_DISGUISED)) return RenderShape.INVISIBLE;
-        return RenderShape.MODEL;
+        return state.getValue(IS_DISGUISED) ? RenderShape.INVISIBLE : RenderShape.MODEL;
     }
 
     @Override
@@ -100,16 +99,24 @@ public class ProbeBlock extends Block implements EntityBlock, IMCNetBlock {
 
     @Override
     public @NotNull InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
-        if (!level.isClientSide) {
-            if (state.getValue(ASSEMBLED)) {
-                InteractionResult result = MainframeScanner.tryOpenMainframeTerminal(level, pos, player);
-                if (result.consumesAction()) return result;
+        if (!level.isClientSide()) {
+            BlockEntity be = level.getBlockEntity(pos);
+
+            // 1. 合体時はマスターブロックに処理を委譲
+            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+                InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
+                if (delegateResult != null) {
+                    return delegateResult;
+                }
             }
 
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof ProbeBlockEntity) player.openMenu((ProbeBlockEntity) be, pos);
+            // 2. 未合体時はプローブ本来のGUIを開く
+            if (be instanceof com.nishiyu.lunex.blockentity.ProbeBlockEntity probe) {
+                player.openMenu(probe, pos);
+                return InteractionResult.CONSUME;
+            }
         }
-        return InteractionResult.sidedSuccess(level.isClientSide);
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override
@@ -130,7 +137,7 @@ public class ProbeBlock extends Block implements EntityBlock, IMCNetBlock {
         return new ProbeBlockEntity(pos, state);
     }
 
-    @org.jetbrains.annotations.Nullable
+    @Nullable
     @Override
     public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
         if (level.isClientSide) return null;

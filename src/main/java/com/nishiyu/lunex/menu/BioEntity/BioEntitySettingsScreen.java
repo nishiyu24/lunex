@@ -1,8 +1,7 @@
 package com.nishiyu.lunex.menu.BioEntity;
 
 import com.nishiyu.lunex.entity.CustomBioMobEntity;
-import com.nishiyu.lunex.menu.MachineSettings.GuiRenderUtils;
-import com.nishiyu.lunex.menu.utiles.IMachineTab;
+import com.nishiyu.lunex.menu.utiles.GuiRenderUtils;
 import com.nishiyu.lunex.network.packet.c2s.AppMessageC2SPacket;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;

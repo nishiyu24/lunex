@@ -1,7 +1,9 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
-import com.nishiyu.lunex.blockentity.AdvancedMachineBlockEntity;
-import com.nishiyu.lunex.blockentity.RouterBlockEntity;
+import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
 import net.minecraft.core.BlockPos;
@@ -17,31 +19,44 @@ import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 
 import java.util.Map;
 
-public class StorageAPI {
-    private final ServerLuaVM vm;
+public class StorageAPI implements IMainframeAPI {
+    private ServerLuaVM vm;
 
-    public StorageAPI(ServerLuaVM vm) {
-        this.vm = vm;
+    public StorageAPI() {}
+    public StorageAPI(ServerLuaVM vm) { this.vm = vm; }
+
+    @Override
+    public String getNamespace() { return MainframeConstants.API_STORAGE; }
+
+    @Override
+    public String getRequiredFeature() { return MainframeConstants.FEATURE_ROUTER; }
+
+    @Override
+    public Object createInstance(ServerLuaVM vm) {
+        return new StorageAPI(vm);
     }
 
-    private RouterBlockEntity findConnectedRouter() {
-        BlockEntity hardware = vm.hardware;
-        if (hardware == null || hardware.getLevel() == null) return null;
-        CompoundTag data = hardware instanceof AdvancedMachineBlockEntity m ? m.persistentData : hardware.getPersistentData();
+    private SimpleMachineBlockEntity findConnectedRouter() {
+        SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
+        if (machine == null || machine.getLevel() == null) return null;
 
-        // ★ 変更: MainframeNetworkTagやメインフレーム構成にルーターが含まれる場合の拡張対応をここで行うことも可能ですが、
-        // 基本的には既存の "RouterPos" NBTを参照するロジックをベースにします。
+        if (machine.isMainframeMaster && machine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            return machine;
+        }
+
+        CompoundTag data = machine.getPersistentData();
         if (data != null && data.contains("RouterPos")) {
             BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
-            BlockEntity be = hardware.getLevel().getBlockEntity(routerPos);
-            if (be instanceof RouterBlockEntity router) return router;
+            BlockEntity be = machine.getLevel().getBlockEntity(routerPos);
+            if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                return router;
+            }
         }
         return null;
     }
 
     @LuaFunction(
             value = "ルーター配下のインベントリを仮想ストレージとして構築し、操作用オブジェクトを返します。",
-            en = "Builds virtual storage from inventories under the router and returns an operation object.",
             args = {},
             rets = {"table:storage"},
             isAsync = true
@@ -49,38 +64,26 @@ public class StorageAPI {
     public LuaTable build() {
         return vm.executeInMainThreadSync(() -> {
             LuaTable storageObj = new LuaTable();
-            RouterBlockEntity router = findConnectedRouter();
+            SimpleMachineBlockEntity router = findConnectedRouter();
 
-            BlockEntity machine = (BlockEntity) vm.machine;
-            if (machine instanceof RouterBlockEntity rbe) router = rbe;
-
-            if (router == null || router.getLevel() == null) return storageObj;
+            if (router == null || router.getLevel() == null || router.virtualStorage == null) return storageObj;
 
             if (router.virtualStorage.getAllItems().isEmpty() && router.virtualStorage.rules.isEmpty()) {
                 router.virtualStorage.rebuildNetworkCache(router.getLevel());
             }
 
-            final RouterBlockEntity finalRouter = router;
+            final SimpleMachineBlockEntity finalRouter = router;
 
             storageObj.set("getItemCount", new OneArgFunction() {
-                @Override
-                public LuaValue call(LuaValue itemName) {
-                    return getItemCount(finalRouter, itemName);
-                }
+                @Override public LuaValue call(LuaValue itemName) { return getItemCount(finalRouter, itemName); }
             });
 
             storageObj.set("pushToTag", new ThreeArgFunction() {
-                @Override
-                public LuaValue call(LuaValue tag, LuaValue itemName, LuaValue amount) {
-                    return pushToTag(finalRouter, tag, itemName, amount);
-                }
+                @Override public LuaValue call(LuaValue tag, LuaValue itemName, LuaValue amount) { return pushToTag(finalRouter, tag, itemName, amount); }
             });
 
             storageObj.set("forceUpdate", new ZeroArgFunction() {
-                @Override
-                public LuaValue call() {
-                    return forceUpdate(finalRouter);
-                }
+                @Override public LuaValue call() { return forceUpdate(finalRouter); }
             });
 
             LuaTable logisticsObj = new LuaTable();
@@ -122,8 +125,7 @@ public class StorageAPI {
                     com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern pattern = new com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern();
 
                     builder.set("inputs", new OneArgFunction() {
-                        @Override
-                        public LuaValue call(LuaValue arg) {
+                        @Override public LuaValue call(LuaValue arg) {
                             if (arg.istable()) {
                                 LuaTable t = arg.checktable();
                                 for (LuaValue k : t.keys()) pattern.inputs.put(k.tojstring(), t.get(k).toint());
@@ -132,8 +134,7 @@ public class StorageAPI {
                         }
                     });
                     builder.set("outputs", new OneArgFunction() {
-                        @Override
-                        public LuaValue call(LuaValue arg) {
+                        @Override public LuaValue call(LuaValue arg) {
                             if (arg.istable()) {
                                 LuaTable t = arg.checktable();
                                 for (LuaValue k : t.keys()) pattern.outputs.put(k.tojstring(), t.get(k).toint());
@@ -214,22 +215,26 @@ public class StorageAPI {
         });
     }
 
-    public LuaValue getItemCount(RouterBlockEntity router, LuaValue itemName) {
+    public LuaValue getItemCount(SimpleMachineBlockEntity router, LuaValue itemName) {
+        if (router.virtualStorage == null) return LuaValue.valueOf(0);
         return LuaValue.valueOf(router.virtualStorage.getItemCount(itemName.tojstring()));
     }
 
-    public LuaValue pushToTag(RouterBlockEntity router, LuaValue tag, LuaValue itemName, LuaValue amount) {
+    public LuaValue pushToTag(SimpleMachineBlockEntity router, LuaValue tag, LuaValue itemName, LuaValue amount) {
+        if (router.virtualStorage == null) return LuaValue.FALSE;
         boolean result = router.virtualStorage.pushToTag(tag.tojstring(), itemName.tojstring(), amount.toint(), router.getLevel());
         return LuaValue.valueOf(result);
     }
 
-    public LuaValue forceUpdate(RouterBlockEntity router) {
-        router.virtualStorage.onStorageChanged(router.getLevel());
+    public LuaValue forceUpdate(SimpleMachineBlockEntity router) {
+        if (router.virtualStorage != null) {
+            router.virtualStorage.onStorageChanged(router.getLevel());
+        }
         return LuaValue.NIL;
     }
 
-    public LuaValue addRule(RouterBlockEntity router, LuaValue ruleArg) {
-        if (ruleArg.istable()) {
+    public LuaValue addRule(SimpleMachineBlockEntity router, LuaValue ruleArg) {
+        if (ruleArg.istable() && router.virtualStorage != null) {
             LuaValue hiddenRule = ruleArg.get("_rule");
             if (!hiddenRule.isnil() && hiddenRule.isuserdata(com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule.class)) {
                 com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule rule = (com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule) hiddenRule.checkuserdata();
@@ -241,8 +246,10 @@ public class StorageAPI {
         return LuaValue.FALSE;
     }
 
-    public LuaValue clearRules(RouterBlockEntity router) {
-        router.virtualStorage.clearRules();
+    public LuaValue clearRules(SimpleMachineBlockEntity router) {
+        if (router.virtualStorage != null) {
+            router.virtualStorage.clearRules();
+        }
         return LuaValue.NIL;
     }
 }

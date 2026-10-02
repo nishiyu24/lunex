@@ -4,8 +4,8 @@ import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.blockentity.PrinterBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.machine.MainframeScanner;
-import com.nishiyu.lunex.machine.SimpleMachineVMCache;
-import com.nishiyu.lunex.program.server.machine.SimpleMachineServerLuaVM;
+import com.nishiyu.lunex.machine.CoreMachineVMCache;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
@@ -47,27 +47,27 @@ public record SimpleMachineActionC2SPacket(BlockPos pos, String action, String n
                 if (be instanceof SimpleMachineBlockEntity machineEntity) {
                     switch (packet.action()) {
                         case "execute":
-                            if (machineEntity.vm instanceof SimpleMachineServerLuaVM simpleVm) {
+                            if (machineEntity.vm instanceof CoreMachineServerLuaVM simpleVm) {
                                 simpleVm.executeString(packet.payload());
                             }
                             break;
                         case "clear":
-                            if (machineEntity.vm instanceof SimpleMachineServerLuaVM simpleVm) {
+                            if (machineEntity.vm instanceof CoreMachineServerLuaVM simpleVm) {
                                 simpleVm.terminalLog.clear();
                                 simpleVm.syncClient();
                             }
                             break;
                         case "wipe":
                             if (machineEntity.machineId != null) {
-                                SimpleMachineVMCache.removeVM(machineEntity.machineId);
-                                machineEntity.vm = SimpleMachineVMCache.getOrCreateVM(machineEntity.machineId, machineEntity);
-                                if (machineEntity.vm instanceof SimpleMachineServerLuaVM newVm) {
+                                CoreMachineVMCache.removeVM(machineEntity.machineId);
+                                machineEntity.vm = CoreMachineVMCache.getOrCreateVM(machineEntity.machineId, machineEntity);
+                                if (machineEntity.vm instanceof CoreMachineServerLuaVM newVm) {
                                     newVm.syncClient();
                                 }
                             }
                             break;
                         case "help":
-                            if (machineEntity.vm instanceof SimpleMachineServerLuaVM simpleVm) {
+                            if (machineEntity.vm instanceof CoreMachineServerLuaVM simpleVm) {
                                 simpleVm.terminalLog.add("§e--- Available Commands ---§r");
                                 simpleVm.terminalLog.add("  /help     - Show this help message");
                                 simpleVm.terminalLog.add("  /clear    - Clear the screen");
@@ -78,11 +78,11 @@ public record SimpleMachineActionC2SPacket(BlockPos pos, String action, String n
                             }
                             break;
                         case "assemble": // ★追加: メインフレーム構築コマンド
-                            if (machineEntity.vm instanceof SimpleMachineServerLuaVM simpleVm) {
+                            if (machineEntity.vm instanceof CoreMachineServerLuaVM simpleVm) {
                                 if (machineEntity.isMainframeMaster) {
                                     simpleVm.terminalLog.add("§cMainframe is already assembled.§r");
                                 } else {
-                                    boolean success = MainframeScanner.attemptFormMainframe(level, packet.pos());
+                                    boolean success = MainframeScanner.attemptFormMainframe(level, packet.pos(), context.player());
                                     if (!success) {
                                         simpleVm.terminalLog.add("§cFailed to assemble mainframe. Invalid structure.§r");
                                     }
@@ -92,13 +92,13 @@ public record SimpleMachineActionC2SPacket(BlockPos pos, String action, String n
                             }
                             break;
                         case "unknown_cmd":
-                            if (machineEntity.vm instanceof SimpleMachineServerLuaVM simpleVm) {
+                            if (machineEntity.vm instanceof CoreMachineServerLuaVM simpleVm) {
                                 simpleVm.terminalLog.add("§cUnknown command: " + packet.payload() + "§r");
                                 simpleVm.syncClient();
                             }
                             break;
                         case "export":
-                            if (machineEntity.vm instanceof SimpleMachineServerLuaVM simpleVm) {
+                            if (machineEntity.vm instanceof CoreMachineServerLuaVM simpleVm) {
                                 List<String> toExport = new ArrayList<>(simpleVm.successfulPrograms);
                                 String finalCode = String.join("\n", toExport);
 

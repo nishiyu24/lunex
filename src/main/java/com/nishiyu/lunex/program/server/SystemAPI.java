@@ -3,11 +3,11 @@ package com.nishiyu.lunex.program.server;
 import com.google.gson.*;
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.program.core.LuaFunction;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.server.ServerProgramData;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 
@@ -35,11 +35,9 @@ public class SystemAPI {
     )
     public int startTimer(int interval, String callbackName) {
         int timerId = timerCounter.incrementAndGet();
-        // ★修正: タイマー起動時の実行IDを保持する
         final int execId = vm.executionId.get();
 
         Thread t = Thread.startVirtualThread(() -> {
-            // ★修正: isRunningだけでなく、実行IDが最新であるか（再起動されていないか）チェック
             while (vm.isValidRun(execId) && activeTimers.containsKey(timerId)) {
                 try {
                     Thread.sleep(interval);
@@ -66,7 +64,6 @@ public class SystemAPI {
     )
     public int startTimeout(int delay, String callbackName) {
         int timerId = timerCounter.incrementAndGet();
-        // ★修正: こちらも同様に実行IDを保持する
         final int execId = vm.executionId.get();
 
         Thread t = Thread.startVirtualThread(() -> {
@@ -118,11 +115,10 @@ public class SystemAPI {
     )
     public void chat(String message) {
         vm.executeInMainThreadSync(() -> {
-            if (vm.machine != null) {
+            // ★修正: CoreMachineServerLuaVM にキャストして simpleMachine から Level を取得
+            if (vm instanceof CoreMachineServerLuaVM cvm && cvm.simpleMachine != null) {
                 Lunex.LOGGER.info("[Lunex Chat] " + message);
-                Level lvl = null;
-                if (vm.hardware != null) lvl = vm.hardware.getLevel();
-                else if (vm.machine instanceof BlockEntity be) lvl = be.getLevel();
+                Level lvl = cvm.simpleMachine.getLevel();
 
                 if (lvl instanceof ServerLevel serverLevel) {
                     serverLevel.getServer().getPlayerList().broadcastSystemMessage(
@@ -168,7 +164,8 @@ public class SystemAPI {
             isAsync = true
     )
     public LuaValue loadProgram(String programName) {
-        String wsId = vm.machine.getWorkspaceId();
+        // ★修正: baseVM が持つ workspaceId プロパティを利用する
+        String wsId = vm.workspaceId;
         Map<String, String> progs = ServerProgramData.getPrograms(wsId);
 
         if (progs == null) return LuaValue.NIL;

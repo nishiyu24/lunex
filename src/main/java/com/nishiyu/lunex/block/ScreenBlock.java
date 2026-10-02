@@ -72,13 +72,17 @@ public class ScreenBlock extends BaseEntityBlock implements IMCNetBlock {
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
-        if (!level.isClientSide) {
-            if (state.getValue(ASSEMBLED)) {
-                InteractionResult result = MainframeScanner.tryOpenMainframeTerminal(level, pos, player);
-                if (result.consumesAction()) return result;
+        if (!level.isClientSide()) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+                InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
+                if (delegateResult != null) {
+                    return delegateResult;
+                }
             }
         }
 
+        // スクリーン自体の当たり判定処理（既存の処理）
         Direction facing = state.getValue(FACING);
         if (hitResult.getDirection() == facing) {
             return InteractionResult.SUCCESS;

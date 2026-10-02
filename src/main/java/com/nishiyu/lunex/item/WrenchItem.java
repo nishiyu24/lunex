@@ -12,8 +12,8 @@ public class WrenchItem extends Item {
 
     @Override
     public float getDestroySpeed(ItemStack stack, BlockState state) {
-        // ★ プログラマブルマシン、タートルボット、データベースブロックの場合
-        if (state.is(Lunex.ADVANCED_MACHINE.get()) || state.is(Lunex.TURTLE_BOT_BLOCK.get()) || state.is(Lunex.DATABASE_BLOCK.get())) {
+        // ★ シンプルマシン、タートルボット、データベースブロックの場合
+        if (state.is(Lunex.SIMPLE_MACHINE.get()) || state.is(Lunex.TURTLE_BOT_BLOCK.get()) || state.is(Lunex.DATABASE_BLOCK.get())) {
             // 誤破壊を防ぐため、15.0F（一瞬）から 2.0F（適度な遅さ）に変更
             return 2.0F;
         }
@@ -23,7 +23,7 @@ public class WrenchItem extends Item {
     @Override
     public boolean isCorrectToolForDrops(ItemStack stack, BlockState state) {
         // ★ 該当のブロックであればドロップを許可する
-        if (state.is(Lunex.ADVANCED_MACHINE.get()) || state.is(Lunex.TURTLE_BOT_BLOCK.get()) || state.is(Lunex.DATABASE_BLOCK.get())) {
+        if (state.is(Lunex.SIMPLE_MACHINE.get()) || state.is(Lunex.TURTLE_BOT_BLOCK.get()) || state.is(Lunex.DATABASE_BLOCK.get())) {
             return true;
         }
         return super.isCorrectToolForDrops(stack, state);
