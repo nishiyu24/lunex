@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.client.ui;
+package com.nishiyu.lunex.api.client.ui.extensions;
 
 import com.nishiyu.lunex.api.client.IMainframeUIExtension;
 import com.nishiyu.lunex.api.client.IMainframeUIExtensionProvider;
@@ -23,7 +23,6 @@ import java.util.function.Consumer;
  */
 public class AdapterUIExtension implements IMainframeUIExtension<MainframeAdapterBlockEntity>, IMainframeUIExtensionProvider {
 
-    // アダプター内で処理を分岐させるためのサブモジュール用インターフェース
     public interface IAdapterModuleUI {
         boolean canHandle(BlockState originalState);
         int getPanelHeight(MainframeAdapterBlockEntity be);
@@ -34,7 +33,6 @@ public class AdapterUIExtension implements IMainframeUIExtension<MainframeAdapte
 
     private static final List<IAdapterModuleUI> MODULES = new ArrayList<>();
 
-    // 外部のアドオン等からモジュールを登録するためのメソッド
     public static void registerModule(IAdapterModuleUI module) {
         MODULES.add(module);
     }

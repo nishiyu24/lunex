@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.api.mainframe.extension;
+package com.nishiyu.lunex.api.mainframe;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -62,5 +62,12 @@ public interface IMainframeExtension {
      * @param master メインフレームのマスターブロックエンティティ
      */
     default void onActionReceived(String action, String value, SimpleMachineBlockEntity master) {
+    }
+
+    /**
+     * アドオンで追加した独自リソース（ガス、マナなど）の現在使用量を map に追加してください。
+     * @param usages 現在の各リソース使用量を格納するマップ
+     */
+    default void updateResourceUsages(java.util.Map<String, Long> usages) {
     }
 }

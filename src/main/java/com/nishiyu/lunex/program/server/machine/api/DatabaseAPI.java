@@ -1,6 +1,6 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
-import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
+import com.nishiyu.lunex.api.mainframe.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
@@ -46,57 +46,75 @@ public class DatabaseAPI implements IMainframeAPI {
     }
 
     @LuaFunction(
-            value = "データベースのストレージ使用量をメガバイト(MB)形式の文字列で取得します。",
+            value = "データベースのストレージ使用量を文字列形式（使用数 / 最大数）で取得します。",
             args = {"str:target"},
             rets = {"str:usage"},
             isAsync = false
     )
-    public String getUsageMB(String targetStr) {
+    public String getUsage(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
-            if (master == null) return "0.00 MB / 0.00 MB";
+            if (master == null) return "0 / 0";
 
-            int usedBytes = getUsedBytes(targetStr);
-            int maxBytes = getMaxBytes(targetStr);
-
-            double used = usedBytes / 1048576.0;
-            if (usedBytes > 0 && used < 0.01) used = 0.01;
-            double max = maxBytes / 1048576.0;
-            return String.format("%.2f MB / %.2f MB", used, max);
+            long used = master.resourceUsages.getOrDefault("item", 0L);
+            long max = master.resourceCapacities.getOrDefault("item", 0L);
+            return String.format("%d / %d", used, max);
         });
     }
 
     @LuaFunction(
-            value = "データベースの現在の使用容量（バイト数）を取得します。",
+            value = "データベースの現在の使用容量（アイテム個数）を取得します。",
             args = {"str:target"},
-            rets = {"num:usedBytes"},
+            rets = {"num:usedCount"},
             isAsync = false
     )
-    public int getUsedBytes(String targetStr) {
+    public int getUsedCount(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
-            if (master == null || master.getLevel() == null) return 0;
-
-            int totalUsed = 0;
-            for (BlockPos dbPos : master.mainframeParts) {
-                if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
-                    totalUsed += db.getUsedBytes();
-                }
-            }
-            return totalUsed;
+            if (master == null) return 0;
+            return master.resourceUsages.getOrDefault("item", 0L).intValue();
         });
     }
 
     @LuaFunction(
-            value = "データベースの最大容量（バイト数）を取得します。",
+            value = "データベースの最大容量（アイテム個数）を取得します。",
             args = {"str:target"},
-            rets = {"num:maxBytes"},
+            rets = {"num:maxCount"},
             isAsync = false
     )
-    public int getMaxBytes(String targetStr) {
+    public int getMaxCount(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
-            return master != null ? master.mainframeTotalCapacityBytes : 0;
+            if (master == null) return 0;
+            return master.resourceCapacities.getOrDefault("item", 0L).intValue();
+        });
+    }
+
+    @LuaFunction(
+            value = "指定した動的リソース（gas, mana, energy等）の使用量を取得します。",
+            args = {"str:target", "str:resourceType"},
+            rets = {"num:used"},
+            isAsync = false
+    )
+    public int getResourceUsage(String targetStr, String resourceType) {
+        return vm.executeInMainThreadSync(() -> {
+            SimpleMachineBlockEntity master = getMainframe(targetStr);
+            if (master == null) return 0;
+            return master.resourceUsages.getOrDefault(resourceType, 0L).intValue();
+        });
+    }
+
+    @LuaFunction(
+            value = "指定した動的リソース（gas, mana, energy等）の最大容量を取得します。",
+            args = {"str:target", "str:resourceType"},
+            rets = {"num:max"},
+            isAsync = false
+    )
+    public int getResourceCapacity(String targetStr, String resourceType) {
+        return vm.executeInMainThreadSync(() -> {
+            SimpleMachineBlockEntity master = getMainframe(targetStr);
+            if (master == null) return 0;
+            return master.resourceCapacities.getOrDefault(resourceType, 0L).intValue();
         });
     }
 
@@ -116,8 +134,9 @@ public class DatabaseAPI implements IMainframeAPI {
             for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     if (db.storedPrograms.containsKey(programName)) {
-                        int current = db.getUsedBytes();
+                        int current = db.getProgramUsedBytes();
                         int existingLength = db.storedPrograms.get(programName).getBytes(StandardCharsets.UTF_8).length;
+                        // DatabaseBlockEntityの最大容量(getMaxCapacityBytes)にプログラムのみ保存
                         if (current - existingLength + newCodeLength <= db.getMaxCapacityBytes()) {
                             db.storedPrograms.put(programName, code);
                             db.setChanged();
@@ -130,7 +149,7 @@ public class DatabaseAPI implements IMainframeAPI {
 
             for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
-                    if (db.getUsedBytes() + newCodeLength <= db.getMaxCapacityBytes()) {
+                    if (db.getProgramUsedBytes() + newCodeLength <= db.getMaxCapacityBytes()) {
                         db.storedPrograms.put(programName, code);
                         db.setChanged();
                         return true;

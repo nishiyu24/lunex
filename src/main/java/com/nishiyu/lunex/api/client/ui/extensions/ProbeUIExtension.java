@@ -1,6 +1,7 @@
-package com.nishiyu.lunex.client.ui;
+package com.nishiyu.lunex.api.client.ui.extensions;
 
 import com.nishiyu.lunex.api.client.IMainframeUIExtension;
+import com.nishiyu.lunex.api.client.IMainframeUIExtensionProvider;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
 import com.nishiyu.lunex.menu.MainframeOverviewScreen;
 import com.nishiyu.lunex.network.packet.c2s.MainframeOverviewActionC2SPacket;
@@ -12,12 +13,19 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.function.Consumer;
 
-public class ProbeUIExtension implements IMainframeUIExtension<ProbeBlockEntity> {
+public class ProbeUIExtension implements IMainframeUIExtension<ProbeBlockEntity>, IMainframeUIExtensionProvider {
+
+    @Override
+    public IMainframeUIExtension<?> getExtension(BlockEntity be) {
+        if (be instanceof ProbeBlockEntity) return this;
+        return null;
+    }
 
     @Override
     public int getPanelHeight(ProbeBlockEntity be) {
@@ -63,7 +71,6 @@ public class ProbeUIExtension implements IMainframeUIExtension<ProbeBlockEntity>
 
     @Override
     public boolean handleAction(String action, String value, ProbeBlockEntity probe, Level level) {
-        // C2SPacket から委譲されてサーバー側で実行される
         switch (action) {
             case "toggle_active":
                 probe.isDetected = !probe.isDetected;

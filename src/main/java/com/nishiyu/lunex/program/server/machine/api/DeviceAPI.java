@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
-import com.nishiyu.lunex.api.mainframe.MainframeConstants;
-import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
+import com.nishiyu.lunex.api.MainframeConstants;
+import com.nishiyu.lunex.api.mainframe.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.mcnet.DeviceAPIRegistry;
@@ -213,9 +213,15 @@ public class DeviceAPI implements IMainframeAPI {
 
     public void buildDatabaseWrapper(LuaTable obj, String target) {
         DatabaseAPI dbAPI = vm.getOrCreateAPI(DatabaseAPI.class, DatabaseAPI::new);
-        obj.set("getUsageMB", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getUsageMB(target)); } });
-        obj.set("getUsedBytes", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getUsedBytes(target)); } });
-        obj.set("getMaxBytes", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getMaxBytes(target)); } });
+        // ★修正: DatabaseAPI側の変更に追従し、新しいメソッド名と機能でラップする
+        obj.set("getUsage", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getUsage(target)); } });
+        obj.set("getUsedCount", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getUsedCount(target)); } });
+        obj.set("getMaxCount", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getMaxCount(target)); } });
+
+        // ★追加: 動的リソース（gas, manaなど）の取得用メソッドもラッパーに露出
+        obj.set("getResourceUsage", new OneArgFunction() { @Override public LuaValue call(LuaValue resType) { return LuaValue.valueOf(dbAPI.getResourceUsage(target, resType.tojstring())); } });
+        obj.set("getResourceCapacity", new OneArgFunction() { @Override public LuaValue call(LuaValue resType) { return LuaValue.valueOf(dbAPI.getResourceCapacity(target, resType.tojstring())); } });
+
         obj.set("uploadProgram", new org.luaj.vm2.lib.TwoArgFunction() { @Override public LuaValue call(LuaValue name, LuaValue code) { return LuaValue.valueOf(dbAPI.uploadProgram(target, name.tojstring(), code.tojstring())); } });
         obj.set("downloadProgram", new OneArgFunction() { @Override public LuaValue call(LuaValue name) { String code = dbAPI.downloadProgram(target, name.tojstring()); return code != null ? LuaValue.valueOf(code) : LuaValue.NIL; } });
         obj.set("listPrograms", new ZeroArgFunction() { @Override public LuaValue call() { return dbAPI.listPrograms(target); } });

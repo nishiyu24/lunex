@@ -1,9 +1,8 @@
 package com.nishiyu.lunex.mcnet;
 
-import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
-import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.MainframeConstants;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

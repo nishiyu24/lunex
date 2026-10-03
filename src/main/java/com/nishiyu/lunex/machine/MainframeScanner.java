@@ -1,9 +1,9 @@
 package com.nishiyu.lunex.machine;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.api.mainframe.MainframeComponentData;
-import com.nishiyu.lunex.api.mainframe.MainframeComponentRegistry;
-import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.MainframeComponentData;
+import com.nishiyu.lunex.api.MainframeComponentRegistry;
+import com.nishiyu.lunex.api.MainframeConstants;
 import com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;

@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.blockentity;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.api.mainframe.extension.IMainframeExtension;
+import com.nishiyu.lunex.api.mainframe.IMainframeExtension;
 import com.nishiyu.lunex.machine.IMainframePart;
 import com.nishiyu.lunex.mcnet.IMCNetDevice;
 import com.nishiyu.lunex.menu.ProbeMenu;

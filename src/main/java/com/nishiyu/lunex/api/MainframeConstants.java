@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.api.mainframe;
+package com.nishiyu.lunex.api;
 
 public final class MainframeConstants {
     // 既存の FEATURE_, API_ 定数はそのまま残してください

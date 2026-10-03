@@ -1,6 +1,7 @@
-package com.nishiyu.lunex.client.ui;
+package com.nishiyu.lunex.api.client.ui.extensions;
 
 import com.nishiyu.lunex.api.client.IMainframeUIExtension;
+import com.nishiyu.lunex.api.client.IMainframeUIExtensionProvider;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.menu.MainframeOverviewScreen;
@@ -15,10 +16,15 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.Locale;
 import java.util.function.Consumer;
 
-public class DatabaseUIExtension implements IMainframeUIExtension<DatabaseBlockEntity> {
+public class DatabaseUIExtension implements IMainframeUIExtension<DatabaseBlockEntity>, IMainframeUIExtensionProvider {
+
+    @Override
+    public IMainframeUIExtension<?> getExtension(BlockEntity be) {
+        if (be instanceof DatabaseBlockEntity) return this;
+        return null;
+    }
 
     @Override
     public int getPanelHeight(DatabaseBlockEntity be) {
@@ -49,10 +55,10 @@ public class DatabaseUIExtension implements IMainframeUIExtension<DatabaseBlockE
         if (level != null && be.getMasterPos() != null) {
             BlockEntity masterBe = level.getBlockEntity(be.getMasterPos());
             if (masterBe instanceof SimpleMachineBlockEntity master) {
-                double maxMB = master.mainframeTotalCapacityBytes / 1048576.0;
-                double usedMB = master.mainframeUsedItemBytes / 1048576.0;
-                guiGraphics.drawString(font, String.format(Locale.US, "Usage: %.2f MB", usedMB), panelX + 5, textY, 0x00E5FF);
-                guiGraphics.drawString(font, String.format(Locale.US, "/ %.2f MB", maxMB), panelX + 5, textY + 15, 0x00E5FF);
+                long maxItem = master.resourceCapacities.getOrDefault("item", 0L);
+                long usedItem = master.resourceUsages.getOrDefault("item", 0L);
+                guiGraphics.drawString(font, "Items: " + usedItem, panelX + 5, textY, 0x00E5FF);
+                guiGraphics.drawString(font, "Max:   " + maxItem, panelX + 5, textY + 15, 0x00E5FF);
             }
         }
     }

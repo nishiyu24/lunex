@@ -1,6 +1,7 @@
-package com.nishiyu.lunex.client.ui;
+package com.nishiyu.lunex.api.client.ui.extensions;
 
 import com.nishiyu.lunex.api.client.IMainframeUIExtension;
+import com.nishiyu.lunex.api.client.IMainframeUIExtensionProvider;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.menu.MainframeOverviewScreen;
@@ -14,14 +15,20 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.Locale;
 import java.util.function.Consumer;
 
-public class ScreenUIExtension implements IMainframeUIExtension<ScreenBlockEntity> {
+public class ScreenUIExtension implements IMainframeUIExtension<ScreenBlockEntity>, IMainframeUIExtensionProvider {
+
+    @Override
+    public IMainframeUIExtension<?> getExtension(BlockEntity be) {
+        if (be instanceof ScreenBlockEntity) return this;
+        return null;
+    }
 
     @Override
     public int getPanelHeight(ScreenBlockEntity be) {
@@ -47,9 +54,7 @@ public class ScreenUIExtension implements IMainframeUIExtension<ScreenBlockEntit
             be.getPersistentData().putString("DisplayMode", next);
             btn.setMessage(Component.literal("Mode: " + next));
             PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(pos, "set_screen_mode", next));
-
-            // ★ モード変更時にUIを再構築するため画面のクリック処理等で再描画をトリガーする必要があります
-            // （元の MainframeOverviewScreen.buildDynamicUI 相当の呼び出し）
+            screen.rebuildUI();
         }).bounds(panelX + 5, textY + 15, 130, 20).build();
         addWidget.accept(modeBtn);
 
@@ -108,11 +113,11 @@ public class ScreenUIExtension implements IMainframeUIExtension<ScreenBlockEntit
 
         } else {
             if (be.mainframeMasterPos != null && level.getBlockEntity(be.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
-                double maxMB = master.mainframeTotalCapacityBytes / 1048576.0;
-                double usedMB = master.mainframeUsedItemBytes / 1048576.0;
-                guiGraphics.drawString(font, String.format(Locale.US, "Capacity: %.2f / %.2f MB", usedMB, maxMB), panelX + 5, textY + 45, 0x00E5FF);
+                long maxItem = master.resourceCapacities.getOrDefault("item", 0L);
+                long usedItem = master.resourceUsages.getOrDefault("item", 0L);
+                guiGraphics.drawString(font, "Items: " + usedItem + " / " + maxItem, panelX + 5, textY + 45, 0x00E5FF);
             } else {
-                guiGraphics.drawString(font, "Capacity: 0.00 / 0.00 MB", panelX + 5, textY + 45, 0x00E5FF);
+                guiGraphics.drawString(font, "Items: 0 / 0", panelX + 5, textY + 45, 0x00E5FF);
             }
         }
     }

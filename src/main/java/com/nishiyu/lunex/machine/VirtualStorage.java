@@ -1,6 +1,5 @@
 package com.nishiyu.lunex.machine;
 
-import com.nishiyu.lunex.api.mainframe.MainframeConstants;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;

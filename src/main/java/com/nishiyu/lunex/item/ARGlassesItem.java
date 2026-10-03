@@ -1,6 +1,6 @@
 package com.nishiyu.lunex.item;
 
-import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.MainframeConstants;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.datagen.AutoLanguageProvider;
 import com.nishiyu.lunex.datagen.ITranslationGatherer;

@@ -2,9 +2,10 @@ package com.nishiyu.lunex;
 
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
+import com.nishiyu.lunex.api.MainframeComponentData;
+import com.nishiyu.lunex.api.MainframeComponentRegistry;
 import com.nishiyu.lunex.block.*;
 import com.nishiyu.lunex.blockentity.*;
-import com.nishiyu.lunex.datagen.DataGenerators;
 import com.nishiyu.lunex.datagen.Translatable;
 import com.nishiyu.lunex.item.ARGlassesItem;
 import com.nishiyu.lunex.item.ProgramDiskItem;
@@ -245,24 +246,18 @@ public class Lunex {
 
     private void setup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            com.nishiyu.lunex.api.mainframe.MainframeComponentRegistry.registerCoreComponents();
+            MainframeComponentRegistry.registerCoreComponents();
 
-            com.nishiyu.lunex.api.mainframe.MainframeComponentRegistry.register(MACHINE_FRAME.get(),
-                    com.nishiyu.lunex.api.mainframe.MainframeComponentData.builder()
+            MainframeComponentRegistry.register(MACHINE_FRAME.get(),
+                    MainframeComponentData.builder()
                             .addFeature("CPU_CORE")
                             .build());
 
-            com.nishiyu.lunex.api.mainframe.MainframeComponentRegistry.register(PROBE_BLOCK.get(),
-                    com.nishiyu.lunex.api.mainframe.MainframeComponentData.builder()
+            MainframeComponentRegistry.register(PROBE_BLOCK.get(),
+                    MainframeComponentData.builder()
                             .addFeature("IO_PORT")
                             .addApi("net")
                             .build());
-
-            // ★追加: Crafterの自動クラフトバックエンド処理をメインフレームの拡張機能として登録
-            com.nishiyu.lunex.api.mainframe.extension.MainframeExtensionRegistry.register(
-                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(MODID, "crafter_backend"),
-                    com.nishiyu.lunex.api.mainframe.extension.builtin.CrafterBackendExtension::new
-            );
         });
     }
 

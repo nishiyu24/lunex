@@ -1,8 +1,8 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.api.mainframe.MainframeConstants;
-import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
+import com.nishiyu.lunex.api.MainframeConstants;
+import com.nishiyu.lunex.api.mainframe.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;

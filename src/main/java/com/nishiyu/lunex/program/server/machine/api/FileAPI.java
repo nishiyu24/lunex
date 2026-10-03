@@ -2,7 +2,7 @@ package com.nishiyu.lunex.program.server.machine.api;
 
 import com.nishiyu.lunex.Config;
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.api.mainframe.extension.IMainframeAPI;
+import com.nishiyu.lunex.api.mainframe.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;

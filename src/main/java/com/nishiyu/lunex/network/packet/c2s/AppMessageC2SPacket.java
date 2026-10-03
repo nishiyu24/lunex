@@ -8,7 +8,7 @@ import com.nishiyu.lunex.server.ServerProgramData;
 import com.nishiyu.lunex.network.packet.s2c.AppMessageS2CPacket;
 import com.nishiyu.lunex.util.WorkspaceManager;
 import com.nishiyu.lunex.network.packet.s2c.ErrorToastS2CPacket;
-import com.nishiyu.lunex.api.mainframe.MainframeConstants;
+import com.nishiyu.lunex.api.MainframeConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;

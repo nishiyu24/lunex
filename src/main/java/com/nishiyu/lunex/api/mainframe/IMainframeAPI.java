@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.api.mainframe.extension;
+package com.nishiyu.lunex.api.mainframe;
 
 import com.nishiyu.lunex.program.server.ServerLuaVM;
 
