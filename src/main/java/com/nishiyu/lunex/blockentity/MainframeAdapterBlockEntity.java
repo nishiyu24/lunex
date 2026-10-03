@@ -33,6 +33,10 @@ public class MainframeAdapterBlockEntity extends BlockEntity implements IMainfra
         return this.masterPos;
     }
 
+    public CompoundTag getOriginalNbt() {
+        return this.originalNbt;
+    }
+
     public void setOriginalBlock(BlockState state, CompoundTag nbt) {
         this.originalState = state;
         this.originalNbt = nbt;

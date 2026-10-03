@@ -297,8 +297,16 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
     public static void tick(Level level, BlockPos pos, BlockState state, SimpleMachineBlockEntity entity) {
         if (level.isClientSide) return;
 
-        if (entity.isMainframeMaster && entity.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
-            entity.virtualStorage.tick(level);
+        if (entity.isMainframeMaster) {
+            // ルーター機能
+            if (entity.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                entity.virtualStorage.tick(level);
+            }
+
+            // ★追加: 登録されているすべての拡張機能の tick を呼び出す
+            for (IMainframeExtension ext : entity.extensions.values()) {
+                ext.tick(level, entity);
+            }
         }
 
         if (entity.vm != null) {

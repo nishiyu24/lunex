@@ -1,0 +1,12 @@
+{
+  "multipart": [
+    { "apply": { "model": "lunex:block/base_machine_model" } },
+
+    { "when": { "assembled": "false", "up": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "down": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "north": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "south": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "east": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } },
+    { "when": { "assembled": "false", "west": "false" }, "apply": { "model": "lunex:block/border_overlay_model" } }
+  ]
+}

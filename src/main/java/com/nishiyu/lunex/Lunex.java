@@ -257,6 +257,12 @@ public class Lunex {
                             .addFeature("IO_PORT")
                             .addApi("net")
                             .build());
+
+            // ★追加: Crafterの自動クラフトバックエンド処理をメインフレームの拡張機能として登録
+            com.nishiyu.lunex.api.mainframe.extension.MainframeExtensionRegistry.register(
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(MODID, "crafter_backend"),
+                    com.nishiyu.lunex.api.mainframe.extension.builtin.CrafterBackendExtension::new
+            );
         });
     }
 

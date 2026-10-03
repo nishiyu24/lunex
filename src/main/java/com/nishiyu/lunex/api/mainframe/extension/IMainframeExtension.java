@@ -2,11 +2,12 @@ package com.nishiyu.lunex.api.mainframe.extension;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 
 /**
  * アドオンがメインフレームに新しいリソース（マナ、ガス、熱など）のストレージや
- * バックエンド機能を動的に追加・結合するためのインターフェース。
+ * バックエンド機能、自動処理などを動的に追加・結合するためのインターフェース。
  */
 public interface IMainframeExtension {
     /**
@@ -36,4 +37,30 @@ public interface IMainframeExtension {
      * 呼び出し側（アドオン）でキャストして利用します。
      */
     Object getCapabilityInstance();
+
+    /**
+     * メインフレームの毎Tick処理（更新処理）でマスターブロックから呼ばれます。
+     * 自動クラフト、アイテムや液体の定期的な搬出入、継続的なエネルギー消費などの
+     * サーバーサイドのバックエンド処理をここに実装します。
+     *
+     * ※実装が不要な拡張機能のために default メソッドとしています。
+     *
+     * @param level  現在のディメンション（Level）
+     * @param master メインフレームのマスターブロックエンティティ
+     */
+    default void tick(Level level, SimpleMachineBlockEntity master) {
+    }
+
+    /**
+     * クライアントのHUD（MainframeOverviewScreen 等）からカスタム操作パケットを受け取った際に呼ばれます。
+     * ボタンのクリック、設定値の変更、モードの切り替えなどを処理するために使用します。
+     *
+     * ※実装が不要な拡張機能のために default メソッドとしています。
+     *
+     * @param action 実行されたアクションの名前や識別子（例: "toggle_mode", "set_filter"）
+     * @param value  アクションに伴う付加的な文字列データ（例: "OUT", "minecraft:iron_ingot"）
+     * @param master メインフレームのマスターブロックエンティティ
+     */
+    default void onActionReceived(String action, String value, SimpleMachineBlockEntity master) {
+    }
 }
