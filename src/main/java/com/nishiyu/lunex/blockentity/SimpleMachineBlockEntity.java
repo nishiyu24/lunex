@@ -280,6 +280,57 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
 
         MainframeScanner.updateMainframeVisuals(level, this.mainframeParts, false);
 
+        // ★追加: 構成パーツの中から Database を収集する
+        List<com.nishiyu.lunex.blockentity.DatabaseBlockEntity> databases = new ArrayList<>();
+        for (BlockPos partPos : this.mainframeParts) {
+            BlockEntity be = level.getBlockEntity(partPos);
+            if (be instanceof com.nishiyu.lunex.blockentity.DatabaseBlockEntity db) {
+                databases.add(db);
+            }
+        }
+
+        // ★追加: Priority順にソート (値が小さいほど優先度が高い前提)
+        databases.sort((d1, d2) -> {
+            int p1 = d1.getPersistentData().contains("Priority") ? d1.getPersistentData().getInt("Priority") : 1;
+            int p2 = d2.getPersistentData().contains("Priority") ? d2.getPersistentData().getInt("Priority") : 1;
+            return Integer.compare(p1, p2);
+        });
+
+        // アイテムの退避と分配
+        if (!databases.isEmpty()) {
+            // マスターのストレージから全アイテムを取り出す
+            List<ItemStack> allItems = new ArrayList<>();
+            for (ItemStack stack : this.mainframeStorage.getStacks()) {
+                if (!stack.isEmpty()) {
+                    allItems.add(stack.copy());
+                }
+            }
+            this.mainframeStorage.getStacks().clear();
+
+            // 優先度順にDatabaseへ詰め込む
+            for (ItemStack stack : allItems) {
+                ItemStack remainder = stack;
+                for (com.nishiyu.lunex.blockentity.DatabaseBlockEntity db : databases) {
+                    if (remainder.isEmpty()) break;
+                    // DatabaseBlockEntityのinsertItemを使って挿入
+                    remainder = db.insertItem(remainder, false);
+                }
+
+                // どのDatabaseにも入りきらなかったアイテムは、安全のためワールドにドロップする
+                if (!remainder.isEmpty()) {
+                    net.minecraft.world.Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), remainder);
+                }
+            }
+        } else {
+            // Databaseが存在しない場合は、ストレージのアイテムをすべてワールドにドロップ
+            for (ItemStack stack : this.mainframeStorage.getStacks()) {
+                if (!stack.isEmpty()) {
+                    net.minecraft.world.Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), stack);
+                }
+            }
+            this.mainframeStorage.getStacks().clear();
+        }
+
         for (BlockPos pos : this.mainframeParts) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof IMainframePart part) {
@@ -298,6 +349,8 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
 
         this.resourceCapacities.clear();
         this.resourceUsages.clear();
+
+        // ★修正: マスター自身のアイテム容量・エネルギー容量を0に戻す
         this.mainframeStorage.updateCapacity(0);
         this.energyStorage.setCapacity(0);
 

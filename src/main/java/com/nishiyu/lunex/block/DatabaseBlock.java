@@ -5,7 +5,6 @@ import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.item.WrenchItem;
 import com.nishiyu.lunex.machine.IMainframePart;
-import com.nishiyu.lunex.machine.MainframeScanner;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -67,35 +66,51 @@ public class DatabaseBlock extends Block implements EntityBlock {
 
     @Nullable
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(@NotNull BlockPos pos, @NotNull BlockState state) {
         return new DatabaseBlockEntity(pos, state);
     }
 
-    @Override
-    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof IMainframePart part && part.getMasterPos() != null) {
-                BlockEntity masterBe = level.getBlockEntity(part.getMasterPos());
-                if (masterBe instanceof SimpleMachineBlockEntity master) {
-                    master.disassembleMainframe();
-                }
+    // ★追加: 重複していた解体処理を共通メソッドとして切り出し
+    private void triggerDisassembly(Level level, BlockPos pos) {
+        if (level.isClientSide) return;
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof IMainframePart part && part.getMasterPos() != null) {
+            BlockEntity masterBe = level.getBlockEntity(part.getMasterPos());
+            if (masterBe instanceof SimpleMachineBlockEntity master) {
+                master.disassembleMainframe();
             }
+        }
+    }
+
+    @Override
+    public void onRemove(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
+        if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
+            // 切り出した共通メソッドを呼び出す（爆発などで消滅した際の備え）
+            triggerDisassembly(level, pos);
         }
         super.onRemove(state, level, pos, newState, isMoving);
     }
 
     @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+    public @NotNull BlockState playerWillDestroy(Level level, @NotNull BlockPos pos, @NotNull BlockState state, @NotNull Player player) {
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof DatabaseBlockEntity db) {
             if (!level.isClientSide) {
+                // 切り出した共通メソッドでマスターの解体を先に行い、安全にネットワークから切り離す
+                triggerDisassembly(level, pos);
+
                 ItemStack tool = player.getMainHandItem();
+                // Wrenchを持った状態でのスニーク破壊はパーツのばらまき処理、それ以外はNBT保持ドロップ
                 if (tool.getItem() instanceof WrenchItem && player.isShiftKeyDown()) {
                     handleWrenchDestroy(level, pos, state, db);
                 } else {
                     handleNormalDestroy(level, pos, state, db);
                 }
+
+                // クリエイティブでも確実に出現させ、バニラドロップを防ぐためにブロックを即座に消去する
+                level.levelEvent(player, 2001, pos, Block.getId(state));
+                level.removeBlock(pos, false);
+                return state;
             }
         }
         return super.playerWillDestroy(level, pos, state, player);
@@ -123,7 +138,7 @@ public class DatabaseBlock extends Block implements EntityBlock {
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+    protected @NotNull ItemInteractionResult useItemOn(@NotNull ItemStack stack, @NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hitResult) {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof DatabaseBlockEntity db) {
             if (player.isShiftKeyDown() && stack.getItem() instanceof WrenchItem) {

@@ -65,7 +65,7 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
 
     @org.jetbrains.annotations.Nullable
     @Override
-    public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+    public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(Level level, @NotNull BlockState state, net.minecraft.world.level.block.entity.@NotNull BlockEntityType<T> type) {
         if (level.isClientSide) return null;
         return createTickerHelper(type, com.nishiyu.lunex.Lunex.SIMPLE_MACHINE_BE.get(), SimpleMachineBlockEntity::tick);
     }
@@ -79,26 +79,63 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
     }
 
     @Override
-    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+    public void onPlace(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
         this.updateNetworkOnPlace(state, level, pos, oldState);
+    }
+
+    // ★追加: 重複していた解体処理を共通メソッドとして切り出し
+    private void triggerDisassembly(Level level, BlockPos pos) {
+        if (level.isClientSide) return;
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof SimpleMachineBlockEntity machineEntity) {
+            if (machineEntity.isMainframeMaster) {
+                machineEntity.disassembleMainframe();
+            } else if (machineEntity.getMasterPos() != null) {
+                BlockEntity masterBe = level.getBlockEntity(machineEntity.getMasterPos());
+                if (masterBe instanceof SimpleMachineBlockEntity master) {
+                    master.disassembleMainframe();
+                }
+            }
+        }
+    }
+
+    @Override
+    public @NotNull BlockState playerWillDestroy(Level level, @NotNull BlockPos pos, @NotNull BlockState state, @NotNull Player player) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof SimpleMachineBlockEntity sm) {
+            if (!level.isClientSide) {
+                // 切り出した共通メソッドで解体処理を走らせて中身を分配
+                triggerDisassembly(level, pos);
+
+                // 自身に残った分の NBT データをアイテムに焼き付ける
+                net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(this.asItem());
+                net.minecraft.nbt.CompoundTag beTag = sm.saveWithoutMetadata(level.registryAccess());
+                net.minecraft.world.item.BlockItem.setBlockEntityData(stack, sm.getType(), beTag);
+
+                // クリエイティブでもサバイバルでも自前でドロップさせる
+                net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(level, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
+                itemEntity.setDefaultPickUpDelay();
+                level.addFreshEntity(itemEntity);
+
+                // 破壊エフェクトを再生しつつ、ブロックを消去してバニラのルートテーブルドロップ（二重ドロップ）を防ぐ
+                level.levelEvent(player, 2001, pos, Block.getId(state));
+                level.removeBlock(pos, false);
+                return state;
+            }
+        }
+        return super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override
     public void onRemove(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
         if (state.getBlock() != newState.getBlock()) {
             if (!level.isClientSide) {
+                // 切り出した共通メソッドを呼び出す（爆発などで消滅した際の備え）
+                triggerDisassembly(level, pos);
+
                 BlockEntity blockEntity = level.getBlockEntity(pos);
                 if (blockEntity instanceof SimpleMachineBlockEntity machineEntity) {
-                    if (machineEntity.isMainframeMaster) {
-                        machineEntity.disassembleMainframe();
-                    } else if (machineEntity.getMasterPos() != null) {
-                        BlockEntity masterBe = level.getBlockEntity(machineEntity.getMasterPos());
-                        if (masterBe instanceof SimpleMachineBlockEntity master) {
-                            master.disassembleMainframe();
-                        }
-                    }
-
                     if (machineEntity.machineId != null) {
                         CoreMachineVMCache.removeVM(machineEntity.machineId);
                     }
@@ -112,7 +149,7 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
     @Override
     protected @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hitResult) {
         if (!level.isClientSide()) {
-            // ★修正: 合体完了後は SimpleMachineBlock 自身がOverview画面を開く
+            // 合体完了後は SimpleMachineBlock 自身がOverview画面を開く
             if (state.getValue(ASSEMBLED)) {
                 if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                     serverPlayer.openMenu(new SimpleMenuProvider(

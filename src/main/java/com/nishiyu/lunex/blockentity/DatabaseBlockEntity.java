@@ -7,20 +7,20 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.TagParser;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-// ★修正: 単体の MenuProvider を削除し、純粋なコンポーネント用 BlockEntity とする
 public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
 
-    public static final int BASE_CAPACITY_BYTES = 2097152;
+    // 最大容量（アイテム個数ベース）
+    public static final int BASE_CAPACITY = 1000;
 
     public final Map<String, Long> itemCounts = new ConcurrentHashMap<>();
     public final Map<String, String> itemIds = new ConcurrentHashMap<>();
@@ -29,10 +29,10 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
     public final Map<String, String> storedPrograms = new ConcurrentHashMap<>();
     public final Map<String, Long> fluidCounts = new ConcurrentHashMap<>();
 
-    private int clientItemBytes = 0;
-    private int clientFluidBytes = 0;
-    private int clientProgramBytes = 0;
-    private int clientMaxBytes = BASE_CAPACITY_BYTES;
+    private int clientItemCount = 0;
+    private int clientFluidCount = 0;
+    private int clientProgramCount = 0;
+    private int clientMaxCount = BASE_CAPACITY;
 
     public BlockPos mainframeMasterPos = null;
 
@@ -46,11 +46,7 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
         }
     };
 
-    // ★修正: DatabaseBlock の削除にともない、登録名を DATABASE_BE ではなく独自の物（もし残すなら）とするか、
-    // ここではエラー回避のため Lunex クラスの宣言に合わせています。
     public DatabaseBlockEntity(BlockPos pos, BlockState state) {
-        // ※ もし Lunex から DATABASE_BE の登録も消えている場合は、このクラス自体が不要（SimpleMachine拡張へ移行済）
-        // ここでは、Lunex への登録がまだ残っている想定で記述します（残っていなければ適宜ダミーか削除対応）
         super(Lunex.DATABASE_BE.get(), pos, state);
     }
 
@@ -59,58 +55,45 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
     @Override
     public BlockPos getMasterPos() { return this.mainframeMasterPos; }
 
-    public int getMaxCapacityBytes() {
-        return BASE_CAPACITY_BYTES;
+    public int getMaxCapacity() {
+        return BASE_CAPACITY;
     }
 
-    public int getItemUsedBytes() {
+    public int getItemUsedCount() {
         if (this.level != null && this.level.isClientSide) {
-            return this.clientItemBytes;
+            return this.clientItemCount;
         }
-        long bytes = 0;
-        for (Map.Entry<String, Long> entry : itemCounts.entrySet()) {
-            String key = entry.getKey();
-            long count = entry.getValue();
-            String nbt = itemNbtStrings.get(key);
-            if (nbt != null && !nbt.isEmpty()) {
-                bytes += count * 4096L;
-            } else {
-                bytes += count * 1024L;
-            }
+        long count = 0;
+        for (long c : itemCounts.values()) {
+            count += c;
         }
-        return (int) bytes;
+        return (int) count;
     }
 
-    public int getFluidUsedBytes() {
+    public int getFluidUsedCount() {
         if (this.level != null && this.level.isClientSide) {
-            return this.clientFluidBytes;
+            return this.clientFluidCount;
         }
-        long bytes = 0;
+        long count = 0;
         for (long mb : fluidCounts.values()) {
-            bytes += (long) ((mb / 1000.0) * 2048.0);
+            count += mb; // 1mB = 1アイテム
         }
-        return (int) bytes;
+        return (int) count;
     }
 
-    public int getProgramUsedBytes() {
+    public int getProgramUsedCount() {
         if (this.level != null && this.level.isClientSide) {
-            return this.clientProgramBytes;
+            return this.clientProgramCount;
         }
-        return storedPrograms.size() * 8192;
+        return storedPrograms.size() * 5; // 1プログラム = 5アイテム
     }
 
-    public int getUsedBytes() {
-        return getItemUsedBytes() + getFluidUsedBytes() + getProgramUsedBytes();
+    public int getUsedCount() {
+        return getItemUsedCount() + getFluidUsedCount() + getProgramUsedCount();
     }
 
-    public String getStorageUsageMB() {
-        int usedBytes = getUsedBytes();
-        double used = usedBytes / 1048576.0;
-        if (usedBytes > 0 && used < 0.01) {
-            used = 0.01;
-        }
-        double max = getMaxCapacityBytes() / 1048576.0;
-        return String.format("%.2f MB / %.2f MB", used, max);
+    public String getStorageUsageString() {
+        return String.format("%d / %d", getUsedCount(), getMaxCapacity());
     }
 
     public ItemStack insertItem(ItemStack stack, boolean simulate) {
@@ -124,14 +107,11 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
         String nbtStr = tag != null ? tag.toString() : "";
         String key = id + "|" + nbtStr;
 
-        int bytesPerItem = (nbtStr != null && !nbtStr.isEmpty()) ? 4096 : 1024;
-        long totalAddedBytes = (long) stack.getCount() * bytesPerItem;
-        int currentUsed = getUsedBytes();
-
+        int currentUsed = getUsedCount();
         int insertCount = stack.getCount();
-        if (currentUsed + totalAddedBytes > getMaxCapacityBytes()) {
-            int remainingBytes = getMaxCapacityBytes() - currentUsed;
-            insertCount = remainingBytes / bytesPerItem;
+
+        if (currentUsed + insertCount > getMaxCapacity()) {
+            insertCount = getMaxCapacity() - currentUsed;
             if (insertCount <= 0) return stack.copy();
         }
 
@@ -158,13 +138,11 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
     public long insertFluid(String fluidId, long amountMb, boolean simulate) {
         if (amountMb <= 0) return 0;
 
-        int currentUsed = getUsedBytes();
-        long addedBytes = (long) ((amountMb / 1000.0) * 2048.0);
-
+        int currentUsed = getUsedCount();
         long insertAmount = amountMb;
-        if (currentUsed + addedBytes > getMaxCapacityBytes()) {
-            int remainingBytes = getMaxCapacityBytes() - currentUsed;
-            insertAmount = (long) ((remainingBytes / 2048.0) * 1000.0);
+
+        if (currentUsed + insertAmount > getMaxCapacity()) {
+            insertAmount = getMaxCapacity() - currentUsed;
             if (insertAmount <= 0) return 0;
         }
 
@@ -222,7 +200,7 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    protected void saveAdditional(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
         super.saveAdditional(tag, registries);
         tag.put("PersistentData", this.getPersistentData());
         tag.put("UpgradeInventory", upgradeHandler.serializeNBT(registries));
@@ -254,7 +232,7 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    protected void loadAdditional(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
         super.loadAdditional(tag, registries);
         if (tag.contains("PersistentData")) {
             this.getPersistentData().merge(tag.getCompound("PersistentData"));
@@ -301,27 +279,27 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
     }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider provider) {
+    public @NotNull CompoundTag getUpdateTag(HolderLookup.@NotNull Provider provider) {
         CompoundTag tag = super.getUpdateTag(provider);
         tag.put("PersistentData", this.getPersistentData());
         tag.put("UpgradeInventory", upgradeHandler.serializeNBT(provider));
-        tag.putInt("ClientItemBytes", this.getItemUsedBytes());
-        tag.putInt("ClientFluidBytes", this.getFluidUsedBytes());
-        tag.putInt("ClientProgramBytes", this.getProgramUsedBytes());
-        tag.putInt("ClientMaxBytes", this.getMaxCapacityBytes());
+        tag.putInt("ClientItemCount", this.getItemUsedCount());
+        tag.putInt("ClientFluidCount", this.getFluidUsedCount());
+        tag.putInt("ClientProgramCount", this.getProgramUsedCount());
+        tag.putInt("ClientMaxCount", this.getMaxCapacity());
         return tag;
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider provider) {
+    public void handleUpdateTag(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider provider) {
         super.handleUpdateTag(tag, provider);
-        if (tag.contains("ClientItemBytes")) {
-            this.clientItemBytes = tag.getInt("ClientItemBytes");
-            this.clientProgramBytes = tag.getInt("ClientProgramBytes");
-            this.clientMaxBytes = tag.getInt("ClientMaxBytes");
+        if (tag.contains("ClientItemCount")) {
+            this.clientItemCount = tag.getInt("ClientItemCount");
+            this.clientProgramCount = tag.getInt("ClientProgramCount");
+            this.clientMaxCount = tag.getInt("ClientMaxCount");
         }
-        if (tag.contains("ClientFluidBytes")) {
-            this.clientFluidBytes = tag.getInt("ClientFluidBytes");
+        if (tag.contains("ClientFluidCount")) {
+            this.clientFluidCount = tag.getInt("ClientFluidCount");
         }
         if (tag.contains("PersistentData")) {
             this.getPersistentData().merge(tag.getCompound("PersistentData"));
@@ -337,10 +315,8 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
     }
 
     @Override
-    public void onDataPacket(net.minecraft.network.Connection net, ClientboundBlockEntityDataPacket pkt, HolderLookup.Provider provider) {
+    public void onDataPacket(net.minecraft.network.@NotNull Connection net, ClientboundBlockEntityDataPacket pkt, HolderLookup.@NotNull Provider provider) {
         CompoundTag tag = pkt.getTag();
-        if (tag != null) {
-            handleUpdateTag(tag, provider);
-        }
+        handleUpdateTag(tag, provider);
     }
 }

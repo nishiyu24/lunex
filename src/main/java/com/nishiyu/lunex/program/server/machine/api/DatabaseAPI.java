@@ -11,8 +11,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 
-import java.nio.charset.StandardCharsets;
-
 public class DatabaseAPI implements IMainframeAPI {
     private ServerLuaVM vm;
 
@@ -129,27 +127,21 @@ public class DatabaseAPI implements IMainframeAPI {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null || master.getLevel() == null || programName == null || code == null) return false;
 
-            int newCodeLength = code.getBytes(StandardCharsets.UTF_8).length;
-
+            // 既存のプログラムを上書きする場合（すでに容量として 5 を消費済みのため追加チェックは不要）
             for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     if (db.storedPrograms.containsKey(programName)) {
-                        int current = db.getProgramUsedBytes();
-                        int existingLength = db.storedPrograms.get(programName).getBytes(StandardCharsets.UTF_8).length;
-                        // DatabaseBlockEntityの最大容量(getMaxCapacityBytes)にプログラムのみ保存
-                        if (current - existingLength + newCodeLength <= db.getMaxCapacityBytes()) {
-                            db.storedPrograms.put(programName, code);
-                            db.setChanged();
-                            return true;
-                        }
-                        return false;
+                        db.storedPrograms.put(programName, code);
+                        db.setChanged();
+                        return true;
                     }
                 }
             }
 
+            // 新規プログラムを追加する場合（追加で容量 5 を消費する）
             for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
-                    if (db.getProgramUsedBytes() + newCodeLength <= db.getMaxCapacityBytes()) {
+                    if (db.getUsedCount() + 5 <= db.getMaxCapacity()) {
                         db.storedPrograms.put(programName, code);
                         db.setChanged();
                         return true;
