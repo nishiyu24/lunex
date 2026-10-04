@@ -26,7 +26,7 @@ public class CrafterUIExtension implements IMainframeUIExtension {
 
     @Override
     public int getPanelHeight(BlockEntity be) {
-        return 200;
+        return 190; // ★変更: 検索ボタンを削除したため高さを元に調整
     }
 
     @Override
@@ -63,6 +63,8 @@ public class CrafterUIExtension implements IMainframeUIExtension {
         }
 
         addWidget.accept(new GhostSlotWidget(gridX + 80, gridY + 18, 9, pos, be, false, activeBtn, craftBtn));
+
+        // ★変更: ここにあった searchBtn (JEI呼び出しボタン) は不要になったため削除
     }
 
     @Override
@@ -72,7 +74,7 @@ public class CrafterUIExtension implements IMainframeUIExtension {
         guiGraphics.drawString(font, "->", panelX + 70, textY + 85, 0xAAAAAA);
     }
 
-    private static class GhostSlotWidget extends AbstractWidget {
+    public static class GhostSlotWidget extends AbstractWidget {
         private final int slotIndex;
         private final BlockPos blockPos;
         private final BlockEntity be;
@@ -105,7 +107,6 @@ public class CrafterUIExtension implements IMainframeUIExtension {
             CompoundTag recipeTag = be.getPersistentData().getCompound("CrafterRecipe");
             String itemId = recipeTag.getString("Slot_" + slotIndex);
 
-            // ★修正: 結果枠（スロット9）のみ個数を適用し、素材枠（0～8）は常に1個として表示する
             int count = (this.slotIndex == 9 && recipeTag.contains("ResultCount")) ? recipeTag.getInt("ResultCount") : 1;
 
             this.lastItemId = itemId;
@@ -162,6 +163,30 @@ public class CrafterUIExtension implements IMainframeUIExtension {
             }
         }
 
+        public void acceptDrop(ItemStack stack) {
+            if (!isEditable || be.getPersistentData().getBoolean("AutoCraftActive")) return;
+
+            String itemId = "";
+            if (!stack.isEmpty()) {
+                ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+                itemId = id.toString();
+            }
+
+            CompoundTag recipeTag = be.getPersistentData().getCompound("CrafterRecipe");
+            if (itemId.isEmpty()) {
+                recipeTag.remove("Slot_" + slotIndex);
+            } else {
+                recipeTag.putString("Slot_" + slotIndex, itemId);
+            }
+            be.getPersistentData().put("CrafterRecipe", recipeTag);
+
+            String payload = slotIndex + ":" + itemId;
+            PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(blockPos, "set_crafter_recipe", payload));
+
+            Minecraft mc = Minecraft.getInstance();
+            mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        }
+
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (!isEditable || !isHovered() || be.getPersistentData().getBoolean("AutoCraftActive")) return false;
@@ -169,29 +194,13 @@ public class CrafterUIExtension implements IMainframeUIExtension {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 ItemStack carried = mc.player.containerMenu.getCarried();
-                String itemId = "";
-
                 if (button == 1) {
-                    itemId = "";
+                    acceptDrop(ItemStack.EMPTY);
                 } else if (!carried.isEmpty()) {
-                    ResourceLocation id = BuiltInRegistries.ITEM.getKey(carried.getItem());
-                    itemId = id.toString();
+                    acceptDrop(carried);
                 } else {
                     return true;
                 }
-
-                CompoundTag recipeTag = be.getPersistentData().getCompound("CrafterRecipe");
-                if (itemId.isEmpty()) {
-                    recipeTag.remove("Slot_" + slotIndex);
-                } else {
-                    recipeTag.putString("Slot_" + slotIndex, itemId);
-                }
-
-                be.getPersistentData().put("CrafterRecipe", recipeTag);
-
-                String payload = slotIndex + ":" + itemId;
-                PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(blockPos, "set_crafter_recipe", payload));
-                mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
             }
             return true;
         }

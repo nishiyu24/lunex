@@ -18,7 +18,14 @@ import java.util.List;
 
 public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOverviewMenu> {
 
+    // ★変更: currentInstance の代わりに選択中のブロック座標を記憶
+    public static BlockPos lastSelectedPos = null;
+
     private BlockPos selectedPos = null;
+
+    public BlockPos getSelectedPos() {
+        return this.selectedPos;
+    }
 
     private record ScrolledWidget(AbstractWidget widget, int initialY) {}
     private final List<ScrolledWidget> dynamicWidgets = new ArrayList<>();
@@ -29,7 +36,9 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
 
     public MainframeOverviewScreen(MainframeOverviewMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
-        this.imageWidth = 0; this.imageHeight = 0;
+
+        this.imageWidth = 1;
+        this.imageHeight = 1;
         this.uiFramework = new IdeScreenFramework();
         this.view3d = new Mainframe3DView(menu.getLevel(), menu.getMasterPos(), () -> this.selectedPos, this::selectBlock);
     }
@@ -50,6 +59,12 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
     @Override
     protected void init() {
         super.init();
+
+        // ★追加: JEI画面から戻った際などに選択状態を復元する
+        if (this.selectedPos == null && lastSelectedPos != null) {
+            this.selectedPos = lastSelectedPos;
+        }
+
         this.titleLabelX = 9999; this.titleLabelY = 9999;
         this.inventoryLabelX = 9999; this.inventoryLabelY = 9999;
 
@@ -67,6 +82,12 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
         }
         rebuildUI();
         updateSlotPositions();
+    }
+
+    @Override
+    public void removed() {
+        super.removed();
+        // ★変更: currentInstanceをnullにする処理を削除
     }
 
     @Override
@@ -100,7 +121,7 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
 
         this.uiFramework.setRightPanel(MainframeUIRegistry.createRightPanel(this.selectedPos, be, extension));
 
-        if (extension != null && be != null) {
+        if (extension != null) {
             int panelX = this.width - uiFramework.rightWidth;
             int textY = TOP_BAR_HEIGHT + 70;
             extension.buildWidgets(this, this.selectedPos, be, panelX, textY, widget -> {
@@ -116,12 +137,15 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
         if (be instanceof ScreenBlockEntity screenBe && screenBe.masterPos != null) {
             this.selectedPos = screenBe.masterPos;
         }
+
+        // ★追加: 選択されたブロックの座標を記憶
+        lastSelectedPos = this.selectedPos;
+
         rebuildUI();
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // 右パネルウィジェットの判定
         for (ScrolledWidget sw : this.dynamicWidgets) {
             if (sw.widget.active && sw.widget.visible && sw.widget.mouseClicked(mouseX, mouseY, button)) {
                 this.setFocused(sw.widget);
@@ -130,18 +154,17 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
         }
         this.setFocused(null);
 
-        // UIフレームワーク（戻るボタンや中央パネル、左右パネルなど）
         if (uiFramework.mouseClicked(mouseX, mouseY, button, this.width, this.height, TOP_BAR_HEIGHT)) {
             return true;
         }
 
-        // 中央がジャックされていない場合のみ3Dビューの操作を行う
         if (!uiFramework.hasCustomCenterPanel() && isMouseInViewport(mouseX, mouseY)) {
             if (this.view3d.mouseClicked(getVpX(), getVpY(), getVpWidth(), getVpHeight(), mouseX, mouseY, button)) {
                 return true;
             }
         }
 
+        updateSlotPositions();
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -152,6 +175,8 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
         if (!uiFramework.hasCustomCenterPanel()) {
             this.view3d.mouseReleased(button);
         }
+
+        updateSlotPositions();
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
@@ -166,6 +191,7 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
             if (this.view3d.mouseDragged(dragX, dragY, button)) return true;
         }
 
+        updateSlotPositions();
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
@@ -177,7 +203,24 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
             if (this.view3d.mouseScrolled(scrollY)) return true;
         }
 
+        updateSlotPositions();
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.uiFramework.keyPressed(keyCode, scanCode, modifiers, this.width, this.height, TOP_BAR_HEIGHT)) {
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (this.uiFramework.charTyped(codePoint, modifiers, this.width, this.height, TOP_BAR_HEIGHT)) {
+            return true;
+        }
+        return super.charTyped(codePoint, modifiers);
     }
 
     private boolean isMouseInViewport(double mouseX, double mouseY) {
@@ -190,8 +233,8 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
             this.leftPos = activeTab.getPlayerInventoryX();
             this.topPos = activeTab.getPlayerInventoryY(this.height, uiFramework.bottomHeight);
         } else {
-            this.leftPos = 9999;
-            this.topPos = 9999;
+            this.leftPos = 0;
+            this.topPos = this.height + 100;
         }
     }
 
@@ -209,9 +252,9 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
         updateSlotPositions();
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
+
         this.renderTooltip(guiGraphics, mouseX, mouseY);
 
-        // 分解ボタンのツールチップ
         if (!uiFramework.hasCustomCenterPanel()) {
             int btnX = getVpX() + getVpWidth() - 30;
             int btnY = getVpY() + 10;
@@ -219,13 +262,18 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
                 guiGraphics.renderTooltip(this.font, Component.literal(view3d.isExploded() ? "Collapse View" : "Explode View"), mouseX, mouseY);
             }
         }
+
+        this.leftPos = -10000;
+        this.topPos = -10000;
+        this.imageWidth = 1;
+        this.imageHeight = 1;
     }
 
     @Override
-    protected void renderBg(GuiGraphics pGuiGraphics, float pPartialTick, int pMouseX, int pMouseY) {}
+    protected void renderBg(@NotNull GuiGraphics pGuiGraphics, float pPartialTick, int pMouseX, int pMouseY) {}
 
     @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {}
+    protected void renderLabels(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY) {}
 
     @Override
     protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop, int mouseButton) {

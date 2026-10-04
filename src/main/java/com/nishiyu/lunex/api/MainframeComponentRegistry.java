@@ -44,7 +44,7 @@ public class MainframeComponentRegistry {
                 .addApi(MainframeConstants.API_FS)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
-                .addResourceCapacity("item", 1000)
+                .addResourceCapacity("item", 3000)
                 .setActionProvider(new DatabaseActionProvider())
                 .build());
 

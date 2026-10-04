@@ -31,7 +31,7 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
 
     @Override
     public int getPanelHeight(BlockEntity be) {
-        return 120;
+        return 130; // ★変更: 検索ボタンを削除したため高さを元に調整
     }
 
     @Override
@@ -39,18 +39,18 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
         CompoundTag data = be.getPersistentData();
         boolean isActive = data.getBoolean("AutoSmeltActive");
 
-        // ★修正: activeBtnのコンストラクタからはhasTargetの初期代入を削除し、内部で完結させました
         AutoToggleButton activeBtn = new AutoToggleButton(panelX + 5, textY + 15, 65, 20, isActive, be, pos);
         addWidget.accept(activeBtn);
 
         int gridX = panelX + 15;
         int gridY = textY + 68;
 
-        // ★修正: TargetSlotWidgetにactiveBtnを渡す必要がなくなったため引数を削除
         addWidget.accept(new TargetSlotWidget(gridX, gridY, pos, be, true, "SmeltTarget"));
 
         int barX = gridX + 22;
         addWidget.accept(new TargetSlotWidget(barX + 28, gridY, pos, be, false, "SmeltResult"));
+
+        // ★変更: ここにあった searchBtn (JEI呼び出しボタン) は不要になったため削除
     }
 
     @Override
@@ -89,7 +89,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
 
         @Override
         public void onPress() {
-            // 安全対策: ターゲットがない時はクリック処理を無視
             if (be.getPersistentData().getString("SmeltTarget").isEmpty()) return;
 
             this.localState = !this.localState;
@@ -106,7 +105,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
             String currentTargetId = be.getPersistentData().getString("SmeltTarget");
             boolean hasTarget = !currentTargetId.isEmpty();
 
-            // ★修正: ターゲットがない時はボタンを無効化し、強制的にOFF状態で固定する（チカチカ防止）
             if (!hasTarget) {
                 this.active = false;
                 this.localState = false;
@@ -115,14 +113,12 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
                 this.active = true;
                 boolean serverState = be.getPersistentData().getBoolean("AutoSmeltActive");
 
-                // クリックしてから2秒間はサーバーから送られてきた古いデータを強制的に無視する
                 if (System.currentTimeMillis() - lastClickedTime > 2000) {
                     if (this.localState != serverState) {
                         this.localState = serverState;
                         this.setMessage(Component.literal("Auto: " + (this.localState ? "ON" : "OFF")));
                     }
                 } else {
-                    // 2秒以内の間はローカル状態を固定し続ける
                     be.getPersistentData().putBoolean("AutoSmeltActive", this.localState);
                 }
             }
@@ -131,7 +127,7 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
         }
     }
 
-    private static class TargetSlotWidget extends AbstractWidget {
+    public static class TargetSlotWidget extends AbstractWidget {
         private final BlockPos blockPos;
         private final BlockEntity be;
         private final boolean isEditable;
@@ -140,7 +136,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
         private ItemStack displayStack = ItemStack.EMPTY;
         private String lastTargetId = "";
 
-        // ★修正: コンストラクタから activeBtn を削除
         public TargetSlotWidget(int x, int y, BlockPos pos, BlockEntity be, boolean isEditable, String tagKey) {
             super(x, y, 16, 16, Component.empty());
             this.blockPos = pos;
@@ -194,7 +189,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
             }
 
             boolean currentActive = data.getBoolean("AutoSmeltActive");
-            // ★修正: activeBtnの操作をここから削除し、TargetSlotWidgetの役割をアイテム描画のみに専念させました
             boolean canEdit = isEditable && !currentActive;
 
             guiGraphics.fill(getX(), getY(), getX() + width, getY() + height, 0x88333333);
@@ -214,6 +208,21 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
             }
         }
 
+        public void acceptDrop(ItemStack stack) {
+            if (!isEditable || be.getPersistentData().getBoolean("AutoSmeltActive")) return;
+
+            String itemId = "";
+            if (!stack.isEmpty()) {
+                ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+                itemId = id.toString();
+            }
+
+            PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(blockPos, "set_furnace_target", itemId));
+
+            Minecraft mc = Minecraft.getInstance();
+            mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        }
+
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (!isEditable || !isHovered() || be.getPersistentData().getBoolean("AutoSmeltActive")) return false;
@@ -221,19 +230,13 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 ItemStack carried = mc.player.containerMenu.getCarried();
-                String itemId = "";
-
                 if (button == 1) {
-                    itemId = "";
+                    acceptDrop(ItemStack.EMPTY);
                 } else if (!carried.isEmpty()) {
-                    ResourceLocation id = BuiltInRegistries.ITEM.getKey(carried.getItem());
-                    itemId = id.toString();
+                    acceptDrop(carried);
                 } else {
                     return true;
                 }
-
-                PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(blockPos, "set_furnace_target", itemId));
-                mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
             }
             return true;
         }

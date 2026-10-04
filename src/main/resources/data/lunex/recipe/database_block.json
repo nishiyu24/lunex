@@ -3,12 +3,13 @@
   "category": "misc",
   "pattern": [
     "IBI",
-    "BMB",
+    "CMC",
     "IRI"
   ],
   "key": {
     "I": { "item": "minecraft:iron_ingot" },
     "B": { "item": "minecraft:bookshelf" },
+    "C": { "item": "minecraft:chest" },
     "M": { "item": "lunex:machine_frame" },
     "R": { "item": "minecraft:redstone_block" }
   },
