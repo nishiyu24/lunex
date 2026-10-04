@@ -80,6 +80,34 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         });
     }
 
+    private String resolveWorkspaceId(ServerPlayer player, CompoundTag tag) {
+        if (tag.contains("workspaceId") && !tag.getString("workspaceId").isEmpty()) {
+            return tag.getString("workspaceId");
+        }
+        if (tag.contains("pos")) {
+            BlockPos pos = BlockPos.of(tag.getLong("pos"));
+            BlockEntity be = player.level().getBlockEntity(pos);
+            if (be instanceof TurtleBotBlockEntity turtle) {
+                return turtle.getCore().workspaceId != null && !turtle.getCore().workspaceId.isEmpty() ? turtle.getCore().workspaceId : "default";
+            }
+            if (be instanceof SimpleMachineBlockEntity sm) {
+                if (sm.persistentData != null && sm.persistentData.contains("WorkspaceId")) {
+                    return sm.persistentData.getString("WorkspaceId");
+                }
+            }
+        }
+        if (tag.contains("entityId")) {
+            int entityId = tag.getInt("entityId");
+            if (player.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+                net.minecraft.world.entity.Entity e = sl.getEntity(entityId);
+                if (e instanceof com.nishiyu.lunex.entity.CustomBioMobEntity bio) {
+                    return bio.workspaceId != null && !bio.workspaceId.isEmpty() ? bio.workspaceId : "default";
+                }
+            }
+        }
+        return "default";
+    }
+
     private void handleMachineCommand(ServerPlayer player, CompoundTag tag) {
         BlockPos pos = BlockPos.of(tag.getLong("pos"));
         String cmd = tag.getString("command").toLowerCase();
@@ -89,23 +117,23 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         BlockEntity be = level.getBlockEntity(pos);
 
         if (be instanceof TurtleBotBlockEntity machine) {
-            if (machine.isPrivateMode && machine.ownerUUID != null && !machine.ownerUUID.equals(player.getUUID())) {
+            if (machine.getCore().isPrivateMode && machine.getCore().ownerUUID != null && !machine.getCore().ownerUUID.equals(player.getUUID())) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] You do not have permission to modify this machine.§r"), true);
                 return;
             }
 
             switch (cmd) {
                 case "setup":
-                    machine.workspaceId = arg;
+                    machine.getCore().workspaceId = arg;
                     machine.setChanged();
                     machine.sync();
                     ServerProgramData.load(arg);
                     break;
                 case "sync_files":
-                    if (machine.workspaceId != null && !machine.workspaceId.isEmpty()) {
-                        ServerProgramData.load(machine.workspaceId);
-                        machine.installedPrograms.clear();
-                        machine.installedPrograms.addAll(ServerProgramData.getPrograms(machine.workspaceId).keySet());
+                    if (machine.getCore().workspaceId != null && !machine.getCore().workspaceId.isEmpty()) {
+                        ServerProgramData.load(machine.getCore().workspaceId);
+                        machine.getCore().installedPrograms.clear();
+                        machine.getCore().installedPrograms.addAll(ServerProgramData.getPrograms(machine.getCore().workspaceId).keySet());
                         machine.setChanged();
                         machine.sync();
                     }
@@ -117,12 +145,12 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                             player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] Cannot create files starting with '.'§r"), true);
                             break;
                         }
-                        String wsTouch = machine.workspaceId == null || machine.workspaceId.isEmpty() ? "default" : machine.workspaceId;
+                        String wsTouch = machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty() ? "default" : machine.getCore().workspaceId;
                         ServerProgramData.load(wsTouch);
                         ServerProgramData.getPrograms(wsTouch).putIfAbsent(arg, "-- New File\n");
                         ServerProgramData.save(wsTouch);
-                        if (!machine.installedPrograms.contains(arg)) {
-                            machine.installedPrograms.add(arg);
+                        if (!machine.getCore().installedPrograms.contains(arg)) {
+                            machine.getCore().installedPrograms.add(arg);
                             machine.setChanged();
                             machine.sync();
                         }
@@ -134,12 +162,12 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                             player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] Cannot create folders starting with '.'§r"), true);
                             break;
                         }
-                        String wsMkdir = machine.workspaceId == null || machine.workspaceId.isEmpty() ? "default" : machine.workspaceId;
+                        String wsMkdir = machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty() ? "default" : machine.getCore().workspaceId;
                         ServerProgramData.load(wsMkdir);
                         ServerProgramData.getPrograms(wsMkdir).putIfAbsent(arg, "");
                         ServerProgramData.save(wsMkdir);
-                        if (!machine.installedPrograms.contains(arg)) {
-                            machine.installedPrograms.add(arg);
+                        if (!machine.getCore().installedPrograms.contains(arg)) {
+                            machine.getCore().installedPrograms.add(arg);
                             machine.setChanged();
                             machine.sync();
                         }
@@ -147,12 +175,12 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     break;
                 case "rm":
                     if (!arg.isEmpty()) {
-                        String wsRm = machine.workspaceId == null || machine.workspaceId.isEmpty() ? "default" : machine.workspaceId;
+                        String wsRm = machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty() ? "default" : machine.getCore().workspaceId;
                         ServerProgramData.load(wsRm);
                         boolean removed = false;
 
                         if (ServerProgramData.getPrograms(wsRm).remove(arg) != null) {
-                            machine.installedPrograms.remove(arg);
+                            machine.getCore().installedPrograms.remove(arg);
                             removed = true;
                         }
 
@@ -165,7 +193,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                         }
                         for (String key : keysToRemove) {
                             ServerProgramData.getPrograms(wsRm).remove(key);
-                            machine.installedPrograms.remove(key);
+                            machine.getCore().installedPrograms.remove(key);
                             removed = true;
                         }
 
@@ -181,7 +209,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     if (parts.length == 2) {
                         String oldName = parts[0];
                         String rawNewName = parts[1];
-                        String wsRename = machine.workspaceId == null || machine.workspaceId.isEmpty() ? "default" : machine.workspaceId;
+                        String wsRename = machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty() ? "default" : machine.getCore().workspaceId;
                         ServerProgramData.load(wsRename);
 
                         boolean isFolder = false;
@@ -201,8 +229,8 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                         if (ServerProgramData.getPrograms(wsRename).containsKey(oldName)) {
                             String content = ServerProgramData.getPrograms(wsRename).remove(oldName);
                             ServerProgramData.getPrograms(wsRename).put(newName, content);
-                            machine.installedPrograms.remove(oldName);
-                            machine.installedPrograms.add(newName);
+                            machine.getCore().installedPrograms.remove(oldName);
+                            machine.getCore().installedPrograms.add(newName);
                             renamed = true;
                         }
 
@@ -218,8 +246,8 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                             String content = ServerProgramData.getPrograms(wsRename).remove(key);
                             String newKey = newDirPrefix + key.substring(oldDirPrefix.length());
                             ServerProgramData.getPrograms(wsRename).put(newKey, content);
-                            machine.installedPrograms.remove(key);
-                            machine.installedPrograms.add(newKey);
+                            machine.getCore().installedPrograms.remove(key);
+                            machine.getCore().installedPrograms.add(newKey);
                             renamed = true;
                         }
 
@@ -232,19 +260,20 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     break;
                 case "boot":
                 case "reboot":
-                    if (cmd.equals("boot") && !machine.installedPrograms.contains(arg)) break;
-                    String pName = cmd.equals("boot") ? arg : machine.programName;
+                    if (cmd.equals("boot") && !machine.getCore().installedPrograms.contains(arg)) break;
+                    String pName = cmd.equals("boot") ? arg : machine.getCore().programName;
                     if (pName != null && !pName.isEmpty()) {
                         if (cmd.equals("boot")) machine.setProgramName(arg);
-                        machine.vm.currentPlayer = player;
-                        machine.vm.restartProgram(pName);
-                    } else if (machine.vm.isRunning) {
-                        machine.vm.stopProgram();
+                        machine.getCore().vm.currentPlayer = player;
+                        machine.getCore().vm.workspaceId = machine.getCore().workspaceId;
+                        machine.getCore().vm.restartProgram(pName);
+                    } else if (machine.getCore().vm.isRunning) {
+                        machine.getCore().vm.stopProgram();
                     }
                     break;
                 case "stop":
                 case "kill":
-                    if (machine.vm.isRunning) machine.vm.stopProgram();
+                    if (machine.getCore().vm.isRunning) machine.getCore().vm.stopProgram();
                     break;
                 case "label":
                     machine.setMachineLabel(arg.startsWith("set ") ? arg.substring(4).trim() : (arg.equals("clear") ? "" : machine.getMachineLabel()));
@@ -260,44 +289,40 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     machine.sync();
                     break;
                 case "wipe_memory":
-                    machine.persistentData.remove("AutoMemory");
+                    machine.getCore().persistentData.remove("AutoMemory");
                     machine.setChanged();
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("§e[System] Memory wiped successfully.§r"), true);
                     break;
                 case "toggle_private":
-                    machine.isPrivateMode = Boolean.parseBoolean(arg);
+                    machine.getCore().isPrivateMode = Boolean.parseBoolean(arg);
                     machine.setChanged();
                     machine.sync();
                     break;
                 case "toggle_wake":
-                    machine.wakeOnRedstone = Boolean.parseBoolean(arg);
+                    machine.getCore().wakeOnRedstone = Boolean.parseBoolean(arg);
                     machine.setChanged();
                     machine.sync();
                     break;
                 case "toggle_debug":
-                    machine.debugChat = Boolean.parseBoolean(arg);
+                    machine.getCore().debugChat = Boolean.parseBoolean(arg);
                     machine.setChanged();
                     machine.sync();
                     break;
                 case "show_error":
-                    if (machine.persistentData.contains("LastError")) {
-                        String errMsg = machine.persistentData.getString("LastError");
+                    if (machine.getCore().persistentData.contains("LastError")) {
+                        String errMsg = machine.getCore().persistentData.getString("LastError");
                         PacketDistributor.sendToPlayer(player, new ErrorToastS2CPacket(errMsg));
                     } else {
                         player.displayClientMessage(net.minecraft.network.chat.Component.literal("§a[System] No recent errors found.§r"), true);
                     }
                     break;
                 case "clear_error":
-                    machine.persistentData.remove("LastError");
+                    machine.getCore().persistentData.remove("LastError");
                     machine.setChanged();
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("§e[System] Error history cleared.§r"), true);
                     break;
             }
         } else if (be instanceof SimpleMachineBlockEntity master) {
-            // ★修正: ルーター機能を統合した SimpleMachineBlockEntity へのコマンド処理として実装
-
-            // （現状、SimpleMachineBlockEntity 側に所有者や稼働状態フラグが実装されていなければ拡張する必要があります。
-            // ここではタグ "OwnerUUID" を persistentData で保持していると仮定して権限チェックを行います）
             if (master.persistentData.getBoolean("IsPrivateMode")) {
                 if (master.persistentData.contains("OwnerUUID")) {
                     if (!master.persistentData.getUUID("OwnerUUID").equals(player.getUUID())) {
@@ -312,18 +337,18 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     master.sync();
                     break;
                 case "boot":
-                    if(master.vm != null) master.vm.isRunning = true; // または startProgram() 等を呼ぶ
+                    if (master.vm != null) master.vm.isRunning = true;
                     master.setChanged();
                     master.sync();
                     break;
                 case "stop":
                 case "kill":
-                    if(master.vm != null) master.vm.stopProgram();
+                    if (master.vm != null) master.vm.stopProgram();
                     master.setChanged();
                     master.sync();
                     break;
                 case "reboot":
-                    if(master.vm != null) master.vm.restartProgram(master.getProgramName());
+                    if (master.vm != null) master.vm.restartProgram(master.getProgramName());
                     master.setChanged();
                     master.sync();
                     break;
@@ -349,7 +374,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("§e[System] Error history cleared.§r"), true);
                     break;
                 case "update_dhcp":
-                    if(master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                    if (master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                         String[] updateParts = arg.split("\\|");
                         if (updateParts.length >= 2) {
                             String mac = updateParts[0];
@@ -396,7 +421,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     }
                     break;
                 case "set_wan_target":
-                    if(master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                    if (master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                         master.persistentData.putString("WAN_Target", arg);
                         master.setChanged();
                         master.sync();
@@ -607,7 +632,8 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
 
     private void handleEditorRequest(ServerPlayer player, CompoundTag tag) {
         String pName = tag.getString("programName");
-        String wsId = "default";
+        String wsId = resolveWorkspaceId(player, tag);
+
         if (pName.contains("/")) {
             int idx = pName.indexOf("/");
             wsId = pName.substring(0, idx);
@@ -641,7 +667,8 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
     private void handleSyncProgram(ServerPlayer player, CompoundTag tag) {
         String pName = tag.getString("programName");
         String code = tag.getString("code");
-        String wsId = "default";
+        String wsId = resolveWorkspaceId(player, tag);
+
         if (pName.contains("/")) {
             int idx = pName.indexOf("/");
             wsId = pName.substring(0, idx);
@@ -665,7 +692,8 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
 
     private void handleDeleteProgram(ServerPlayer player, CompoundTag tag) {
         String pName = tag.getString("programName");
-        String wsId = "default";
+        String wsId = resolveWorkspaceId(player, tag);
+
         if (pName.contains("/")) {
             int idx = pName.indexOf("/");
             wsId = pName.substring(0, idx);

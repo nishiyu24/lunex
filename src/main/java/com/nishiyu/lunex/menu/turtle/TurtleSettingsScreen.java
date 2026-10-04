@@ -24,6 +24,9 @@ public class TurtleSettingsScreen extends AbstractContainerScreen<TurtleSettings
     private TurtleFileManagerTab fileManagerTab;
     private TurtleSettingsTab settingsTab;
 
+    private static int lastActiveTab = 0;
+    private static String lastWorkspaceId = "";
+
     public TurtleSettingsScreen(TurtleSettingsMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         this.imageWidth = 340;
@@ -45,6 +48,14 @@ public class TurtleSettingsScreen extends AbstractContainerScreen<TurtleSettings
 
         int leftPos = (this.width - this.imageWidth) / 2;
         int topPos = (this.height - this.imageHeight) / 2;
+
+        String currentWs = this.menu.getBlockEntity() != null ? this.menu.getBlockEntity().getWorkspaceId() : "";
+        if (currentWs != null && currentWs.equals(lastWorkspaceId)) {
+            this.activeTabIndex = lastActiveTab;
+        } else {
+            lastWorkspaceId = currentWs != null ? currentWs : "";
+            this.activeTabIndex = 0;
+        }
 
         switchTabInstance(this.activeTabIndex);
 
@@ -69,6 +80,7 @@ public class TurtleSettingsScreen extends AbstractContainerScreen<TurtleSettings
     public void setScreenFocused(GuiEventListener widget) { this.setFocused(widget); }
 
     public void sendCommand(String action, String data) {
+        if (this.menu.getBlockEntity() == null) return;
         CompoundTag tag = new CompoundTag();
         tag.putString("command", action);
         tag.putString("arg", data != null ? data : "");
@@ -144,6 +156,8 @@ public class TurtleSettingsScreen extends AbstractContainerScreen<TurtleSettings
             for (int i = 0; i < topTabs.length; i++) {
                 if (TurtleGuiUtils.isHovered(mouseX, mouseY, tabX, tabY, 80, 16) && button == 0) {
                     this.activeTabIndex = i;
+                    lastActiveTab = i;
+
                     this.setFocused(null);
                     if (this.currentTabInstance != null) this.currentTabInstance.onClose();
                     switchTabInstance(this.activeTabIndex);

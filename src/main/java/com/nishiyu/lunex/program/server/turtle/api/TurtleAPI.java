@@ -1,7 +1,8 @@
 package com.nishiyu.lunex.program.server.turtle.api;
 
-import com.nishiyu.lunex.block.TurtleBotBlock;
+import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.blockentity.TurtleBotBlockEntity;
+import com.nishiyu.lunex.block.TurtleBotBlock;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
 import com.nishiyu.lunex.program.server.turtle.TurtleServerLuaVM;
@@ -23,7 +24,6 @@ public class TurtleAPI {
     private final TurtleServerLuaVM vm;
 
     public TurtleAPI(ServerLuaVM vm) {
-        // VMのインスタンスをTurtleServerLuaVMとして保持します
         this.vm = (TurtleServerLuaVM) vm;
     }
 
@@ -35,7 +35,7 @@ public class TurtleAPI {
             isAsync = false
     )
     public boolean isTurtle() {
-        return vm.turtleEntity != null;
+        return vm.core != null && !vm.core.isDisposed() && vm.core.getBoundEntity() != null;
     }
 
     @LuaFunction(
@@ -113,11 +113,20 @@ public class TurtleAPI {
     )
     public boolean dig(int toolSlot, int recoverySlot, String dirStr) {
         if (!isTurtle()) return false;
-        if (!vm.turtleEntity.consumeActionEnergy(150)) return false;
+        if (!vm.core.getBoundEntity().consumeActionEnergy(150)) {
+            Lunex.LOGGER.warn("[TurtleAPI/Dig] 失敗: エネルギー不足");
+            return false;
+        }
 
         long baseSleepTime = vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = vm.turtleEntity;
-            if (turtle.isRemoved() || turtle.hasPendingMove || turtle.hasPendingTurn) return -1L;
+            TurtleBotBlockEntity turtle = vm.core.getBoundEntity();
+            if (turtle == null || turtle.isRemoved()) return -1L;
+
+            // ▼ 万が一スタックしていた場合のフェイルセーフ
+            if (turtle.hasPendingMove || turtle.hasPendingTurn) {
+                turtle.hasPendingMove = false;
+                turtle.hasPendingTurn = false;
+            }
 
             Direction dir = parseDirection(turtle, dirStr);
             if (dir == null) return -1L;
@@ -131,7 +140,7 @@ public class TurtleAPI {
             float hardness = state.getDestroySpeed(level, targetPos);
             if (hardness < 0) return -1L;
 
-            ItemStack tool = turtle.itemHandler.getStackInSlot(toolSlot);
+            ItemStack tool = vm.core.itemHandler.getStackInSlot(toolSlot);
             boolean isCorrect = !state.requiresCorrectToolForDrops() || tool.isCorrectToolForDrops(state);
             if (!isCorrect) return -1L;
 
@@ -145,11 +154,11 @@ public class TurtleAPI {
 
         vm.applyDelay((int) baseSleepTime, false);
 
-        if (!vm.isRunning) return false;
+        if (!vm.isRunning || vm.core.isDisposed()) return false;
 
         return vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = vm.turtleEntity;
-            if (turtle.isRemoved()) return false;
+            TurtleBotBlockEntity turtle = vm.core.getBoundEntity();
+            if (turtle == null || turtle.isRemoved()) return false;
 
             Direction dir = parseDirection(turtle, dirStr);
             BlockPos targetPos = turtle.getBlockPos().relative(dir);
@@ -158,7 +167,7 @@ public class TurtleAPI {
 
             if (state.isAir()) return false;
 
-            ItemStack tool = turtle.itemHandler.getStackInSlot(toolSlot);
+            ItemStack tool = vm.core.itemHandler.getStackInSlot(toolSlot);
 
             if (level instanceof ServerLevel serverLevel) {
                 List<ItemStack> drops = Block.getDrops(state, serverLevel, targetPos, level.getBlockEntity(targetPos), null, tool);
@@ -168,12 +177,11 @@ public class TurtleAPI {
                 level.playSound(null, targetPos, soundtype.getBreakSound(), SoundSource.BLOCKS, (soundtype.getVolume() + 1.0F) / 2.0F, soundtype.getPitch() * 0.8F);
 
                 if (tool.isDamageableItem()) {
-                    tool.hurtAndBreak(1, serverLevel, null, (item) -> {
-                    });
+                    tool.hurtAndBreak(1, serverLevel, null, (item) -> {});
                 }
 
                 for (ItemStack drop : drops) {
-                    ItemStack remainder = turtle.itemHandler.insertItem(recoverySlot, drop, false);
+                    ItemStack remainder = vm.core.itemHandler.insertItem(recoverySlot, drop, false);
                     if (!remainder.isEmpty()) {
                         Containers.dropItemStack(level, targetPos.getX(), targetPos.getY(), targetPos.getZ(), remainder);
                     }
@@ -193,11 +201,19 @@ public class TurtleAPI {
     )
     public boolean place(int slot, String dirStr) {
         if (!isTurtle()) return false;
-        if (!vm.turtleEntity.consumeActionEnergy(50)) return false;
+        if (!vm.core.getBoundEntity().consumeActionEnergy(50)) {
+            Lunex.LOGGER.warn("[TurtleAPI/Place] 失敗: エネルギー不足");
+            return false;
+        }
 
         return vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = vm.turtleEntity;
-            if (turtle.isRemoved() || turtle.hasPendingMove || turtle.hasPendingTurn) return false;
+            TurtleBotBlockEntity turtle = vm.core.getBoundEntity();
+            if (turtle == null || turtle.isRemoved()) return false;
+
+            if (turtle.hasPendingMove || turtle.hasPendingTurn) {
+                turtle.hasPendingMove = false;
+                turtle.hasPendingTurn = false;
+            }
 
             Direction dir = parseDirection(turtle, dirStr);
             if (dir == null) return false;
@@ -208,7 +224,7 @@ public class TurtleAPI {
 
             if (!targetState.canBeReplaced()) return false;
 
-            ItemStack stack = turtle.itemHandler.getStackInSlot(slot);
+            ItemStack stack = vm.core.itemHandler.getStackInSlot(slot);
             if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem blockItem)) return false;
 
             BlockState newState = blockItem.getBlock().defaultBlockState();
@@ -243,12 +259,29 @@ public class TurtleAPI {
     }
 
     private boolean executeMove(Direction moveDir, boolean isRelative) {
-        if (!isTurtle()) return false;
-        if (!vm.turtleEntity.consumeActionEnergy(200)) return false;
+        if (!isTurtle() || vm.core.isDisposed()) {
+            Lunex.LOGGER.warn("[TurtleAPI/Move] 失敗: タートルが見つからないか破棄されています。");
+            return false;
+        }
+        if (!vm.core.getBoundEntity().consumeActionEnergy(200)) {
+            Lunex.LOGGER.warn("[TurtleAPI/Move] 失敗: エネルギー不足 (200必要)");
+            return false;
+        }
 
         long animMs = vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = vm.turtleEntity;
-            if (turtle.isRemoved() || turtle.hasPendingMove || turtle.hasPendingTurn) return -1L;
+            TurtleBotBlockEntity turtle = vm.core.getBoundEntity();
+            if (turtle == null || turtle.isRemoved()) {
+                Lunex.LOGGER.warn("[TurtleAPI/Move] 失敗: ブロックが不正な状態です。");
+                return -1L;
+            }
+
+            // ▼ 万が一プログラム中断などでフラグがスタックしていた場合のフェイルセーフ
+            if (turtle.hasPendingMove || turtle.hasPendingTurn) {
+                Lunex.LOGGER.warn("[TurtleAPI/Move] 警告: 前回の動作がスタックしていました。強制リセットして続行します。");
+                turtle.hasPendingMove = false;
+                turtle.hasPendingTurn = false;
+                turtle.animDurationMs = 0;
+            }
 
             Direction facing = turtle.getBlockState().getValue(TurtleBotBlock.FACING);
             Direction actualDir = moveDir;
@@ -259,24 +292,29 @@ public class TurtleAPI {
             }
 
             BlockPos targetPos = turtle.getBlockPos().relative(actualDir);
-            if (!turtle.getLevel().getBlockState(targetPos).canBeReplaced()) return -1L;
+            if (!turtle.getLevel().getBlockState(targetPos).canBeReplaced()) {
+                Lunex.LOGGER.warn("[TurtleAPI/Move] 失敗: 進行方向に障害物があります。");
+                return -1L;
+            }
 
             turtle.pendingMoveTarget = targetPos;
             turtle.hasPendingMove = true;
-            turtle.startAnimation(actualDir.getStepX(), actualDir.getStepY(), actualDir.getStepZ(), 0);
+
+            long durationMs = 300; // 0.3秒でサクッと移動させる
+            turtle.startAnimation(actualDir.getStepX(), actualDir.getStepY(), actualDir.getStepZ(), 0, durationMs);
             turtle.getLevel().sendBlockUpdated(turtle.getBlockPos(), turtle.getBlockState(), turtle.getBlockState(), 3);
 
-            return (long) turtle.getAnimationDurationMs();
+            return durationMs;
         }, 0, false);
 
         if (animMs > 0) {
             vm.applyDelay((int) animMs, false);
 
-            if (!vm.isRunning) return false;
+            if (!vm.isRunning || vm.core.isDisposed()) return false;
 
             vm.executeInMainThreadSync(() -> {
-                TurtleBotBlockEntity turtle = vm.turtleEntity;
-                if (!turtle.isRemoved()) {
+                TurtleBotBlockEntity turtle = vm.core.getBoundEntity();
+                if (turtle != null && !turtle.isRemoved()) {
                     turtle.executePendingActions(turtle.getLevel(), turtle.getBlockPos());
                 }
                 return null;
@@ -287,12 +325,27 @@ public class TurtleAPI {
     }
 
     private boolean executeTurn(boolean isLeft) {
-        if (!isTurtle()) return false;
-        if (!vm.turtleEntity.consumeActionEnergy(50)) return false;
+        if (!isTurtle() || vm.core.isDisposed()) {
+            Lunex.LOGGER.warn("[TurtleAPI/Turn] 失敗: タートルが見つからないか破棄されています。");
+            return false;
+        }
+        if (!vm.core.getBoundEntity().consumeActionEnergy(50)) {
+            Lunex.LOGGER.warn("[TurtleAPI/Turn] 失敗: エネルギー不足");
+            return false;
+        }
 
         long animMs = vm.executeInMainThreadSync(() -> {
-            TurtleBotBlockEntity turtle = vm.turtleEntity;
-            if (turtle.isRemoved() || turtle.hasPendingMove || turtle.hasPendingTurn) return -1L;
+            TurtleBotBlockEntity turtle = vm.core.getBoundEntity();
+            if (turtle == null || turtle.isRemoved()) {
+                return -1L;
+            }
+
+            if (turtle.hasPendingMove || turtle.hasPendingTurn) {
+                Lunex.LOGGER.warn("[TurtleAPI/Turn] 警告: 前回の動作がスタックしていました。強制リセットして続行します。");
+                turtle.hasPendingMove = false;
+                turtle.hasPendingTurn = false;
+                turtle.animDurationMs = 0;
+            }
 
             Direction facing = turtle.getBlockState().getValue(TurtleBotBlock.FACING);
             Direction newFacing = isLeft ? facing.getCounterClockWise() : facing.getClockWise();
@@ -300,20 +353,21 @@ public class TurtleAPI {
             turtle.pendingTurnFacing = newFacing;
             turtle.hasPendingTurn = true;
 
-            turtle.startAnimation(0, 0, 0, isLeft ? 90 : -90);
+            long durationMs = 300;
+            turtle.startAnimation(0, 0, 0, isLeft ? 90 : -90, durationMs);
             turtle.getLevel().sendBlockUpdated(turtle.getBlockPos(), turtle.getBlockState(), turtle.getBlockState(), 3);
 
-            return (long) turtle.getAnimationDurationMs();
+            return durationMs;
         }, 0, false);
 
         if (animMs > 0) {
             vm.applyDelay((int) animMs, false);
 
-            if (!vm.isRunning) return false;
+            if (!vm.isRunning || vm.core.isDisposed()) return false;
 
             vm.executeInMainThreadSync(() -> {
-                TurtleBotBlockEntity turtle = vm.turtleEntity;
-                if (!turtle.isRemoved()) {
+                TurtleBotBlockEntity turtle = vm.core.getBoundEntity();
+                if (turtle != null && !turtle.isRemoved()) {
                     turtle.executePendingActions(turtle.getLevel(), turtle.getBlockPos());
                 }
                 return null;

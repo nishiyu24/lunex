@@ -304,7 +304,18 @@ public class ServerLuaVM extends BaseLuaVM {
         try {
             ServerProgramData.load(workspaceId);
             Map<String, String> progs = ServerProgramData.getPrograms(workspaceId);
-            String rawCode = progs.get(programName);
+
+            // ▼ 修正: 拡張子が省かれて渡された場合でも正しく読み込めるようにする
+            String searchName = programName;
+            if (!searchName.endsWith(".lua") && !progs.containsKey(searchName)) {
+                searchName = searchName + ".lua";
+            }
+
+            String rawCode = progs.get(searchName);
+
+            // デバッグログ (不要であれば削除してください)
+            Lunex.LOGGER.info("[Debug] 実行ファイル名: " + searchName + " / コード長: " + (rawCode != null ? rawCode.length() : "null"));
+
             if (rawCode == null) rawCode = "";
             startCode(rawCode, programName);
         } catch (Exception e) {

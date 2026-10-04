@@ -22,6 +22,7 @@ public class TurtleSettingsTab implements ITurtleTab {
         this.leftPos = leftPos;
         this.topPos = topPos;
         TurtleBotBlockEntity be = this.screen.getMenu().getBlockEntity();
+        if (be == null) return;
 
         if (this.labelInput == null) {
             this.labelInput = new EditBox(this.screen.getFont(), leftPos + 18, topPos + 52, 100, 10, Component.literal("Machine Label"));
@@ -48,9 +49,9 @@ public class TurtleSettingsTab implements ITurtleTab {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         TurtleBotBlockEntity be = this.screen.getMenu().getBlockEntity();
+        if (be == null) return;
         int x = this.leftPos + 15;
 
-        // Machine Label
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Machine Label:", x, this.topPos + 35, TurtleGuiUtils.COLOR_TEXT_MUTED, 1.0f);
         guiGraphics.fill(x - 1, this.topPos + 49, x + 105, this.topPos + 65, TurtleGuiUtils.COLOR_BORDER);
         guiGraphics.fill(x, this.topPos + 50, x + 104, this.topPos + 64, TurtleGuiUtils.COLOR_BG_MAIN);
@@ -66,9 +67,8 @@ public class TurtleSettingsTab implements ITurtleTab {
         TurtleGuiUtils.drawCustomButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x + 110, this.topPos + 49, 35, 16, this.labelSetButtonText, false, 1.0f, btnColor1, false);
         TurtleGuiUtils.drawCustomButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x + 150, this.topPos + 49, 45, 16, "Clear", false, 1.0f, TurtleGuiUtils.COLOR_BTN_BG, false);
 
-        // Last Error Log
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Last Error Log:", x, this.topPos + 75, TurtleGuiUtils.COLOR_TEXT_MUTED, 1.0f);
-        String lastError = be.persistentData.contains("LastError") ? be.persistentData.getString("LastError") : "No recent errors.";
+        String lastError = be.getCore().persistentData.contains("LastError") ? be.getCore().persistentData.getString("LastError") : "No recent errors.";
         this.currentLastError = lastError;
 
         guiGraphics.fill(x - 1, this.topPos + 86, x + 295, this.topPos + 115, TurtleGuiUtils.COLOR_BORDER);
@@ -85,13 +85,11 @@ public class TurtleSettingsTab implements ITurtleTab {
         TurtleGuiUtils.drawCustomButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x + 215, this.topPos + 72, 35, 12, "Clear", false, 0.8f, TurtleGuiUtils.COLOR_BTN_BG, false);
         TurtleGuiUtils.drawCustomButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x + 255, this.topPos + 72, 35, 12, "Copy", false, 0.8f, TurtleGuiUtils.COLOR_ITEM_SELECTED, false);
 
-        // System Toggles
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "System Toggles:", x, this.topPos + 120, TurtleGuiUtils.COLOR_TEXT_MUTED, 1.0f);
-        TurtleGuiUtils.drawToggleButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x, this.topPos + 134, 55, 16, "Private", be.isPrivateMode, false);
-        TurtleGuiUtils.drawToggleButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x + 60, this.topPos + 134, 65, 16, "Wake(RS)", be.wakeOnRedstone, false);
-        TurtleGuiUtils.drawToggleButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x + 130, this.topPos + 134, 75, 16, "Debug Log", be.debugChat, false);
+        TurtleGuiUtils.drawToggleButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x, this.topPos + 134, 55, 16, "Private", be.getCore().isPrivateMode, false);
+        TurtleGuiUtils.drawToggleButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x + 60, this.topPos + 134, 65, 16, "Wake(RS)", be.getCore().wakeOnRedstone, false);
+        TurtleGuiUtils.drawToggleButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x + 130, this.topPos + 134, 75, 16, "Debug Log", be.getCore().debugChat, false);
 
-        // Admin
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Admin:", x, this.topPos + 160, TurtleGuiUtils.COLOR_TEXT_MUTED, 1.0f);
         TurtleGuiUtils.drawCustomButton(guiGraphics, this.screen.getFont(), mouseX, mouseY, x, this.topPos + 172, 65, 16, "Wipe Mem", false, 1.0f, TurtleGuiUtils.COLOR_BTN_DANGER, false);
     }
@@ -103,21 +101,27 @@ public class TurtleSettingsTab implements ITurtleTab {
             if (TurtleGuiUtils.isHovered(mouseX, mouseY, x + 110, this.topPos + 49, 35, 16)) {
                 String lbl = this.labelInput.getValue().trim();
                 this.screen.sendCommand("label", "set " + lbl);
-                this.screen.getMenu().getBlockEntity().setMachineLabel(lbl);
+                if (this.screen.getMenu().getBlockEntity() != null) {
+                    this.screen.getMenu().getBlockEntity().setMachineLabel(lbl);
+                }
                 this.labelSetButtonText = "OK";
                 this.labelSetTick = 20;
                 return true;
             }
             if (TurtleGuiUtils.isHovered(mouseX, mouseY, x + 150, this.topPos + 49, 45, 16)) {
                 this.screen.sendCommand("label", "clear");
-                this.screen.getMenu().getBlockEntity().setMachineLabel("");
+                if (this.screen.getMenu().getBlockEntity() != null) {
+                    this.screen.getMenu().getBlockEntity().setMachineLabel("");
+                }
                 this.labelInput.setValue("");
                 return true;
             }
 
             if (TurtleGuiUtils.isHovered(mouseX, mouseY, x + 215, this.topPos + 72, 35, 12)) {
                 this.screen.sendCommand("clear_error", "");
-                this.screen.getMenu().getBlockEntity().persistentData.remove("LastError");
+                if (this.screen.getMenu().getBlockEntity() != null) {
+                    this.screen.getMenu().getBlockEntity().getCore().persistentData.remove("LastError");
+                }
                 this.currentLastError = "No recent errors.";
                 return true;
             }
@@ -130,23 +134,25 @@ public class TurtleSettingsTab implements ITurtleTab {
             }
 
             TurtleBotBlockEntity be = this.screen.getMenu().getBlockEntity();
-            if (TurtleGuiUtils.isHovered(mouseX, mouseY, x, this.topPos + 134, 55, 16)) {
-                boolean val = !be.isPrivateMode;
-                this.screen.sendCommand("toggle_private", String.valueOf(val));
-                be.isPrivateMode = val;
-                return true;
-            }
-            if (TurtleGuiUtils.isHovered(mouseX, mouseY, x + 60, this.topPos + 134, 65, 16)) {
-                boolean val = !be.wakeOnRedstone;
-                this.screen.sendCommand("toggle_wake", String.valueOf(val));
-                be.wakeOnRedstone = val;
-                return true;
-            }
-            if (TurtleGuiUtils.isHovered(mouseX, mouseY, x + 130, this.topPos + 134, 75, 16)) {
-                boolean val = !be.debugChat;
-                this.screen.sendCommand("toggle_debug", String.valueOf(val));
-                be.debugChat = val;
-                return true;
+            if (be != null) {
+                if (TurtleGuiUtils.isHovered(mouseX, mouseY, x, this.topPos + 134, 55, 16)) {
+                    boolean val = !be.getCore().isPrivateMode;
+                    this.screen.sendCommand("toggle_private", String.valueOf(val));
+                    be.getCore().isPrivateMode = val;
+                    return true;
+                }
+                if (TurtleGuiUtils.isHovered(mouseX, mouseY, x + 60, this.topPos + 134, 65, 16)) {
+                    boolean val = !be.getCore().wakeOnRedstone;
+                    this.screen.sendCommand("toggle_wake", String.valueOf(val));
+                    be.getCore().wakeOnRedstone = val;
+                    return true;
+                }
+                if (TurtleGuiUtils.isHovered(mouseX, mouseY, x + 130, this.topPos + 134, 75, 16)) {
+                    boolean val = !be.getCore().debugChat;
+                    this.screen.sendCommand("toggle_debug", String.valueOf(val));
+                    be.getCore().debugChat = val;
+                    return true;
+                }
             }
             if (TurtleGuiUtils.isHovered(mouseX, mouseY, x, this.topPos + 172, 65, 16)) {
                 this.screen.sendCommand("wipe_memory", "");

@@ -6,6 +6,7 @@ import com.nishiyu.lunex.api.MainframeComponentData;
 import com.nishiyu.lunex.api.MainframeComponentRegistry;
 import com.nishiyu.lunex.block.*;
 import com.nishiyu.lunex.blockentity.*;
+import com.nishiyu.lunex.datagen.DataGenerators;
 import com.nishiyu.lunex.datagen.Translatable;
 import com.nishiyu.lunex.item.ARGlassesItem;
 import com.nishiyu.lunex.item.ProgramDiskItem;
@@ -233,8 +234,8 @@ public class Lunex {
         modEventBus.addListener(this::registerCapabilities);
         modEventBus.addListener(this::registerEntityAttributes);
 
-        // ★ネットワークパケットの登録処理
         modEventBus.addListener(com.nishiyu.lunex.network.NetworkHandler::register);
+        modEventBus.addListener(DataGenerators::gatherData);
 
         NeoForge.EVENT_BUS.addListener(this::onServerStarting);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
@@ -262,12 +263,13 @@ public class Lunex {
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
-        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, TURTLE_BOT_BE.get(), (be, side) -> be.itemHandler);
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, TURTLE_BOT_BE.get(), (be, side) -> be.getCore() != null ? be.getCore().itemHandler : null);
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, TURTLE_BOT_BE.get(), (be, side) -> be.feStorage);
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, PRINTER_BE.get(), (be, side) -> be.itemHandler);
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.itemHandler);
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.energyStorage);
-        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, PROBE_BE.get(), (be, side) -> be.getItemHandler(side));
-        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, PROBE_BE.get(), (be, side) -> be.getEnergyStorage(side));
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, PROBE_BE.get(), ProbeBlockEntity::getItemHandler);
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, PROBE_BE.get(), ProbeBlockEntity::getEnergyStorage);
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, SIMPLE_MACHINE_BE.get(), (be, side) -> be.mainframeStorage);
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, SIMPLE_MACHINE_BE.get(), (be, side) -> be.energyStorage);
     }

@@ -1,8 +1,9 @@
 package com.nishiyu.lunex.program.server.turtle;
 
-import com.nishiyu.lunex.blockentity.TurtleBotBlockEntity;
+import com.nishiyu.lunex.machine.TurtleCore;
 import com.nishiyu.lunex.mcnet.DeviceAPIRegistry;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
+import com.nishiyu.lunex.program.server.SystemAPI;
 import com.nishiyu.lunex.program.server.machine.api.*;
 import com.nishiyu.lunex.program.server.turtle.api.TurtleAPI;
 import org.luaj.vm2.LuaTable;
@@ -20,11 +21,11 @@ public class TurtleServerLuaVM extends ServerLuaVM {
         TURTLE_SYSTEM_GLOBALS.add("Direction");
     }
 
-    public final TurtleBotBlockEntity turtleEntity;
+    public final TurtleCore core;
 
-    public TurtleServerLuaVM(TurtleBotBlockEntity turtleEntity) {
+    public TurtleServerLuaVM(TurtleCore core) {
         super();
-        this.turtleEntity = turtleEntity;
+        this.core = core;
     }
 
     @Override
@@ -36,7 +37,6 @@ public class TurtleServerLuaVM extends ServerLuaVM {
     protected void initSandboxAndAPIs() {
         super.initSandboxAndAPIs();
 
-        // 削除されたMachineServerLuaVMの初期化処理を移植
         String enumDefinition = "Direction = { UP='up', DOWN='down', LEFT='left', RIGHT='right', FRONT='front', BACK='back', NORTH='north', SOUTH='south', EAST='east', WEST='west' }";
         globals.load(enumDefinition).call();
 
@@ -44,6 +44,9 @@ public class TurtleServerLuaVM extends ServerLuaVM {
         for (String type : DeviceAPIRegistry.getRegisteredTypes()) {
             deviceTable.set(type.toUpperCase(java.util.Locale.ROOT), LuaValue.valueOf(type));
         }
+
+        // スケジューラー(scheduler.lua)が動作するために必須の system API
+        registerAPI("system", getOrCreateAPI(SystemAPI.class, SystemAPI::new));
 
         // Turtle固有のAPI登録
         registerAPI("turtle", getOrCreateAPI(TurtleAPI.class, TurtleAPI::new));

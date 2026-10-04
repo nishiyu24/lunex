@@ -46,7 +46,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Random;
-import java.util.UUID;
 
 public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
 
@@ -90,10 +89,14 @@ public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
         return SHAPE;
     }
 
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
+    }
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, @NotNull BlockState state, @NotNull BlockEntityType<T> type) {
-        if (level.isClientSide()) return null;
         return (lvl, pos, st, be) -> {
             if (be instanceof TurtleBotBlockEntity machine) {
                 TurtleBotBlockEntity.tick(lvl, pos, st, machine);
@@ -114,31 +117,29 @@ public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof TurtleBotBlockEntity machineBE) {
 
-                if (machineBE.machineId == null) {
-                    machineBE.machineId = UUID.randomUUID();
-                    if (machineBE.getMachineLabel() == null || machineBE.getMachineLabel().isEmpty()) {
-                        machineBE.setMachineLabel(String.format("Turtle_%04d", RANDOM.nextInt(10000)));
-                    }
+                // ▼ 修正箇所: getMachineLabel 等は machineBE から直接呼び出す
+                if (machineBE.getMachineLabel() == null || machineBE.getMachineLabel().isEmpty()) {
+                    machineBE.setMachineLabel(String.format("Turtle_%04d", RANDOM.nextInt(10000)));
                 }
 
                 if (placer instanceof Player player) {
-                    machineBE.ownerUUID = player.getUUID();
+                    machineBE.getCore().ownerUUID = player.getUUID();
                 }
 
-                if (machineBE.workspaceId == null || machineBE.workspaceId.isEmpty()) {
+                if (machineBE.getWorkspaceId() == null || machineBE.getWorkspaceId().isEmpty()) {
                     String safeLabel = machineBE.getMachineLabel().replaceAll("[^a-zA-Z0-9_\\-]", "");
                     if (safeLabel.isEmpty()) safeLabel = "Turtle";
-                    String shortId = machineBE.machineId.toString().substring(0, 8);
-                    machineBE.workspaceId = safeLabel + "_" + shortId;
+                    String shortId = machineBE.getCore().machineId.toString().substring(0, 8);
+                    machineBE.getCore().workspaceId = safeLabel + "_" + shortId;
                 }
 
                 CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-                if (tag.contains("WorkspaceId")) machineBE.workspaceId = tag.getString("WorkspaceId");
-                if (tag.contains("OwnerUUID")) machineBE.ownerUUID = tag.getUUID("OwnerUUID");
+                if (tag.contains("WorkspaceId")) machineBE.getCore().workspaceId = tag.getString("WorkspaceId");
+                if (tag.contains("OwnerUUID")) machineBE.getCore().ownerUUID = tag.getUUID("OwnerUUID");
 
-                if (machineBE.workspaceId != null && !machineBE.workspaceId.isEmpty()) {
-                    if (WorkspaceManager.requiresInitialization(level.getServer(), machineBE.workspaceId)) {
-                        WorkspaceManager.initializeWorkspace(level.getServer(), machineBE.workspaceId);
+                if (machineBE.getWorkspaceId() != null && !machineBE.getWorkspaceId().isEmpty()) {
+                    if (WorkspaceManager.requiresInitialization(level.getServer(), machineBE.getWorkspaceId())) {
+                        WorkspaceManager.initializeWorkspace(level.getServer(), machineBE.getWorkspaceId());
                         WorkspaceManager.cleanOldWorkspaces(level.getServer());
                     }
                 }
@@ -155,9 +156,11 @@ public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
         if (state.getBlock() != newState.getBlock()) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof TurtleBotBlockEntity machineEntity) {
-                ItemStackHandler inventory = machineEntity.itemHandler;
-                for (int i = 0; i < inventory.getSlots(); i++) {
-                    Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), inventory.getStackInSlot(i));
+                if (!machineEntity.getCore().isRelocating) {
+                    ItemStackHandler inventory = machineEntity.getCore().itemHandler;
+                    for (int i = 0; i < inventory.getSlots(); i++) {
+                        Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), inventory.getStackInSlot(i));
+                    }
                 }
                 level.updateNeighbourForOutputSignal(pos, this);
             }
@@ -182,8 +185,10 @@ public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
     }
 
     protected void handleWrenchDestroy(Level level, BlockPos pos, BlockState state, TurtleBotBlockEntity machineEntity) {
-        if (!level.isClientSide && machineEntity.workspaceId != null && !machineEntity.workspaceId.isEmpty()) {
-            WorkspaceManager.deleteWorkspace(level.getServer(), machineEntity.workspaceId);
+        machineEntity.getCore().dispose();
+
+        if (!level.isClientSide && machineEntity.getWorkspaceId() != null && !machineEntity.getWorkspaceId().isEmpty()) {
+            WorkspaceManager.deleteWorkspace(level.getServer(), machineEntity.getWorkspaceId());
         }
 
         ItemStack frameStack = new ItemStack(this.asItem());
@@ -198,11 +203,13 @@ public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
     }
 
     protected void handleNormalDestroy(Level level, BlockPos pos, BlockState state, TurtleBotBlockEntity machineEntity) {
-        for (int i = 0; i < machineEntity.itemHandler.getSlots(); i++) {
-            ItemStack stackInSlot = machineEntity.itemHandler.getStackInSlot(i);
+        machineEntity.getCore().dispose();
+
+        for (int i = 0; i < machineEntity.getCore().itemHandler.getSlots(); i++) {
+            ItemStack stackInSlot = machineEntity.getCore().itemHandler.getStackInSlot(i);
             if (!stackInSlot.isEmpty()) {
                 Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stackInSlot);
-                machineEntity.itemHandler.setStackInSlot(i, ItemStack.EMPTY);
+                machineEntity.getCore().itemHandler.setStackInSlot(i, ItemStack.EMPTY);
             }
         }
 
@@ -216,14 +223,13 @@ public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
     }
 
     private boolean canAccess(TurtleBotBlockEntity machine, Player player) {
-        if (!machine.isPrivateMode) return false;
-        if (machine.ownerUUID == null) return false;
-        return !player.getUUID().equals(machine.ownerUUID);
+        if (!machine.getCore().isPrivateMode) return false;
+        if (machine.getCore().ownerUUID == null) return false;
+        return !player.getUUID().equals(machine.getCore().ownerUUID);
     }
 
     @Override
     protected @NotNull ItemInteractionResult useItemOn(ItemStack stack, @NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hitResult) {
-
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof TurtleBotBlockEntity machine) {
             if (player.isShiftKeyDown() && stack.getItem() instanceof WrenchItem) {
@@ -290,7 +296,7 @@ public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
                     }
                 } else {
                     if (machineEntity.isRunning()) {
-                        machineEntity.vm.triggerEvent("on_click");
+                        machineEntity.getCore().vm.triggerEvent("on_click");
                     } else {
                         if (player instanceof ServerPlayer serverPlayer) {
                             serverPlayer.openMenu(new SimpleMenuProvider(
@@ -325,7 +331,7 @@ public class TurtleBotBlock extends Block implements EntityBlock, IMCNetBlock {
     public int getSignal(@NotNull BlockState state, BlockGetter level, @NotNull BlockPos pos, @NotNull Direction direction) {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof TurtleBotBlockEntity machine) {
-            return machine.redstoneOutputs.getOrDefault(direction.getOpposite(), 0);
+            return machine.getCore().redstoneOutputs.getOrDefault(direction.getOpposite(), 0);
         }
         return 0;
     }

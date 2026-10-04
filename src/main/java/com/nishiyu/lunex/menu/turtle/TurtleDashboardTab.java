@@ -21,6 +21,8 @@ public class TurtleDashboardTab implements ITurtleTab {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         TurtleBotBlockEntity be = this.screen.getMenu().getBlockEntity();
+        if (be == null) return;
+
         int col1 = this.leftPos + 15;
         int col2 = this.leftPos + 180;
         int y = this.topPos + 40;
@@ -29,14 +31,14 @@ public class TurtleDashboardTab implements ITurtleTab {
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Machine ID: #" + Math.abs(pos.hashCode() % 10000), col1, y, TurtleGuiUtils.COLOR_TEXT_PRIMARY, 1.0f);
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Pos: X=" + pos.getX() + " Y=" + pos.getY() + " Z=" + pos.getZ(), col1, y + 16, TurtleGuiUtils.COLOR_TEXT_PRIMARY, 1.0f);
 
-        String lanIp = be.persistentData.contains("IPAddress") ? be.persistentData.getString("IPAddress") : "Not Set";
+        String lanIp = be.getCore().persistentData.contains("IPAddress") ? be.getCore().persistentData.getString("IPAddress") : "Not Set";
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "LAN IP: " + lanIp, col1, y + 32, TurtleGuiUtils.COLOR_TEXT_PRIMARY, 1.0f);
 
         String status = this.screen.getMenu().isRunning() ? "§aRunning§r" : "§cStopped§r";
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Status: " + status, col1, y + 52, TurtleGuiUtils.COLOR_TEXT_PRIMARY, 1.0f);
-        TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Energy: " + be.energy, col1, y + 68, TurtleGuiUtils.COLOR_TEXT_MUTED, 1.0f);
+        TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Energy: " + be.getCore().energy, col1, y + 68, TurtleGuiUtils.COLOR_TEXT_MUTED, 1.0f);
 
-        String programName = (be.getProgramName() == null || be.getProgramName().isEmpty()) ? "None" : be.getProgramName();
+        String programName = (be.getCore().programName == null || be.getCore().programName.isEmpty()) ? "None" : be.getCore().programName;
         TurtleGuiUtils.drawScaledString(guiGraphics, this.screen.getFont(), "Boot Program: " + programName, col2, y, TurtleGuiUtils.COLOR_TEXT_PRIMARY, 1.0f);
 
         int btnY = this.topPos + 180;
@@ -60,7 +62,7 @@ public class TurtleDashboardTab implements ITurtleTab {
                 if (this.screen.getMenu().isRunning()) {
                     this.screen.sendCommand("stop", "");
                 } else {
-                    String pName = this.screen.getMenu().getBlockEntity().getProgramName();
+                    String pName = this.screen.getMenu().getBlockEntity() != null ? this.screen.getMenu().getBlockEntity().getCore().programName : "";
                     this.screen.sendCommand("boot", pName != null ? pName : "");
                 }
                 return true;

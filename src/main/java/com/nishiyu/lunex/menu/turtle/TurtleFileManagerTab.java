@@ -1,5 +1,6 @@
 package com.nishiyu.lunex.menu.turtle;
 
+import com.nishiyu.lunex.blockentity.TurtleBotBlockEntity;
 import com.nishiyu.lunex.menu.utiles.EditorLauncher;
 import com.nishiyu.lunex.network.LocalWebSocketServer;
 import net.minecraft.client.gui.GuiGraphics;
@@ -101,11 +102,12 @@ public class TurtleFileManagerTab implements ITurtleTab {
 
     @Override
     public void tick() {
-        if (this.isLoadingFiles) {
+        TurtleBotBlockEntity be = this.screen.getMenu().getBlockEntity();
+        if (this.isLoadingFiles && be != null) {
             if (this.loadingTimer > 0) this.loadingTimer--;
             else {
                 this.isLoadingFiles = false;
-                this.currentFiles = buildFileTree(this.currentDirectory, this.screen.getMenu().getBlockEntity().getInstalledPrograms());
+                this.currentFiles = buildFileTree(this.currentDirectory, be.getCore().installedPrograms);
             }
         }
         syncTimer++;
@@ -214,9 +216,11 @@ public class TurtleFileManagerTab implements ITurtleTab {
     }
 
     private void launchEditorLinked(String targetFile) {
-        BlockPos p = this.screen.getMenu().getBlockEntity().getBlockPos();
+        TurtleBotBlockEntity be = this.screen.getMenu().getBlockEntity();
+        if (be == null) return;
+        BlockPos p = be.getBlockPos();
         String vmId = "turtle_" + p.getX() + "_" + p.getY() + "_" + p.getZ();
-        LocalWebSocketServer.setActiveVm(vmId, this.screen.getMenu().getBlockEntity().getWorkspaceId(), "", targetFile);
+        LocalWebSocketServer.setActiveVm(vmId, be.getCore().workspaceId, "", targetFile);
         EditorLauncher.launchEditor("machine.html");
     }
 
@@ -346,7 +350,9 @@ public class TurtleFileManagerTab implements ITurtleTab {
             case "Boot" -> {
                 this.screen.sendCommand("set_startup", path);
                 this.screen.sendCommand("boot", path);
-                this.screen.getMenu().getBlockEntity().setProgramName(path);
+                if (this.screen.getMenu().getBlockEntity() != null) {
+                    this.screen.getMenu().getBlockEntity().setProgramName(path);
+                }
                 this.selectedFile = null;
             }
             case "Rename" -> {

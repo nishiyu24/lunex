@@ -15,6 +15,8 @@ import com.nishiyu.lunex.client.renderer.*;
 import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsScreen;
 import com.nishiyu.lunex.menu.*;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterScreen;
+import com.nishiyu.lunex.menu.turtle.TurtleBotScreen;
+import com.nishiyu.lunex.menu.turtle.TurtleSettingsScreen;
 import com.nishiyu.lunex.network.LocalWebServer;
 import com.nishiyu.lunex.network.LocalWebSocketServer;
 import net.minecraft.client.Minecraft;
@@ -71,6 +73,8 @@ public class ClientModEvents {
         event.register(Lunex.BIO_PRINTER_MENU.get(), BioPrinterScreen::new);
         event.register(Lunex.BIO_MOB_SETTINGS_MENU.get(), BioEntitySettingsScreen::new);
         event.register(Lunex.MAINFRAME_OVERVIEW_MENU.get(), MainframeOverviewScreen::new);
+        event.register(Lunex.TURTLE_BOT_MENU.get(), TurtleBotScreen::new);
+        event.register(Lunex.TURTLE_SETTINGS_MENU.get(), TurtleSettingsScreen::new);
     }
 
     @SubscribeEvent
