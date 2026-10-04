@@ -35,6 +35,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SimpleMachineBlockEntity extends BlockEntity implements IMainframePart, IMCNetDevice {
 
+    // ★追加: 外部から動的にリソース情報を取得するためのインターフェース
+    public interface IResourceProvider {
+        long getAmount();
+        long getCapacity();
+    }
+
     public CoreMachineServerLuaVM vm = null;
     public UUID machineId = null;
     public CompoundTag persistentData = new CompoundTag();
@@ -48,7 +54,6 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
 
     public int mainframeMachines = 1;
     public final Map<String, Integer> componentCounts = new HashMap<>();
-
     public final Map<String, List<BlockPos>> componentPositions = new HashMap<>();
 
     public final Set<String> activeFeatures = new HashSet<>();
@@ -58,6 +63,9 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
 
     public final Map<String, Long> resourceCapacities = new ConcurrentHashMap<>();
     public final Map<String, Long> resourceUsages = new ConcurrentHashMap<>();
+
+    // ★追加: リソースプロバイダーを管理するマップ
+    public final Map<String, IResourceProvider> resourceProviders = new ConcurrentHashMap<>();
 
     public class DynamicEnergyStorage extends EnergyStorage {
         public DynamicEnergyStorage(int capacity) { super(capacity, 10000, 10000); }
@@ -105,6 +113,34 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
 
     public SimpleMachineBlockEntity(BlockPos pos, BlockState state) {
         super(Lunex.SIMPLE_MACHINE_BE.get(), pos, state);
+
+        // ★追加: デフォルトのリソース（item, energy）をプロバイダーとして登録
+        this.resourceProviders.put("item", new IResourceProvider() {
+            @Override public long getAmount() { return mainframeStorage.getTotalItems(); }
+            @Override public long getCapacity() { return mainframeStorage.getCapacity(); }
+        });
+
+        this.resourceProviders.put("energy", new IResourceProvider() {
+            @Override public long getAmount() { return energyStorage.getEnergyStored(); }
+            @Override public long getCapacity() { return energyStorage.getMaxEnergyStored(); }
+        });
+    }
+
+    // ★追加: 動的リソースプロバイダーを登録するためのメソッド
+    public void registerResourceProvider(String resourceName, IResourceProvider provider) {
+        this.resourceProviders.put(resourceName, provider);
+    }
+
+    // ★追加: 指定したリソースの現在の量を取得
+    public long getResourceAmount(String resourceName) {
+        IResourceProvider provider = this.resourceProviders.get(resourceName);
+        return provider != null ? provider.getAmount() : 0;
+    }
+
+    // ★追加: 指定したリソースの最大容量を取得
+    public long getResourceCapacity(String resourceName) {
+        IResourceProvider provider = this.resourceProviders.get(resourceName);
+        return provider != null ? provider.getCapacity() : 0;
     }
 
     @Override
@@ -172,15 +208,10 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
     public void updateResourceUsages() {
         if (level == null || level.isClientSide) return;
 
-        long itemUsed = 0;
-        for (int i = 0; i < this.mainframeStorage.getSlots(); i++) {
-            ItemStack stack = this.mainframeStorage.getStackInSlot(i);
-            if (!stack.isEmpty()) {
-                itemUsed += stack.getCount();
-            }
+        // ★変更: IResourceProvider を使用して resourceUsages を更新
+        for (Map.Entry<String, IResourceProvider> entry : this.resourceProviders.entrySet()) {
+            this.resourceUsages.put(entry.getKey(), entry.getValue().getAmount());
         }
-        this.resourceUsages.put("item", itemUsed);
-        this.resourceUsages.put("energy", (long) this.energyStorage.getEnergyStored());
 
         for (IMainframeExtension ext : this.extensions.values()) {
             ext.updateResourceUsages(this.resourceUsages);
@@ -238,8 +269,8 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             }
         }
 
-        long baseItemCap = this.mainframeMachines * 100L;
-        long baseEnergyCap = this.mainframeMachines * 1000L;
+        long baseItemCap = 0L;
+        long baseEnergyCap = this.mainframeMachines * 100L;
         this.resourceCapacities.put("item", this.resourceCapacities.getOrDefault("item", 0L) + baseItemCap);
         this.resourceCapacities.put("energy", this.resourceCapacities.getOrDefault("energy", 0L) + baseEnergyCap);
 
@@ -247,6 +278,19 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
         this.mainframeStorage.updateCapacity((int) Math.min(Integer.MAX_VALUE, itemCap));
         long energyCap = this.resourceCapacities.getOrDefault("energy", 0L);
         this.energyStorage.setCapacity((int) Math.min(Integer.MAX_VALUE, energyCap));
+
+        for (BlockPos partPos : this.mainframeParts) {
+            BlockEntity be = level.getBlockEntity(partPos);
+            if (be instanceof com.nishiyu.lunex.blockentity.DatabaseBlockEntity db) {
+                java.util.List<ItemStack> recoveredItems = db.extractAllItems();
+                for (ItemStack stack : recoveredItems) {
+                    ItemStack remainder = this.mainframeStorage.insertItem(0, stack, false);
+                    if (!remainder.isEmpty()) {
+                        net.minecraft.world.Containers.dropItemStack(level, partPos.getX(), partPos.getY(), partPos.getZ(), remainder);
+                    }
+                }
+            }
+        }
 
         updateResourceUsages();
 
@@ -280,7 +324,6 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
 
         MainframeScanner.updateMainframeVisuals(level, this.mainframeParts, false);
 
-        // ★追加: 構成パーツの中から Database を収集する
         List<com.nishiyu.lunex.blockentity.DatabaseBlockEntity> databases = new ArrayList<>();
         for (BlockPos partPos : this.mainframeParts) {
             BlockEntity be = level.getBlockEntity(partPos);
@@ -289,16 +332,13 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             }
         }
 
-        // ★追加: Priority順にソート (値が小さいほど優先度が高い前提)
         databases.sort((d1, d2) -> {
             int p1 = d1.getPersistentData().contains("Priority") ? d1.getPersistentData().getInt("Priority") : 1;
             int p2 = d2.getPersistentData().contains("Priority") ? d2.getPersistentData().getInt("Priority") : 1;
             return Integer.compare(p1, p2);
         });
 
-        // アイテムの退避と分配
         if (!databases.isEmpty()) {
-            // マスターのストレージから全アイテムを取り出す
             List<ItemStack> allItems = new ArrayList<>();
             for (ItemStack stack : this.mainframeStorage.getStacks()) {
                 if (!stack.isEmpty()) {
@@ -307,22 +347,18 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             }
             this.mainframeStorage.getStacks().clear();
 
-            // 優先度順にDatabaseへ詰め込む
             for (ItemStack stack : allItems) {
                 ItemStack remainder = stack;
                 for (com.nishiyu.lunex.blockentity.DatabaseBlockEntity db : databases) {
                     if (remainder.isEmpty()) break;
-                    // DatabaseBlockEntityのinsertItemを使って挿入
                     remainder = db.insertItem(remainder, false);
                 }
 
-                // どのDatabaseにも入りきらなかったアイテムは、安全のためワールドにドロップする
                 if (!remainder.isEmpty()) {
                     net.minecraft.world.Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), remainder);
                 }
             }
         } else {
-            // Databaseが存在しない場合は、ストレージのアイテムをすべてワールドにドロップ
             for (ItemStack stack : this.mainframeStorage.getStacks()) {
                 if (!stack.isEmpty()) {
                     net.minecraft.world.Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), stack);
@@ -350,7 +386,6 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
         this.resourceCapacities.clear();
         this.resourceUsages.clear();
 
-        // ★修正: マスター自身のアイテム容量・エネルギー容量を0に戻す
         this.mainframeStorage.updateCapacity(0);
         this.energyStorage.setCapacity(0);
 
@@ -423,7 +458,6 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
         for (Map.Entry<String, Long> entry : resourceUsages.entrySet()) usageTag.putLong(entry.getKey(), entry.getValue());
         tag.put("ResourceUsages", usageTag);
 
-        // ★追加: 座標キャッシュの保存
         CompoundTag posTag = new CompoundTag();
         for (Map.Entry<String, List<BlockPos>> entry : this.componentPositions.entrySet()) {
             long[] arr = new long[entry.getValue().size()];
@@ -507,7 +541,6 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
         for (Map.Entry<String, Long> entry : resourceUsages.entrySet()) usageTag.putLong(entry.getKey(), entry.getValue());
         tag.put("ResourceUsages", usageTag);
 
-        // ★追加: クライアント用更新パケットへの座標キャッシュ追加
         CompoundTag posTag = new CompoundTag();
         for (Map.Entry<String, List<BlockPos>> entry : this.componentPositions.entrySet()) {
             long[] arr = new long[entry.getValue().size()];
@@ -591,7 +624,6 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             for (long l : tag.getLongArray("MainframeParts")) this.mainframeParts.add(BlockPos.of(l));
         }
 
-        // ★追加: 座標キャッシュの復元処理
         this.componentPositions.clear();
         if (tag.contains("ComponentPositions")) {
             CompoundTag posTag = tag.getCompound("ComponentPositions");

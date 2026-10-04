@@ -4,6 +4,7 @@ import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.api.mainframe.LuaAPIRegistry;
 import com.nishiyu.lunex.api.mainframe.MainframeExtensionRegistry;
 import com.nishiyu.lunex.api.mainframe.action.*;
+import com.nishiyu.lunex.api.mainframe.extension.FurnaceExtension; // ★追加
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -57,10 +58,10 @@ public class MainframeComponentRegistry {
         register(Lunex.PROBE_BLOCK.get(), MainframeComponentData.builder()
                 .maxCount(32)
                 .addFeature(MainframeConstants.FEATURE_PROBE)
-                .addFeature("IO_PORT") // ★追加
+                .addFeature("IO_PORT")
                 .addApi(MainframeConstants.API_RS)
                 .addApi(MainframeConstants.API_INVENTORY)
-                .addApi("net") // ★追加
+                .addApi("net")
                 .addPlacement(MainframeConstants.PLACEMENT_EDGE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
@@ -85,9 +86,20 @@ public class MainframeComponentRegistry {
                 .addExtension(ResourceLocation.fromNamespaceAndPath(Lunex.MODID, "crafter"), com.nishiyu.lunex.api.mainframe.extension.CrafterExtension::new)
                 .build());
 
+
+        register(Blocks.FURNACE, MainframeComponentData.builder()
+                .maxCount(4)
+                .addFeature("lunex:furnace")
+                .addApi("furnace")
+                .addPlacement(MainframeConstants.PLACEMENT_FACE)
+                .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
+                .setActionProvider(new FurnaceActionProvider())
+                .addExtension(ResourceLocation.fromNamespaceAndPath(Lunex.MODID, "furnace"), FurnaceExtension::new)
+                .build());
+
         register(Lunex.MACHINE_FRAME.get(), MainframeComponentData.builder()
                 .maxCount(9999)
-                .addFeature("CPU_CORE") // ★追加
+                .addFeature("CPU_CORE")
                 .addPlacement(MainframeConstants.PLACEMENT_EDGE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)

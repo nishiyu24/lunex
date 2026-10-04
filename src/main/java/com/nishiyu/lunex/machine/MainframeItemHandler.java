@@ -41,33 +41,42 @@ public class MainframeItemHandler implements IItemHandler {
         int currentTotal = getTotalItems();
         if (currentTotal >= capacity) return stack;
 
+        // 全体容量に収まる分だけを挿入対象とする
         int insertableAmount = Math.min(stack.getCount(), capacity - currentTotal);
+        if (insertableAmount <= 0) return stack;
+
         ItemStack toInsert = stack.copyWithCount(insertableAmount);
         ItemStack remainder = stack.copyWithCount(stack.getCount() - insertableAmount);
 
+        // 既存のスロットに対して、バニラの最大スタック数(64等)の空き容量分だけ埋める
         for (int i = 0; i < stacks.size(); i++) {
             ItemStack existing = stacks.get(i);
-            // ★修正: 1.21対応のスタック可能判定メソッドに変更
             if (ItemStack.isSameItemSameComponents(existing, toInsert)) {
                 int space = existing.getMaxStackSize() - existing.getCount();
                 if (space > 0) {
-                    int amount = Math.min(space, toInsert.getCount());
+                    int addAmount = Math.min(space, toInsert.getCount());
                     if (!simulate) {
-                        existing.grow(amount);
+                        existing.grow(addAmount);
                         onContentsChanged(i);
                     }
-                    toInsert.shrink(amount);
-                    if (toInsert.isEmpty()) return remainder;
+                    toInsert.shrink(addAmount);
+                    if (toInsert.isEmpty()) {
+                        return remainder; // 全て挿入完了
+                    }
                 }
             }
         }
 
-        if (!toInsert.isEmpty()) {
+        // 既存のスロットに入りきらなかった分を、新しいスロットとして追加（最大スタック数で分割）
+        while (!toInsert.isEmpty()) {
+            int addAmount = Math.min(toInsert.getMaxStackSize(), toInsert.getCount());
             if (!simulate) {
-                stacks.add(toInsert.copy());
+                stacks.add(toInsert.copyWithCount(addAmount));
                 onContentsChanged(stacks.size() - 1);
             }
+            toInsert.shrink(addAmount);
         }
+
         return remainder;
     }
 
@@ -90,7 +99,9 @@ public class MainframeItemHandler implements IItemHandler {
     }
 
     @Override
-    public int getSlotLimit(int slot) { return 64; }
+    public int getSlotLimit(int slot) {
+        return 64;
+    }
 
     @Override
     public boolean isItemValid(int slot, @NotNull ItemStack stack) {

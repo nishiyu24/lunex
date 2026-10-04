@@ -5,10 +5,7 @@ import com.nishiyu.lunex.Config;
 import com.nishiyu.lunex.api.client.MainframeBottomTabRegistry;
 import com.nishiyu.lunex.api.client.MainframeUIRegistry;
 import com.nishiyu.lunex.api.client.IMainframeUIExtension;
-import com.nishiyu.lunex.api.client.ui.extensions.CrafterUIExtension;
-import com.nishiyu.lunex.api.client.ui.extensions.DatabaseUIExtension;
-import com.nishiyu.lunex.api.client.ui.extensions.ProbeUIExtension;
-import com.nishiyu.lunex.api.client.ui.extensions.ScreenUIExtension;
+import com.nishiyu.lunex.api.client.ui.extensions.*;
 import com.nishiyu.lunex.api.client.ui.tabs.NetworkStatusBottomTab;
 import com.nishiyu.lunex.client.renderer.blocks.PrinterBlockEntityRenderer;
 import com.nishiyu.lunex.client.renderer.blocks.TurtleBotRenderer;
@@ -63,6 +60,7 @@ public class ClientModEvents {
             MainframeUIRegistry.register(Lunex.SCREEN_BLOCK.get(), new ScreenUIExtension());
             MainframeUIRegistry.register(Lunex.DATABASE_BLOCK.get(), new DatabaseUIExtension());
             MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.CRAFTER, new CrafterUIExtension());
+            MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.FURNACE, new FurnaceUIExtension());
         });
     }
 

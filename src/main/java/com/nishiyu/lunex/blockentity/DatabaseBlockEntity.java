@@ -199,6 +199,52 @@ public class DatabaseBlockEntity extends BlockEntity implements IMainframePart {
         return ItemStack.EMPTY;
     }
 
+    public java.util.List<ItemStack> extractAllItems() {
+        java.util.List<ItemStack> result = new java.util.ArrayList<>();
+        if (this.level == null) return result;
+
+        for (Map.Entry<String, Long> entry : itemCounts.entrySet()) {
+            String key = entry.getKey();
+            long count = entry.getValue();
+            String id = itemIds.get(key);
+            String nbtStr = itemNbtStrings.get(key);
+
+            if (count > 0) {
+                try {
+                    ItemStack parsed = ItemStack.EMPTY;
+                    if (nbtStr != null && !nbtStr.isEmpty()) {
+                        CompoundTag tag = TagParser.parseTag(nbtStr);
+                        parsed = ItemStack.parse(this.level.registryAccess(), tag).orElse(ItemStack.EMPTY);
+                    } else {
+                        net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(id));
+                        if (item != net.minecraft.world.item.Items.AIR) {
+                            parsed = new ItemStack(item);
+                        }
+                    }
+
+                    if (!parsed.isEmpty()) {
+                        // 累計数をそのまま1つのItemStackにセットする (intの最大値まで)
+                        parsed.setCount((int) Math.min(count, Integer.MAX_VALUE));
+                        result.add(parsed);
+                    }
+                } catch (Exception e) {
+                    // 解析エラー時はスキップ
+                }
+            }
+        }
+
+        // 吸い出し終わったらDatabaseの中身をクリア
+        itemCounts.clear();
+        itemIds.clear();
+        itemNbtStrings.clear();
+        this.setChanged();
+        if (!this.level.isClientSide) {
+            this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 2);
+        }
+
+        return result;
+    }
+
     @Override
     protected void saveAdditional(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
         super.saveAdditional(tag, registries);

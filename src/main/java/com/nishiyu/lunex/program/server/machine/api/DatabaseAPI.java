@@ -11,6 +11,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 
+import java.util.Map;
+
 public class DatabaseAPI implements IMainframeAPI {
     private ServerLuaVM vm;
 
@@ -54,8 +56,8 @@ public class DatabaseAPI implements IMainframeAPI {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return "0 / 0";
 
-            long used = master.resourceUsages.getOrDefault("item", 0L);
-            long max = master.resourceCapacities.getOrDefault("item", 0L);
+            long used = master.getResourceAmount("item");
+            long max = master.getResourceCapacity("item");
             return String.format("%d / %d", used, max);
         });
     }
@@ -70,7 +72,7 @@ public class DatabaseAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return 0;
-            return master.resourceUsages.getOrDefault("item", 0L).intValue();
+            return (int) master.getResourceAmount("item");
         });
     }
 
@@ -84,12 +86,13 @@ public class DatabaseAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return 0;
-            return master.resourceCapacities.getOrDefault("item", 0L).intValue();
+            return (int) master.getResourceCapacity("item");
         });
     }
 
+    // ★変更: IResourceProvider を使用した汎用リソース取得に変更
     @LuaFunction(
-            value = "指定した動的リソース（gas, mana, energy等）の使用量を取得します。",
+            value = "指定した動的リソース（item, energy, gas, mana等）の現在の使用量を取得します。",
             args = {"str:target", "str:resourceType"},
             rets = {"num:used"},
             isAsync = false
@@ -98,12 +101,13 @@ public class DatabaseAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return 0;
-            return master.resourceUsages.getOrDefault(resourceType, 0L).intValue();
+            return (int) master.getResourceAmount(resourceType);
         });
     }
 
+    // ★変更: IResourceProvider を使用した汎用リソース容量取得に変更
     @LuaFunction(
-            value = "指定した動的リソース（gas, mana, energy等）の最大容量を取得します。",
+            value = "指定した動的リソース（item, energy, gas, mana等）の最大容量を取得します。",
             args = {"str:target", "str:resourceType"},
             rets = {"num:max"},
             isAsync = false
@@ -112,7 +116,30 @@ public class DatabaseAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return 0;
-            return master.resourceCapacities.getOrDefault(resourceType, 0L).intValue();
+            return (int) master.getResourceCapacity(resourceType);
+        });
+    }
+
+    // ★追加: 登録されている全リソースの種類と情報をテーブルで取得
+    @LuaFunction(
+            value = "Mainframeに登録されているすべてのリソース情報をテーブルで取得します。",
+            args = {"str:target"},
+            rets = {"table:resources"},
+            isAsync = false
+    )
+    public LuaTable getResources(String targetStr) {
+        return vm.executeInMainThreadSync(() -> {
+            LuaTable result = new LuaTable();
+            SimpleMachineBlockEntity master = getMainframe(targetStr);
+            if (master == null) return result;
+
+            for (Map.Entry<String, SimpleMachineBlockEntity.IResourceProvider> entry : master.resourceProviders.entrySet()) {
+                LuaTable info = new LuaTable();
+                info.set("amount", LuaValue.valueOf(entry.getValue().getAmount()));
+                info.set("capacity", LuaValue.valueOf(entry.getValue().getCapacity()));
+                result.set(entry.getKey(), info);
+            }
+            return result;
         });
     }
 
@@ -127,7 +154,6 @@ public class DatabaseAPI implements IMainframeAPI {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null || master.getLevel() == null || programName == null || code == null) return false;
 
-            // 既存のプログラムを上書きする場合（すでに容量として 5 を消費済みのため追加チェックは不要）
             for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     if (db.storedPrograms.containsKey(programName)) {
@@ -138,7 +164,6 @@ public class DatabaseAPI implements IMainframeAPI {
                 }
             }
 
-            // 新規プログラムを追加する場合（追加で容量 5 を消費する）
             for (BlockPos dbPos : master.mainframeParts) {
                 if (master.getLevel().getBlockEntity(dbPos) instanceof DatabaseBlockEntity db) {
                     if (db.getUsedCount() + 5 <= db.getMaxCapacity()) {
