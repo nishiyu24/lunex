@@ -20,22 +20,16 @@ public class MainframeComponentData {
     private final Set<String> placements;
     private final Map<String, Long> resourceCapacities;
 
-    private final Set<String> blockTabs;
-    private final Set<String> bottomTabs;
-
-    // ★ サーバー側の処理
     private final IMainframeActionProvider<?> actionProvider;
     private final Map<ResourceLocation, Supplier<IMainframeExtension>> extensions;
     private final List<IMainframeAPI> luaAPIs;
 
-    private MainframeComponentData(int maxCount, Set<String> features, Set<String> apis, Set<String> placements, Map<String, Long> resourceCapacities, Set<String> blockTabs, Set<String> bottomTabs, IMainframeActionProvider<?> actionProvider, Map<ResourceLocation, Supplier<IMainframeExtension>> extensions, List<IMainframeAPI> luaAPIs) {
+    private MainframeComponentData(int maxCount, Set<String> features, Set<String> apis, Set<String> placements, Map<String, Long> resourceCapacities, IMainframeActionProvider<?> actionProvider, Map<ResourceLocation, Supplier<IMainframeExtension>> extensions, List<IMainframeAPI> luaAPIs) {
         this.maxCount = maxCount;
         this.features = features;
         this.apis = apis;
         this.placements = placements;
         this.resourceCapacities = resourceCapacities;
-        this.blockTabs = blockTabs;
-        this.bottomTabs = bottomTabs;
         this.actionProvider = actionProvider;
         this.extensions = extensions;
         this.luaAPIs = luaAPIs;
@@ -46,8 +40,6 @@ public class MainframeComponentData {
     public Set<String> getApis() { return apis; }
     public Set<String> getPlacements() { return placements; }
     public Map<String, Long> getResourceCapacities() { return resourceCapacities; }
-    public Set<String> getBlockTabs() { return blockTabs; }
-    public Set<String> getBottomTabs() { return bottomTabs; }
     public IMainframeActionProvider<?> getActionProvider() { return actionProvider; }
     public Map<ResourceLocation, Supplier<IMainframeExtension>> getExtensions() { return extensions; }
     public List<IMainframeAPI> getLuaAPIs() { return luaAPIs; }
@@ -62,9 +54,6 @@ public class MainframeComponentData {
         private final Set<String> apis = new HashSet<>();
         private final Set<String> placements = new HashSet<>();
         private final Map<String, Long> resourceCapacities = new HashMap<>();
-
-        private final Set<String> blockTabs = new HashSet<>();
-        private final Set<String> bottomTabs = new HashSet<>();
         private IMainframeActionProvider<?> actionProvider = null;
         private final Map<ResourceLocation, Supplier<IMainframeExtension>> extensions = new HashMap<>();
         private final List<IMainframeAPI> luaAPIs = new ArrayList<>();
@@ -74,16 +63,13 @@ public class MainframeComponentData {
         public Builder addApi(String api) { this.apis.add(api); return this; }
         public Builder addPlacement(String placement) { this.placements.add(placement); return this; }
         public Builder addResourceCapacity(String type, long amount) { this.resourceCapacities.put(type, amount); return this; }
-        public Builder addBlockTab(String className) { this.blockTabs.add(className); return this; }
-        public Builder addBottomTab(String className) { this.bottomTabs.add(className); return this; }
 
-        // ★ 各種プロバイダ・拡張の登録メソッド群
         public Builder setActionProvider(IMainframeActionProvider<?> provider) { this.actionProvider = provider; return this; }
         public Builder addExtension(ResourceLocation id, Supplier<IMainframeExtension> factory) { this.extensions.put(id, factory); return this; }
         public Builder addLuaAPI(IMainframeAPI api) { this.luaAPIs.add(api); return this; }
 
         public MainframeComponentData build() {
-            return new MainframeComponentData(maxCount, features, apis, placements, resourceCapacities, blockTabs, bottomTabs, actionProvider, extensions, luaAPIs);
+            return new MainframeComponentData(maxCount, features, apis, placements, resourceCapacities, actionProvider, extensions, luaAPIs);
         }
     }
 }

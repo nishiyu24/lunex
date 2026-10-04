@@ -96,7 +96,7 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
         this.uiFramework.showLeftPanel = (this.width >= 800 || this.selectedPos == null);
 
         BlockEntity be = this.selectedPos != null ? this.menu.getLevel().getBlockEntity(this.selectedPos) : null;
-        IMainframeUIExtension<BlockEntity> extension = (be != null) ? (IMainframeUIExtension<BlockEntity>) MainframeUIRegistry.get(be) : null;
+        IMainframeUIExtension extension = (be != null) ? MainframeUIRegistry.get(be) : null;
 
         this.uiFramework.setRightPanel(MainframeUIRegistry.createRightPanel(this.selectedPos, be, extension));
 

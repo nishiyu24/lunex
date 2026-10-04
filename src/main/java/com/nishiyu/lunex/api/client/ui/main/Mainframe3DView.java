@@ -71,7 +71,7 @@ public class Mainframe3DView {
             maxDist = Math.max(maxDist, Math.abs(p.getY() - cy));
             maxDist = Math.max(maxDist, Math.abs(p.getZ() - cz));
         }
-        this.renderScale = Math.clamp(Math.min(Math.max(100, vpWidth), Math.max(100, vpHeight)) / (maxDist * 2.5f), 5f, 50f);
+        this.renderScale = Math.clamp(Math.clamp(vpHeight, 100, Math.max(100, vpWidth)) / (maxDist * 2.5f), 5f, 50f);
         this.scaleInitialized = true;
     }
 

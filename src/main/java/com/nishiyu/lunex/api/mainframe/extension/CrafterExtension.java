@@ -24,7 +24,6 @@ public class CrafterExtension implements IMainframeExtension {
     private ItemStack recipeOutput = new ItemStack(Items.IRON_BLOCK, 1);
 
     private int tickCounter = 0;
-    private int crafterCount = 0;
 
     public CrafterExtension() {
         for(int i = 0; i < 9; i++) {
@@ -34,22 +33,10 @@ public class CrafterExtension implements IMainframeExtension {
 
     @Override
     public void onAssembled(SimpleMachineBlockEntity master) {
-        // メインフレームに組み込まれているCrafterの数を数える
-        crafterCount = 0;
-        if (master.getLevel() != null) {
-            for (BlockPos pos : master.mainframeParts) {
-                if (master.getLevel().getBlockEntity(pos) instanceof MainframeAdapterBlockEntity adapter) {
-                    if (adapter.getOriginalState() != null && adapter.getOriginalState().is(net.minecraft.world.level.block.Blocks.CRAFTER)) {
-                        crafterCount++;
-                    }
-                }
-            }
-        }
     }
 
     @Override
     public void onDisassembled(SimpleMachineBlockEntity master) {
-        crafterCount = 0;
     }
 
     @Override
@@ -89,29 +76,22 @@ public class CrafterExtension implements IMainframeExtension {
 
     @Override
     public void tick(Level level, SimpleMachineBlockEntity master) {
-        if (crafterCount <= 0 || level.isClientSide) return;
+        if (level.isClientSide) return;
 
         tickCounter++;
         // 20tick(1秒)ごとにクラフト処理を実行
         if (tickCounter >= 20) {
             tickCounter = 0;
 
-            // クラフターのブロックNBTから "AutoCraftActive" がONになっているか確認する
-            // （CrafterUIExtension で設定したデータを参照）
-            boolean isAnyActive = false;
+            // ネットワーク内の全パーツからCrafterを探し、個別にON/OFFを判定して実行する
             for (BlockPos pos : master.mainframeParts) {
                 if (level.getBlockEntity(pos) instanceof MainframeAdapterBlockEntity adapter) {
-                    if (adapter.getPersistentData().getBoolean("AutoCraftActive")) {
-                        isAnyActive = true;
-                        break;
+                    if (adapter.getOriginalState() != null && adapter.getOriginalState().is(net.minecraft.world.level.block.Blocks.CRAFTER)) {
+                        // このCrafterがONに設定されている場合のみクラフト試行
+                        if (adapter.getPersistentData().getBoolean("AutoCraftActive")) {
+                            tryAutoCraft(master);
+                        }
                     }
-                }
-            }
-
-            if (isAnyActive) {
-                // クラフターの数だけ同時にクラフトを試行
-                for(int i = 0; i < crafterCount; i++) {
-                    tryAutoCraft(master);
                 }
             }
         }

@@ -16,11 +16,7 @@ public class MainframeComponentRegistry {
 
     public static void register(Block block, MainframeComponentData data) {
         REGISTRY.put(block, data);
-
-        // ★ 自動横流し登録: マシン内のバックエンド処理
         data.getExtensions().forEach(MainframeExtensionRegistry::register);
-
-        // ★ 自動横流し登録: Lua API
         data.getLuaAPIs().forEach(LuaAPIRegistry::register);
     }
 
@@ -38,7 +34,6 @@ public class MainframeComponentRegistry {
                 .addApi(MainframeConstants.API_STORAGE)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
-                .addBottomTab("com.nishiyu.lunex.api.client.ui.tabs.NetworkStatusBottomTab")
                 .build());
 
         register(Lunex.DATABASE_BLOCK.get(), MainframeComponentData.builder()
@@ -49,7 +44,6 @@ public class MainframeComponentRegistry {
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
                 .addResourceCapacity("item", 1000)
-                .addBlockTab("com.nishiyu.lunex.api.client.ui.extensions.DatabaseUIExtension")
                 .setActionProvider(new DatabaseActionProvider())
                 .build());
 
@@ -63,10 +57,13 @@ public class MainframeComponentRegistry {
         register(Lunex.PROBE_BLOCK.get(), MainframeComponentData.builder()
                 .maxCount(32)
                 .addFeature(MainframeConstants.FEATURE_PROBE)
+                .addFeature("IO_PORT") // ★追加
                 .addApi(MainframeConstants.API_RS)
                 .addApi(MainframeConstants.API_INVENTORY)
+                .addApi("net") // ★追加
+                .addPlacement(MainframeConstants.PLACEMENT_EDGE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
-                .addBlockTab("com.nishiyu.lunex.api.client.ui.extensions.ProbeUIExtension")
+                .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
                 .setActionProvider(new ProbeActionProvider())
                 .build());
 
@@ -75,27 +72,22 @@ public class MainframeComponentRegistry {
                 .addFeature(MainframeConstants.FEATURE_SCREEN)
                 .addApi(MainframeConstants.API_SCREEN)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
-                .addBlockTab("com.nishiyu.lunex.api.client.ui.extensions.ScreenUIExtension")
                 .setActionProvider(new ScreenActionProvider())
                 .build());
 
         register(Blocks.CRAFTER, MainframeComponentData.builder()
-                // 1. 基本情報
                 .maxCount(4)
                 .addFeature("lunex:crafter")
                 .addApi("crafter")
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
-                // 2. クライアント側: UI描画拡張
-                .addBlockTab("com.nishiyu.lunex.api.client.ui.extensions.CrafterUIExtension")
-                // 3. サーバー側: パケットアクション処理
                 .setActionProvider(new CrafterActionProvider())
-                // 4. サーバー側: マシン内の処理
                 .addExtension(ResourceLocation.fromNamespaceAndPath(Lunex.MODID, "crafter"), com.nishiyu.lunex.api.mainframe.extension.CrafterExtension::new)
                 .build());
 
         register(Lunex.MACHINE_FRAME.get(), MainframeComponentData.builder()
                 .maxCount(9999)
+                .addFeature("CPU_CORE") // ★追加
                 .addPlacement(MainframeConstants.PLACEMENT_EDGE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)

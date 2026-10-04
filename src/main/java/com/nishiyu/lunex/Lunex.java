@@ -12,6 +12,7 @@ import com.nishiyu.lunex.item.ARGlassesItem;
 import com.nishiyu.lunex.item.ProgramDiskItem;
 import com.nishiyu.lunex.item.WrenchItem;
 import com.nishiyu.lunex.item.InactiveBookItem;
+import com.nishiyu.lunex.machine.MainframeCapabilityHandler;
 import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsMenu;
 import com.nishiyu.lunex.menu.*;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterMenu;
@@ -235,6 +236,7 @@ public class Lunex {
         modEventBus.addListener(this::registerEntityAttributes);
 
         modEventBus.addListener(com.nishiyu.lunex.network.NetworkHandler::register);
+        modEventBus.addListener(MainframeCapabilityHandler::registerCapabilities);
         modEventBus.addListener(DataGenerators::gatherData);
 
         NeoForge.EVENT_BUS.addListener(this::onServerStarting);
@@ -246,20 +248,7 @@ public class Lunex {
     }
 
     private void setup(final FMLCommonSetupEvent event) {
-        event.enqueueWork(() -> {
-            MainframeComponentRegistry.registerCoreComponents();
-
-            MainframeComponentRegistry.register(MACHINE_FRAME.get(),
-                    MainframeComponentData.builder()
-                            .addFeature("CPU_CORE")
-                            .build());
-
-            MainframeComponentRegistry.register(PROBE_BLOCK.get(),
-                    MainframeComponentData.builder()
-                            .addFeature("IO_PORT")
-                            .addApi("net")
-                            .build());
-        });
+        event.enqueueWork(MainframeComponentRegistry::registerCoreComponents);
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
@@ -268,10 +257,6 @@ public class Lunex {
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, PRINTER_BE.get(), (be, side) -> be.itemHandler);
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.itemHandler);
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.energyStorage);
-        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, PROBE_BE.get(), ProbeBlockEntity::getItemHandler);
-        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, PROBE_BE.get(), ProbeBlockEntity::getEnergyStorage);
-        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, SIMPLE_MACHINE_BE.get(), (be, side) -> be.mainframeStorage);
-        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, SIMPLE_MACHINE_BE.get(), (be, side) -> be.energyStorage);
     }
 
     private void onServerStarting(ServerStartingEvent event) {

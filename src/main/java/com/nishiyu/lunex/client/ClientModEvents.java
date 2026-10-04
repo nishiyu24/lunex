@@ -5,6 +5,11 @@ import com.nishiyu.lunex.Config;
 import com.nishiyu.lunex.api.client.MainframeBottomTabRegistry;
 import com.nishiyu.lunex.api.client.MainframeUIRegistry;
 import com.nishiyu.lunex.api.client.IMainframeUIExtension;
+import com.nishiyu.lunex.api.client.ui.extensions.CrafterUIExtension;
+import com.nishiyu.lunex.api.client.ui.extensions.DatabaseUIExtension;
+import com.nishiyu.lunex.api.client.ui.extensions.ProbeUIExtension;
+import com.nishiyu.lunex.api.client.ui.extensions.ScreenUIExtension;
+import com.nishiyu.lunex.api.client.ui.tabs.NetworkStatusBottomTab;
 import com.nishiyu.lunex.client.renderer.blocks.PrinterBlockEntityRenderer;
 import com.nishiyu.lunex.client.renderer.blocks.TurtleBotRenderer;
 import com.nishiyu.lunex.api.client.ui.panels.ConfiguratorRightPanel;
@@ -43,26 +48,24 @@ public class ClientModEvents {
         LocalWebServer.start(isWebServerEnabled);
 
         event.enqueueWork(() -> {
-            // ========================================================
-            // システムタブの登録
-            // ========================================================
             MainframeBottomTabRegistry.registerGlobal(
                     SystemStorageBottomTab::new,
                     (master, level) -> !master.resourceCapacities.isEmpty()
             );
 
-            // ========================================================
-            // ★追加: 左右のデフォルトパネルのプロバイダー登録
-            // ========================================================
-            MainframeUIRegistry.setLeftPanelProvider(SystemStatusLeftPanel::new);
+            MainframeBottomTabRegistry.registerBlockTab(Lunex.ROUTER_BLOCK.get(), NetworkStatusBottomTab::new);
 
-            MainframeUIRegistry.setRightPanelProvider((pos, be, extension) -> {
-                @SuppressWarnings("unchecked")
-                IMainframeUIExtension<BlockEntity> ext = (IMainframeUIExtension<BlockEntity>) extension;
-                return new ConfiguratorRightPanel(pos, be, ext);
-            });
+            MainframeUIRegistry.setLeftPanelProvider(SystemStatusLeftPanel::new);
+            MainframeUIRegistry.setRightPanelProvider(ConfiguratorRightPanel::new);
+
+            // ★ Block と UI 拡張を紐づけてシステムに登録
+            MainframeUIRegistry.register(Lunex.PROBE_BLOCK.get(), new ProbeUIExtension());
+            MainframeUIRegistry.register(Lunex.SCREEN_BLOCK.get(), new ScreenUIExtension());
+            MainframeUIRegistry.register(Lunex.DATABASE_BLOCK.get(), new DatabaseUIExtension());
+            MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.CRAFTER, new CrafterUIExtension());
         });
     }
+
 
     @SubscribeEvent
     public static void registerScreens(RegisterMenuScreensEvent event) {

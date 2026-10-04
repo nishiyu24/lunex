@@ -5,7 +5,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 
 /**
  * サーバー側でメインフレームのアクションパケットを処理するプロバイダー。
- * UI拡張(クライアント側)と対になるサーバー側の処理を定義します。
  */
 public interface IMainframeActionProvider<T extends BlockEntity> {
     /**

@@ -26,12 +26,5 @@ public class ModCapabilitiesEvent {
                 Lunex.PRINTER_BE.get(),
                 (blockEntity, side) -> blockEntity.energyStorage
         );
-
-        // ★追加: ProbeBlockEntity の ItemHandler 登録 (メインフレームへの物理I/O委譲用)
-        event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
-                Lunex.PROBE_BE.get(),
-                ProbeBlockEntity::getItemHandler
-        );
     }
 }

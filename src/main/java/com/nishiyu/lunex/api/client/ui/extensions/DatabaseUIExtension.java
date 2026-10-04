@@ -1,7 +1,6 @@
 package com.nishiyu.lunex.api.client.ui.extensions;
 
 import com.nishiyu.lunex.api.client.IMainframeUIExtension;
-import com.nishiyu.lunex.api.client.IMainframeUIExtensionProvider;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.menu.MainframeOverviewScreen;
@@ -18,21 +17,15 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.function.Consumer;
 
-public class DatabaseUIExtension implements IMainframeUIExtension<DatabaseBlockEntity>, IMainframeUIExtensionProvider {
+public class DatabaseUIExtension implements IMainframeUIExtension {
 
     @Override
-    public IMainframeUIExtension<?> getExtension(BlockEntity be) {
-        if (be instanceof DatabaseBlockEntity) return this;
-        return null;
-    }
-
-    @Override
-    public int getPanelHeight(DatabaseBlockEntity be) {
+    public int getPanelHeight(BlockEntity be) {
         return 140;
     }
 
     @Override
-    public void buildWidgets(MainframeOverviewScreen screen, BlockPos pos, DatabaseBlockEntity be, int panelX, int textY, Consumer<AbstractWidget> addWidget) {
+    public void buildWidgets(MainframeOverviewScreen screen, BlockPos pos, BlockEntity be, int panelX, int textY, Consumer<AbstractWidget> addWidget) {
         int currentPriority = be.getPersistentData().getInt("Priority");
         if (currentPriority < 1 || currentPriority > 10) currentPriority = 1;
         int finalPriority = currentPriority;
@@ -50,31 +43,18 @@ public class DatabaseUIExtension implements IMainframeUIExtension<DatabaseBlockE
     }
 
     @Override
-    public void renderDetails(GuiGraphics guiGraphics, Font font, BlockPos pos, DatabaseBlockEntity be, int panelX, int textY) {
-        Level level = be.getLevel();
-        if (level != null && be.getMasterPos() != null) {
-            BlockEntity masterBe = level.getBlockEntity(be.getMasterPos());
-            if (masterBe instanceof SimpleMachineBlockEntity master) {
-                long maxItem = master.resourceCapacities.getOrDefault("item", 0L);
-                long usedItem = master.resourceUsages.getOrDefault("item", 0L);
-                guiGraphics.drawString(font, "Items: " + usedItem, panelX + 5, textY, 0x00E5FF);
-                guiGraphics.drawString(font, "Max:   " + maxItem, panelX + 5, textY + 15, 0x00E5FF);
+    public void renderDetails(GuiGraphics guiGraphics, Font font, BlockPos pos, BlockEntity be, int panelX, int textY) {
+        if (be instanceof DatabaseBlockEntity db) {
+            Level level = db.getLevel();
+            if (level != null && db.getMasterPos() != null) {
+                BlockEntity masterBe = level.getBlockEntity(db.getMasterPos());
+                if (masterBe instanceof SimpleMachineBlockEntity master) {
+                    long maxItem = master.resourceCapacities.getOrDefault("item", 0L);
+                    long usedItem = master.resourceUsages.getOrDefault("item", 0L);
+                    guiGraphics.drawString(font, "Items: " + usedItem, panelX + 5, textY, 0x00E5FF);
+                    guiGraphics.drawString(font, "Max:   " + maxItem, panelX + 5, textY + 15, 0x00E5FF);
+                }
             }
         }
-    }
-
-    @Override
-    public boolean handleAction(String action, String value, DatabaseBlockEntity db, Level level) {
-        if ("set_priority".equals(action)) {
-            try {
-                int priority = Integer.parseInt(value);
-                if (priority < 1 || priority > 10) priority = 1;
-                db.getPersistentData().putInt("Priority", priority);
-                db.setChanged();
-                level.sendBlockUpdated(db.getBlockPos(), db.getBlockState(), db.getBlockState(), 3);
-                return true;
-            } catch (NumberFormatException ignored) {}
-        }
-        return false;
     }
 }

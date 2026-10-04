@@ -1,7 +1,6 @@
 package com.nishiyu.lunex.api.client.ui.extensions;
 
 import com.nishiyu.lunex.api.client.IMainframeUIExtension;
-import com.nishiyu.lunex.api.client.IMainframeUIExtensionProvider;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.menu.MainframeOverviewScreen;
@@ -22,21 +21,15 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.function.Consumer;
 
-public class ScreenUIExtension implements IMainframeUIExtension<ScreenBlockEntity>, IMainframeUIExtensionProvider {
+public class ScreenUIExtension implements IMainframeUIExtension {
 
     @Override
-    public IMainframeUIExtension<?> getExtension(BlockEntity be) {
-        if (be instanceof ScreenBlockEntity) return this;
-        return null;
-    }
-
-    @Override
-    public int getPanelHeight(ScreenBlockEntity be) {
+    public int getPanelHeight(BlockEntity be) {
         return 160;
     }
 
     @Override
-    public void buildWidgets(MainframeOverviewScreen screen, BlockPos pos, ScreenBlockEntity be, int panelX, int textY, Consumer<AbstractWidget> addWidget) {
+    public void buildWidgets(MainframeOverviewScreen screen, BlockPos pos, BlockEntity be, int panelX, int textY, Consumer<AbstractWidget> addWidget) {
         String mode = be.getPersistentData().getString("DisplayMode");
         if (mode.isEmpty()) mode = "CAPACITY";
 
@@ -70,20 +63,22 @@ public class ScreenUIExtension implements IMainframeUIExtension<ScreenBlockEntit
     }
 
     @Override
-    public void renderDetails(GuiGraphics guiGraphics, Font font, BlockPos pos, ScreenBlockEntity be, int panelX, int textY) {
-        Level level = be.getLevel();
+    public void renderDetails(GuiGraphics guiGraphics, Font font, BlockPos pos, BlockEntity be, int panelX, int textY) {
+        if (!(be instanceof ScreenBlockEntity screen)) return;
+
+        Level level = screen.getLevel();
         if (level == null) return;
 
         guiGraphics.drawString(font, "Display Settings:", panelX + 5, textY, 0x00E5FF);
-        String mode = be.getPersistentData().getString("DisplayMode");
+        String mode = screen.getPersistentData().getString("DisplayMode");
         if (mode.isEmpty()) mode = "CAPACITY";
 
         if ("ITEM".equals(mode)) {
             guiGraphics.drawString(font, "Filter:", panelX + 5, textY + 42, 0xFFFFFF);
-            String filter = be.getPersistentData().getString("ScreenFilter");
+            String filter = screen.getPersistentData().getString("ScreenFilter");
             int count = 0;
 
-            if (be.mainframeMasterPos != null && level.getBlockEntity(be.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
+            if (screen.mainframeMasterPos != null && level.getBlockEntity(screen.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
                 boolean isNbtFilter = filter.startsWith("{") && filter.endsWith("}");
                 String searchStr = isNbtFilter ? filter.substring(1, filter.length() - 1) : filter;
                 IItemHandler handler = level.getCapability(Capabilities.ItemHandler.BLOCK, master.getBlockPos(), null);
@@ -92,27 +87,21 @@ public class ScreenUIExtension implements IMainframeUIExtension<ScreenBlockEntit
                     for (int i = 0; i < handler.getSlots(); i++) {
                         ItemStack stack = handler.getStackInSlot(i);
                         if (!stack.isEmpty()) {
-                            if (filter.isEmpty()) {
-                                count += stack.getCount();
-                            } else if (isNbtFilter) {
+                            if (filter.isEmpty()) count += stack.getCount();
+                            else if (isNbtFilter) {
                                 net.minecraft.world.item.component.CustomData customData = stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.EMPTY);
-                                if (customData.copyTag().toString().contains(searchStr)) {
-                                    count += stack.getCount();
-                                }
+                                if (customData.copyTag().toString().contains(searchStr)) count += stack.getCount();
                             } else {
                                 String id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
-                                if (id.contains(searchStr) || stack.getHoverName().getString().contains(searchStr)) {
-                                    count += stack.getCount();
-                                }
+                                if (id.contains(searchStr) || stack.getHoverName().getString().contains(searchStr)) count += stack.getCount();
                             }
                         }
                     }
                 }
             }
             guiGraphics.drawString(font, "Found: " + count, panelX + 5, textY + 75, 0x00E5FF);
-
         } else {
-            if (be.mainframeMasterPos != null && level.getBlockEntity(be.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
+            if (screen.mainframeMasterPos != null && level.getBlockEntity(screen.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
                 long maxItem = master.resourceCapacities.getOrDefault("item", 0L);
                 long usedItem = master.resourceUsages.getOrDefault("item", 0L);
                 guiGraphics.drawString(font, "Items: " + usedItem + " / " + maxItem, panelX + 5, textY + 45, 0x00E5FF);
@@ -120,21 +109,5 @@ public class ScreenUIExtension implements IMainframeUIExtension<ScreenBlockEntit
                 guiGraphics.drawString(font, "Items: 0 / 0", panelX + 5, textY + 45, 0x00E5FF);
             }
         }
-    }
-
-    @Override
-    public boolean handleAction(String action, String value, ScreenBlockEntity screen, Level level) {
-        if ("set_screen_mode".equals(action)) {
-            screen.getPersistentData().putString("DisplayMode", value);
-            screen.setChanged();
-            level.sendBlockUpdated(screen.getBlockPos(), screen.getBlockState(), screen.getBlockState(), 3);
-            return true;
-        } else if ("set_screen_filter".equals(action)) {
-            screen.getPersistentData().putString("ScreenFilter", value);
-            screen.setChanged();
-            level.sendBlockUpdated(screen.getBlockPos(), screen.getBlockState(), screen.getBlockState(), 3);
-            return true;
-        }
-        return false;
     }
 }
