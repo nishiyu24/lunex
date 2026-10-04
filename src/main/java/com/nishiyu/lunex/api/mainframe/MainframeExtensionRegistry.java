@@ -30,4 +30,13 @@ public class MainframeExtensionRegistry {
         }
         return instances;
     }
+
+    /**
+     * ★追加: 指定したIDの拡張機能のみを実体化して返します。
+     * （構成パーツに応じた動的ロードで使用されます）
+     */
+    public static IMainframeExtension createInstance(ResourceLocation id) {
+        Supplier<IMainframeExtension> factory = FACTORIES.get(id);
+        return factory != null ? factory.get() : null;
+    }
 }

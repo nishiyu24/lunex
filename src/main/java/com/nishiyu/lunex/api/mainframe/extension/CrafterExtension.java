@@ -5,138 +5,131 @@ import com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class CrafterExtension implements IMainframeExtension {
 
-    // テスト用の固定レシピ (鉄インゴット9個 -> 鉄ブロック1個)
-    // ※後でCrafterUIExtensionから動的に設定できるように拡張できます
-    private final List<ItemStack> recipeIngredients = new ArrayList<>();
-    private ItemStack recipeOutput = new ItemStack(Items.IRON_BLOCK, 1);
-
     private int tickCounter = 0;
 
-    public CrafterExtension() {
-        for(int i = 0; i < 9; i++) {
-            recipeIngredients.add(new ItemStack(Items.IRON_INGOT, 1));
-        }
-    }
+    public CrafterExtension() { }
 
     @Override
     public void onAssembled(SimpleMachineBlockEntity master) {
+
     }
 
     @Override
     public void onDisassembled(SimpleMachineBlockEntity master) {
+
     }
 
     @Override
-    public CompoundTag serializeNBT(HolderLookup.Provider provider) {
-        CompoundTag tag = new CompoundTag();
-        if (!recipeOutput.isEmpty()) {
-            tag.put("RecipeOutput", recipeOutput.saveOptional(provider));
-        }
-        CompoundTag ingredientsTag = new CompoundTag();
-        ingredientsTag.putInt("Size", recipeIngredients.size());
-        for (int i = 0; i < recipeIngredients.size(); i++) {
-            ingredientsTag.put("Item" + i, recipeIngredients.get(i).saveOptional(provider));
-        }
-        tag.put("RecipeIngredients", ingredientsTag);
-        return tag;
-    }
+    public CompoundTag serializeNBT(HolderLookup.Provider provider) { return new CompoundTag(); }
 
     @Override
-    public void deserializeNBT(CompoundTag tag, HolderLookup.Provider provider) {
-        if (tag.contains("RecipeOutput")) {
-            recipeOutput = ItemStack.parseOptional(provider, tag.getCompound("RecipeOutput"));
-        }
-        recipeIngredients.clear();
-        if (tag.contains("RecipeIngredients")) {
-            CompoundTag ingredientsTag = tag.getCompound("RecipeIngredients");
-            int size = ingredientsTag.getInt("Size");
-            for (int i = 0; i < size; i++) {
-                recipeIngredients.add(ItemStack.parseOptional(provider, ingredientsTag.getCompound("Item" + i)));
-            }
-        }
-    }
+    public void deserializeNBT(CompoundTag tag, HolderLookup.Provider provider) { }
 
     @Override
-    public Object getCapabilityInstance() {
-        return this;
-    }
+    public Object getCapabilityInstance() { return this; }
 
     @Override
     public void tick(Level level, SimpleMachineBlockEntity master) {
         if (level.isClientSide) return;
 
         tickCounter++;
-        // 20tick(1秒)ごとにクラフト処理を実行
+        // ★修正: 毎tickのフラグ監視を撤廃。純粋に1秒に1回のオートクラフトのみを処理する
         if (tickCounter >= 20) {
             tickCounter = 0;
 
-            // ネットワーク内の全パーツからCrafterを探し、個別にON/OFFを判定して実行する
-            for (BlockPos pos : master.mainframeParts) {
+            List<BlockPos> crafters = master.componentPositions.get("minecraft:crafter");
+            if (crafters == null || crafters.isEmpty()) return;
+
+            for (BlockPos pos : crafters) {
                 if (level.getBlockEntity(pos) instanceof MainframeAdapterBlockEntity adapter) {
-                    if (adapter.getOriginalState() != null && adapter.getOriginalState().is(net.minecraft.world.level.block.Blocks.CRAFTER)) {
-                        // このCrafterがONに設定されている場合のみクラフト試行
-                        if (adapter.getPersistentData().getBoolean("AutoCraftActive")) {
-                            tryAutoCraft(master);
-                        }
+                    if (adapter.getPersistentData().getBoolean("AutoCraftActive")) {
+                        tryAutoCraft(master, adapter, level);
                     }
                 }
             }
         }
     }
 
-    private void tryAutoCraft(SimpleMachineBlockEntity master) {
-        if (recipeOutput.isEmpty() || recipeIngredients.isEmpty()) return;
+    // ★追加: イベント駆動で外部(ActionProvider)から即時実行するためのパブリックメソッド
+    public void forceCraft(SimpleMachineBlockEntity master, MainframeAdapterBlockEntity crafterAdapter, Level level) {
+        tryAutoCraft(master, crafterAdapter, level);
+    }
 
-        // 1. 完成品がストレージに収納できるかシミュレート
-        ItemStack remain = ItemHandlerHelper.insertItemStacked(master.mainframeStorage, recipeOutput.copy(), true);
-        if (!remain.isEmpty()) return;
+    private void tryAutoCraft(SimpleMachineBlockEntity master, MainframeAdapterBlockEntity crafterAdapter, Level level) {
+        CompoundTag recipeTag = crafterAdapter.getPersistentData().getCompound("CrafterRecipe");
 
-        // 2. 素材がインベントリから引き出せるかシミュレート
-        if (consumeIngredients(master, true)) {
-            // 3. 実際に素材を消費
-            consumeIngredients(master, false);
-            // 4. 完成品をストレージに挿入
-            ItemHandlerHelper.insertItemStacked(master.mainframeStorage, recipeOutput.copy(), false);
-            // 5. 容量・アイテム数の更新をトリガー
+        String outputId = recipeTag.getString("Slot_9");
+        if (outputId.isEmpty()) return;
+
+        Item outputItem = BuiltInRegistries.ITEM.get(ResourceLocation.parse(outputId));
+        if (outputItem == Items.AIR) return;
+
+        int count = recipeTag.contains("ResultCount") ? recipeTag.getInt("ResultCount") : 1;
+        ItemStack recipeOutput = new ItemStack(outputItem, count);
+
+        Map<Item, Integer> consolidatedReqs = new HashMap<>();
+
+        for (int i = 0; i < 9; i++) {
+            String ingredientId = recipeTag.getString("Slot_" + i);
+            if (!ingredientId.isEmpty()) {
+                Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingredientId));
+                if (item != Items.AIR) {
+                    consolidatedReqs.put(item, consolidatedReqs.getOrDefault(item, 0) + 1);
+                }
+            }
+        }
+
+        if (consolidatedReqs.isEmpty()) return;
+
+        if (consumeIngredients(master, consolidatedReqs, true)) {
+            consumeIngredients(master, consolidatedReqs, false);
+
+            ItemStack remain = ItemHandlerHelper.insertItemStacked(master.mainframeStorage, recipeOutput, false);
+
+            if (!remain.isEmpty()) {
+                Block.popResource(level, master.getBlockPos().above(), remain);
+            }
+
             master.updateResourceUsages();
             master.setChanged();
         }
     }
 
-    private boolean consumeIngredients(SimpleMachineBlockEntity master, boolean simulate) {
-        List<ItemStack> requirements = new ArrayList<>();
-        for (ItemStack req : recipeIngredients) {
-            if (!req.isEmpty()) requirements.add(req.copy());
-        }
-
+    private boolean consumeIngredients(SimpleMachineBlockEntity master, Map<Item, Integer> requirements, boolean simulate) {
         Map<Integer, Integer> extractionPlan = new HashMap<>();
 
-        for (ItemStack req : requirements) {
-            int needed = req.getCount();
+        for (Map.Entry<Item, Integer> entry : requirements.entrySet()) {
+            Item reqItem = entry.getKey();
+            int needed = entry.getValue();
+
             for (int i = 0; i < master.mainframeStorage.getSlots() && needed > 0; i++) {
                 ItemStack inSlot = master.mainframeStorage.getStackInSlot(i);
                 int alreadyPlanned = extractionPlan.getOrDefault(i, 0);
                 int available = inSlot.getCount() - alreadyPlanned;
 
-                if (available > 0 && ItemStack.isSameItemSameComponents(inSlot, req)) {
+                if (available > 0 && inSlot.is(reqItem)) {
                     int extract = Math.min(needed, available);
                     extractionPlan.put(i, alreadyPlanned + extract);
                     needed -= extract;
                 }
             }
+
             if (needed > 0) return false;
         }
 

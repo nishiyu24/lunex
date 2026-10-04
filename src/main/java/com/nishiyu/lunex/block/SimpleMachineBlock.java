@@ -63,6 +63,21 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
         return new SimpleMachineBlockEntity(pos, state);
     }
 
+    @org.jetbrains.annotations.Nullable
+    @Override
+    public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+        if (level.isClientSide) return null;
+        return createTickerHelper(type, com.nishiyu.lunex.Lunex.SIMPLE_MACHINE_BE.get(), SimpleMachineBlockEntity::tick);
+    }
+
+    @SuppressWarnings("unchecked")
+    protected static <E extends BlockEntity, A extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<A> createTickerHelper(
+            net.minecraft.world.level.block.entity.BlockEntityType<A> expected,
+            net.minecraft.world.level.block.entity.BlockEntityType<E> actual,
+            net.minecraft.world.level.block.entity.BlockEntityTicker<? super E> ticker) {
+        return actual == expected ? (net.minecraft.world.level.block.entity.BlockEntityTicker<A>) ticker : null;
+    }
+
     @Override
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
