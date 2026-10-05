@@ -4,13 +4,10 @@ import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.Config;
 import com.nishiyu.lunex.api.client.MainframeBottomTabRegistry;
 import com.nishiyu.lunex.api.client.MainframeUIRegistry;
-import com.nishiyu.lunex.api.client.IMainframeUIExtension;
-import com.nishiyu.lunex.api.client.ui.extensions.*;
+import com.nishiyu.lunex.api.client.ui.panel.*;
 import com.nishiyu.lunex.api.client.ui.tabs.NetworkStatusBottomTab;
 import com.nishiyu.lunex.client.renderer.blocks.PrinterBlockEntityRenderer;
 import com.nishiyu.lunex.client.renderer.blocks.TurtleBotRenderer;
-import com.nishiyu.lunex.api.client.ui.panels.ConfiguratorRightPanel;
-import com.nishiyu.lunex.api.client.ui.panels.SystemStatusLeftPanel;
 import com.nishiyu.lunex.api.client.ui.tabs.SystemStorageBottomTab;
 import com.nishiyu.lunex.client.renderer.MachineFrameRenderer;
 import com.nishiyu.lunex.client.renderer.*;
@@ -23,7 +20,6 @@ import com.nishiyu.lunex.network.LocalWebServer;
 import com.nishiyu.lunex.network.LocalWebSocketServer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -52,15 +48,12 @@ public class ClientModEvents {
 
             MainframeBottomTabRegistry.registerBlockTab(Lunex.ROUTER_BLOCK.get(), NetworkStatusBottomTab::new);
 
-            MainframeUIRegistry.setLeftPanelProvider(SystemStatusLeftPanel::new);
-            MainframeUIRegistry.setRightPanelProvider(ConfiguratorRightPanel::new);
-
-            // ★ Block と UI 拡張を紐づけてシステムに登録
-            MainframeUIRegistry.register(Lunex.PROBE_BLOCK.get(), new ProbeUIExtension());
-            MainframeUIRegistry.register(Lunex.SCREEN_BLOCK.get(), new ScreenUIExtension());
-            MainframeUIRegistry.register(Lunex.DATABASE_BLOCK.get(), new DatabaseUIExtension());
-            MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.CRAFTER, new CrafterUIExtension());
-            MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.FURNACE, new FurnaceUIExtension());
+            MainframeUIRegistry.register(Lunex.PROBE_BLOCK.get(), ProbeUIExtension::new);
+            MainframeUIRegistry.register(Lunex.SCREEN_BLOCK.get(), ScreenUIExtension::new);
+            MainframeUIRegistry.register(Lunex.DATABASE_BLOCK.get(), DatabaseUIExtension::new);
+            MainframeUIRegistry.register(Lunex.SIMPLE_MACHINE.get(), SimpleMachineUIExtension::new);
+            MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.CRAFTER, CrafterUIExtension::new);
+            MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.FURNACE, FurnaceUIExtension::new);
         });
     }
 

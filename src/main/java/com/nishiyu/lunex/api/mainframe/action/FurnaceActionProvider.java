@@ -4,6 +4,7 @@ import com.nishiyu.lunex.api.mainframe.IMainframeActionProvider;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -19,7 +20,7 @@ import java.util.Optional;
 public class FurnaceActionProvider implements IMainframeActionProvider<BlockEntity> {
 
     @Override
-    public boolean handleAction(String action, String payload, BlockEntity be, Level level) {
+    public boolean handleAction(String action, String payload, BlockEntity be, Level level, ServerPlayer player) {
         switch (action) {
             case "toggle_autosmelt":
                 CompoundTag dataCheck = be.getPersistentData();
@@ -28,10 +29,6 @@ public class FurnaceActionProvider implements IMainframeActionProvider<BlockEnti
                     dataCheck.putBoolean("AutoSmeltActive", !current);
                     be.setChanged();
                     level.sendBlockUpdated(be.getBlockPos(), be.getBlockState(), be.getBlockState(), 3);
-
-                    // ★修正: notifyMaster(be, level); を削除しました。
-                    // Autoボタンの切り替え時にマスターを更新すると、UI全体が再構築されてしまい、
-                    // ボタンが古い状態で一瞬描画されることで発生するチカチカの原因になっていました。
                 }
                 return true;
 
@@ -64,7 +61,6 @@ public class FurnaceActionProvider implements IMainframeActionProvider<BlockEnti
                 data.putBoolean("AutoSmeltActive", false);
                 be.setChanged();
                 level.sendBlockUpdated(be.getBlockPos(), be.getBlockState(), be.getBlockState(), 3);
-                // ターゲットアイテムの変更時はリソース表示などに影響があるためマスターへ通知を残します
                 notifyMaster(be, level);
                 return true;
         }

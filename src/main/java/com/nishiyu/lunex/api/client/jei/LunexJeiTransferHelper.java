@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.api.client.jei;
 
-import com.nishiyu.lunex.api.client.IMainframeUIExtension;
 import com.nishiyu.lunex.api.client.MainframeUIRegistry;
+import com.nishiyu.lunex.api.client.ui.panel.AbstractRightPanel;
 import com.nishiyu.lunex.menu.MainframeOverviewMenu;
 import com.nishiyu.lunex.menu.MainframeOverviewScreen;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
@@ -19,16 +19,16 @@ import java.util.Optional;
 
 public class LunexJeiTransferHelper {
 
-    // アドオン製作者が実装する転送処理のインターフェース
     public interface TransferAction {
         @Nullable
         IRecipeTransferError transfer(BlockPos pos, BlockEntity be, IRecipeSlotsView recipeSlots, boolean doTransfer, mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper helper);
     }
 
-    public static <T> void register(IRecipeTransferRegistration reg,
-                                    mezz.jei.api.recipe.RecipeType<T> type,
-                                    Class<? extends IMainframeUIExtension> targetUIClass,
-                                    TransferAction action) {
+    public static <T, U extends AbstractRightPanel> void register(
+            IRecipeTransferRegistration reg,
+            mezz.jei.api.recipe.RecipeType<T> type,
+            Class<U> targetUIClass,
+            TransferAction action) {
 
         reg.addRecipeTransferHandler(new IRecipeTransferHandler<MainframeOverviewMenu, T>() {
             @Override
@@ -49,13 +49,11 @@ public class LunexJeiTransferHelper {
                 BlockEntity be = container.getLevel().getBlockEntity(pos);
                 if (be == null) return reg.getTransferHelper().createInternalError();
 
-                // 指定されたUIが開かれているか自動で検証
-                IMainframeUIExtension extension = MainframeUIRegistry.get(be);
+                AbstractRightPanel extension = MainframeUIRegistry.createRightPanel(pos, be);
                 if (!targetUIClass.isInstance(extension)) {
                     return reg.getTransferHelper().createUserErrorWithTooltip(Component.literal("Selected machine UI does not match the recipe."));
                 }
 
-                // 検証を通過したら、アドオン側が定義したアクションを実行
                 return action.transfer(pos, be, recipeSlots, doTransfer, reg.getTransferHelper());
             }
         }, type);

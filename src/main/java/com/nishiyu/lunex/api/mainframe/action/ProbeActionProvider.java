@@ -1,18 +1,19 @@
 package com.nishiyu.lunex.api.mainframe.action;
 
 import com.nishiyu.lunex.api.mainframe.IMainframeActionProvider;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class ProbeActionProvider implements IMainframeActionProvider<BlockEntity> {
     @Override
-    public boolean handleAction(String action, String payload, BlockEntity be, Level level) {
+    public boolean handleAction(String action, String payload, BlockEntity be, Level level, ServerPlayer player) {
         switch (action) {
             case "toggle_active":
                 if (be instanceof com.nishiyu.lunex.blockentity.ProbeBlockEntity probe) {
-                    probe.isDetected = !probe.isDetected; // ★内部変数を直接反転させる
-                    probe.getPersistentData().putBoolean("IsDetected", probe.isDetected); // NBTにも同期
+                    probe.isDetected = !probe.isDetected;
+                    probe.getPersistentData().putBoolean("IsDetected", probe.isDetected);
 
                     BlockState state = probe.getBlockState();
                     if (state.hasProperty(com.nishiyu.lunex.block.ProbeBlock.ACTIVE)) {
@@ -20,7 +21,6 @@ public class ProbeActionProvider implements IMainframeActionProvider<BlockEntity
                         level.setBlock(probe.getBlockPos(), state, 3);
                     }
                 } else {
-                    // フォールバック
                     boolean isActive = be.getPersistentData().getBoolean("IsDetected");
                     be.getPersistentData().putBoolean("IsDetected", !isActive);
                 }

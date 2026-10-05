@@ -2,11 +2,12 @@ package com.nishiyu.lunex.api.mainframe.action;
 
 import com.nishiyu.lunex.api.mainframe.IMainframeActionProvider;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
 public class ScreenActionProvider implements IMainframeActionProvider<ScreenBlockEntity> {
     @Override
-    public boolean handleAction(String action, String payload, ScreenBlockEntity be, Level level) {
+    public boolean handleAction(String action, String payload, ScreenBlockEntity be, Level level, ServerPlayer player) {
         if ("set_screen_mode".equals(action)) {
             be.getPersistentData().putString("DisplayMode", payload);
             be.setChanged();

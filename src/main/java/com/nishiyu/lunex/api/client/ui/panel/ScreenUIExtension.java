@@ -1,13 +1,11 @@
-package com.nishiyu.lunex.api.client.ui.extensions;
+package com.nishiyu.lunex.api.client.ui.panel;
 
-import com.nishiyu.lunex.api.client.IMainframeUIExtension;
+import com.nishiyu.lunex.api.client.MainframeUIRegistry;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.menu.MainframeOverviewScreen;
 import com.nishiyu.lunex.network.packet.c2s.MainframeOverviewActionC2SPacket;
-import net.minecraft.client.gui.Font;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.core.BlockPos;
@@ -19,62 +17,60 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.function.Consumer;
+public class ScreenUIExtension extends AbstractRightPanel {
 
-public class ScreenUIExtension implements IMainframeUIExtension {
+    private final EditBox filterBox;
 
-    @Override
-    public int getPanelHeight(BlockEntity be) {
-        return 160;
-    }
+    public ScreenUIExtension(BlockPos pos, BlockEntity be) {
+        super(pos, be);
+        this.maxScroll = 160;
 
-    @Override
-    public void buildWidgets(MainframeOverviewScreen screen, BlockPos pos, BlockEntity be, int panelX, int textY, Consumer<AbstractWidget> addWidget) {
         String mode = be.getPersistentData().getString("DisplayMode");
         if (mode.isEmpty()) mode = "CAPACITY";
+
+        String filter = be.getPersistentData().getString("ScreenFilter");
+        this.filterBox = new EditBox(Minecraft.getInstance().font, 0, 0, 130, 16, Component.literal("Item/NBT Filter"));
+        this.filterBox.setValue(filter);
+        this.filterBox.setResponder(val -> {
+            PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(pos, "set_screen_filter", val));
+        });
+        this.filterBox.visible = "ITEM".equals(mode);
+        this.filterBox.active = "ITEM".equals(mode);
+        addWidget(this.filterBox, 5, 105);
 
         Button modeBtn = Button.builder(Component.literal("Mode: " + mode), btn -> {
             String current = be.getPersistentData().getString("DisplayMode");
             if (current.isEmpty()) current = "CAPACITY";
-            String[] modes = {"CAPACITY", "ITEM"};
-            String next = modes[0];
-            for (int i = 0; i < modes.length; i++) {
-                if (modes[i].equals(current)) {
-                    next = modes[(i + 1) % modes.length];
-                    break;
-                }
-            }
+            String next = "CAPACITY".equals(current) ? "ITEM" : "CAPACITY";
             be.getPersistentData().putString("DisplayMode", next);
             btn.setMessage(Component.literal("Mode: " + next));
             PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(pos, "set_screen_mode", next));
-            screen.rebuildUI();
-        }).bounds(panelX + 5, textY + 15, 130, 20).build();
-        addWidget.accept(modeBtn);
 
-        if ("ITEM".equals(mode)) {
-            String filter = be.getPersistentData().getString("ScreenFilter");
-            EditBox filterBox = new EditBox(screen.getMinecraft().font, panelX + 5, textY + 55, 130, 16, Component.literal("Item/NBT Filter"));
-            filterBox.setValue(filter);
-            filterBox.setResponder(val -> {
-                PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(pos, "set_screen_filter", val));
-            });
-            addWidget.accept(filterBox);
-        }
+            this.filterBox.visible = "ITEM".equals(next);
+            this.filterBox.active = "ITEM".equals(next);
+        }).bounds(0, 0, 130, 20).build();
+        addWidget(modeBtn, 5, 65);
     }
 
     @Override
-    public void renderDetails(GuiGraphics guiGraphics, Font font, BlockPos pos, BlockEntity be, int panelX, int textY) {
+    protected void renderContent(GuiGraphics graphics, int startX, int startY, int width, int height, int mouseX, int mouseY, float partialTick) {
         if (!(be instanceof ScreenBlockEntity screen)) return;
-
         Level level = screen.getLevel();
         if (level == null) return;
 
-        guiGraphics.drawString(font, "Display Settings:", panelX + 5, textY, 0x00E5FF);
+        var font = Minecraft.getInstance().font;
+        Component displayName = MainframeUIRegistry.getDisplayBlockName(be);
+
+        graphics.drawString(font, "Target: " + displayName.getString(), startX + 10, startY + 10, 0xFFD4D4D4);
+        graphics.drawString(font, "Pos: " + pos.toShortString(), startX + 10, startY + 22, 0xFF4EC9B0);
+
+        graphics.drawString(font, "Display Settings:", startX + 5, startY + 50, 0x00E5FF);
+
         String mode = screen.getPersistentData().getString("DisplayMode");
         if (mode.isEmpty()) mode = "CAPACITY";
 
         if ("ITEM".equals(mode)) {
-            guiGraphics.drawString(font, "Filter:", panelX + 5, textY + 42, 0xFFFFFF);
+            graphics.drawString(font, "Filter:", startX + 5, startY + 92, 0xFFFFFF);
             String filter = screen.getPersistentData().getString("ScreenFilter");
             int count = 0;
 
@@ -99,14 +95,14 @@ public class ScreenUIExtension implements IMainframeUIExtension {
                     }
                 }
             }
-            guiGraphics.drawString(font, "Found: " + count, panelX + 5, textY + 75, 0x00E5FF);
+            graphics.drawString(font, "Found: " + count, startX + 5, startY + 125, 0x00E5FF);
         } else {
             if (screen.mainframeMasterPos != null && level.getBlockEntity(screen.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
                 long maxItem = master.resourceCapacities.getOrDefault("item", 0L);
                 long usedItem = master.resourceUsages.getOrDefault("item", 0L);
-                guiGraphics.drawString(font, "Items: " + usedItem + " / " + maxItem, panelX + 5, textY + 45, 0x00E5FF);
+                graphics.drawString(font, "Items: " + usedItem + " / " + maxItem, startX + 5, startY + 95, 0x00E5FF);
             } else {
-                guiGraphics.drawString(font, "Items: 0 / 0", panelX + 5, textY + 45, 0x00E5FF);
+                graphics.drawString(font, "Items: 0 / 0", startX + 5, startY + 95, 0x00E5FF);
             }
         }
     }

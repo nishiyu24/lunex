@@ -111,6 +111,7 @@ public class MainframeComponentRegistry {
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
                 .addResourceCapacity("energy", 10000)
+                .setActionProvider(new SimpleMachineActionProvider())
                 .build());
 
         register(Lunex.MAINFRAME_ADAPTER_BLOCK.get(), MainframeComponentData.builder()

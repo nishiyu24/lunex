@@ -1,10 +1,8 @@
-package com.nishiyu.lunex.api.client.ui.extensions;
+package com.nishiyu.lunex.api.client.ui.panel;
 
-import com.nishiyu.lunex.api.client.IMainframeUIExtension;
-import com.nishiyu.lunex.menu.MainframeOverviewScreen;
+import com.nishiyu.lunex.api.client.MainframeUIRegistry;
 import com.nishiyu.lunex.network.packet.c2s.MainframeOverviewActionC2SPacket;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -20,17 +18,12 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.function.Consumer;
+public class CrafterUIExtension extends AbstractRightPanel {
 
-public class CrafterUIExtension implements IMainframeUIExtension {
+    public CrafterUIExtension(BlockPos pos, BlockEntity be) {
+        super(pos, be);
+        this.maxScroll = 190;
 
-    @Override
-    public int getPanelHeight(BlockEntity be) {
-        return 190; // ★変更: 検索ボタンを削除したため高さを元に調整
-    }
-
-    @Override
-    public void buildWidgets(MainframeOverviewScreen screen, BlockPos pos, BlockEntity be, int panelX, int textY, Consumer<AbstractWidget> addWidget) {
         CompoundTag recipeTag = be.getPersistentData().getCompound("CrafterRecipe");
         boolean hasResult = !recipeTag.getString("Slot_9").isEmpty();
         boolean isActive = be.getPersistentData().getBoolean("AutoCraftActive");
@@ -40,38 +33,38 @@ public class CrafterUIExtension implements IMainframeUIExtension {
             be.getPersistentData().putBoolean("AutoCraftActive", next);
             btn.setMessage(Component.literal("Auto: " + (next ? "ON" : "OFF")));
             PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(pos, "toggle_autocraft", ""));
-        }).bounds(panelX + 5, textY + 15, 65, 20).build();
-
+        }).bounds(0, 0, 65, 20).build();
         activeBtn.active = hasResult;
-        addWidget.accept(activeBtn);
+        addWidget(activeBtn, 5, 65);
 
         Button craftBtn = Button.builder(Component.literal("Craft"), btn -> {
             PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(pos, "force_craft", ""));
-        }).bounds(panelX + 75, textY + 15, 60, 20).build();
-
+        }).bounds(0, 0, 60, 20).build();
         craftBtn.active = hasResult;
-        addWidget.accept(craftBtn);
+        addWidget(craftBtn, 75, 65);
 
-        int gridX = panelX + 15;
-        int gridY = textY + 65;
-
+        int gridX = 15;
+        int gridY = 115;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
                 int index = row * 3 + col;
-                addWidget.accept(new GhostSlotWidget(gridX + col * 18, gridY + row * 18, index, pos, be, true, activeBtn, craftBtn));
+                addWidget(new GhostSlotWidget(0, 0, index, pos, be, true, activeBtn, craftBtn), gridX + col * 18, gridY + row * 18);
             }
         }
-
-        addWidget.accept(new GhostSlotWidget(gridX + 80, gridY + 18, 9, pos, be, false, activeBtn, craftBtn));
-
-        // ★変更: ここにあった searchBtn (JEI呼び出しボタン) は不要になったため削除
+        addWidget(new GhostSlotWidget(0, 0, 9, pos, be, false, activeBtn, craftBtn), gridX + 80, gridY + 18);
     }
 
     @Override
-    public void renderDetails(GuiGraphics guiGraphics, Font font, BlockPos pos, BlockEntity be, int panelX, int textY) {
-        guiGraphics.drawString(font, "Crafter Settings:", panelX + 5, textY, 0x00E5FF);
-        guiGraphics.drawString(font, "Recipe (Ghost):", panelX + 5, textY + 53, 0xFFFFFF);
-        guiGraphics.drawString(font, "->", panelX + 70, textY + 85, 0xAAAAAA);
+    protected void renderContent(GuiGraphics graphics, int startX, int startY, int width, int height, int mouseX, int mouseY, float partialTick) {
+        var font = Minecraft.getInstance().font;
+        Component displayName = MainframeUIRegistry.getDisplayBlockName(be);
+
+        graphics.drawString(font, "Target: " + displayName.getString(), startX + 10, startY + 10, 0xFFD4D4D4);
+        graphics.drawString(font, "Pos: " + pos.toShortString(), startX + 10, startY + 22, 0xFF4EC9B0);
+
+        graphics.drawString(font, "Crafter Settings:", startX + 5, startY + 50, 0x00E5FF);
+        graphics.drawString(font, "Recipe (Ghost):", startX + 5, startY + 103, 0xFFFFFF);
+        graphics.drawString(font, "->", startX + 70, startY + 135, 0xAAAAAA);
     }
 
     public static class GhostSlotWidget extends AbstractWidget {
@@ -84,7 +77,6 @@ public class CrafterUIExtension implements IMainframeUIExtension {
 
         private ItemStack displayStack = ItemStack.EMPTY;
         private String lastItemId = "";
-
         private boolean lastActiveState;
         private boolean lastHasResult;
 
@@ -96,19 +88,15 @@ public class CrafterUIExtension implements IMainframeUIExtension {
             this.isEditable = isEditable;
             this.activeBtn = activeBtn;
             this.craftBtn = craftBtn;
-
             this.lastActiveState = be.getPersistentData().getBoolean("AutoCraftActive");
             this.lastHasResult = !be.getPersistentData().getCompound("CrafterRecipe").getString("Slot_9").isEmpty();
-
             updateDisplayStack();
         }
 
         private void updateDisplayStack() {
             CompoundTag recipeTag = be.getPersistentData().getCompound("CrafterRecipe");
             String itemId = recipeTag.getString("Slot_" + slotIndex);
-
             int count = (this.slotIndex == 9 && recipeTag.contains("ResultCount")) ? recipeTag.getInt("ResultCount") : 1;
-
             this.lastItemId = itemId;
             if (!itemId.isEmpty()) {
                 Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId));
@@ -135,7 +123,6 @@ public class CrafterUIExtension implements IMainframeUIExtension {
                     this.activeBtn.setMessage(Component.literal("Auto: " + (currentActive ? "ON" : "OFF")));
                     this.lastActiveState = currentActive;
                 }
-
                 if (hasResult != this.lastHasResult) {
                     this.activeBtn.active = hasResult;
                     if (this.craftBtn != null) this.craftBtn.active = hasResult;
@@ -150,11 +137,9 @@ public class CrafterUIExtension implements IMainframeUIExtension {
 
             if (!displayStack.isEmpty()) {
                 guiGraphics.renderItem(displayStack, getX(), getY());
-
                 if (displayStack.getCount() > 1) {
                     guiGraphics.renderItemDecorations(Minecraft.getInstance().font, displayStack, getX(), getY());
                 }
-
                 guiGraphics.fill(getX(), getY(), getX() + 16, getY() + 16, 0x40000000);
             }
 
@@ -165,13 +150,11 @@ public class CrafterUIExtension implements IMainframeUIExtension {
 
         public void acceptDrop(ItemStack stack) {
             if (!isEditable || be.getPersistentData().getBoolean("AutoCraftActive")) return;
-
             String itemId = "";
             if (!stack.isEmpty()) {
                 ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
                 itemId = id.toString();
             }
-
             CompoundTag recipeTag = be.getPersistentData().getCompound("CrafterRecipe");
             if (itemId.isEmpty()) {
                 recipeTag.remove("Slot_" + slotIndex);
@@ -182,15 +165,12 @@ public class CrafterUIExtension implements IMainframeUIExtension {
 
             String payload = slotIndex + ":" + itemId;
             PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(blockPos, "set_crafter_recipe", payload));
-
-            Minecraft mc = Minecraft.getInstance();
-            mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
         }
 
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (!isEditable || !isHovered() || be.getPersistentData().getBoolean("AutoCraftActive")) return false;
-
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 ItemStack carried = mc.player.containerMenu.getCarried();

@@ -5,6 +5,7 @@ import com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -22,7 +23,7 @@ import java.util.Optional;
 public class CrafterActionProvider implements IMainframeActionProvider<BlockEntity> {
 
     @Override
-    public boolean handleAction(String action, String payload, BlockEntity be, Level level) {
+    public boolean handleAction(String action, String payload, BlockEntity be, Level level, ServerPlayer player) {
         switch (action) {
             case "toggle_autocraft":
                 CompoundTag recipeCheck = be.getPersistentData().getCompound("CrafterRecipe");
@@ -35,12 +36,10 @@ public class CrafterActionProvider implements IMainframeActionProvider<BlockEnti
                 }
                 return true;
 
-            // ★変更: NBTフラグを立てるのをやめ、直接Extensionのメソッドを呼び出す（イベント式）
             case "force_craft":
                 if (be instanceof MainframeAdapterBlockEntity adapter && adapter.getMasterPos() != null) {
                     BlockEntity masterBe = level.getBlockEntity(adapter.getMasterPos());
                     if (masterBe instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity master) {
-                        // マスター機に登録されているCrafterExtensionを取得して実行
                         com.nishiyu.lunex.api.mainframe.IMainframeExtension ext = master.getExtension(ResourceLocation.parse("lunex:crafter"));
                         if (ext instanceof com.nishiyu.lunex.api.mainframe.extension.CrafterExtension crafterExt) {
                             crafterExt.forceCraft(master, adapter, level);

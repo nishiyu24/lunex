@@ -9,34 +9,36 @@ import java.util.List;
 
 public class IdeScreenFramework {
 
+    public static float currentUiScale = 1.0f;
+    public static int guiOffsetX = 0;
+    public static int guiOffsetY = 0;
+
+    public static void applyScissor(GuiGraphics graphics, int minX, int minY, int maxX, int maxY) {
+        graphics.enableScissor(minX, minY, maxX, maxY);
+    }
+
     private int splitterColor = 0xFF6A6A6A;
     private int center3dBackgroundColor = 0x44000000;
 
-    private ILeftPanel leftPanel = null;
     private IRightPanel rightPanel = null;
     private ICenterPanel customCenterPanel = null;
     private final List<IBottomTab> bottomTabs = new ArrayList<>();
     private int activeBottomTabIndex = 0;
 
-    public int leftWidth = 220;
     public int rightWidth = 240;
     public int bottomHeight = 140;
-    public boolean showLeftPanel = true;
 
     private int draggingSplitter = 0;
     private static final int SPLITTER_HITBOX = 4;
 
     public IdeScreenFramework setSplitterColor(int argb) { this.splitterColor = argb; return this; }
     public IdeScreenFramework setCenter3dBackground(int argb) { this.center3dBackgroundColor = argb; return this; }
-    public IdeScreenFramework setLeftPanel(ILeftPanel panel) { this.leftPanel = panel; return this; }
     public IdeScreenFramework setRightPanel(IRightPanel panel) { this.rightPanel = panel; return this; }
 
-    // 中央ジャック用のAPI
     public void setCustomCenterPanel(ICenterPanel panel) { this.customCenterPanel = panel; }
     public void clearCustomCenterPanel() { this.customCenterPanel = null; }
     public boolean hasCustomCenterPanel() { return this.customCenterPanel != null; }
 
-    public ILeftPanel getLeftPanel() { return this.leftPanel; }
     public IRightPanel getRightPanel() { return this.rightPanel; }
     public ICenterPanel getCustomCenterPanel() { return this.customCenterPanel; }
 
@@ -57,18 +59,24 @@ public class IdeScreenFramework {
         return bottomTabs.get(activeBottomTabIndex);
     }
 
+    public void updateLayoutConstraints(int availableWidth, int availableHeight) {
+        int maxSideWidth = Math.max(140, availableWidth / 2);
+        int maxBottomHeight = Math.max(80, availableHeight / 2);
+
+        this.rightWidth = Mth.clamp(this.rightWidth, 140, maxSideWidth);
+        this.bottomHeight = Mth.clamp(this.bottomHeight, 80, maxBottomHeight);
+    }
+
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, int screenWidth, int screenHeight, int topHeight) {
-        int activeLeftWidth = showLeftPanel ? this.leftWidth : 0;
         int bottomY = screenHeight - this.bottomHeight;
 
-        int vpX = activeLeftWidth;
+        int vpX = 0;
         int vpY = topHeight;
         int vpWidth = screenWidth - this.rightWidth - vpX;
         int vpHeight = screenHeight - topHeight - this.bottomHeight;
 
         graphics.fill(vpX, vpY, vpX + vpWidth, vpY + vpHeight, this.center3dBackgroundColor);
 
-        // ジャックされている場合はカスタムパネルと戻るボタンを描画
         if (this.customCenterPanel != null) {
             this.customCenterPanel.render(graphics, vpX, vpY, vpWidth, vpHeight, mouseX, mouseY, partialTick);
 
@@ -77,16 +85,10 @@ public class IdeScreenFramework {
             String text = "◀ Back to 3D View";
             int backBtnW = Minecraft.getInstance().font.width(text) + 10;
             int backBtnH = 16;
-
             boolean hover = mouseX >= backBtnX && mouseX <= backBtnX + backBtnW && mouseY >= backBtnY && mouseY <= backBtnY + backBtnH;
-            int btnColor = hover ? 0xFF555555 : 0xFF333333;
-            graphics.fill(backBtnX, backBtnY, backBtnX + backBtnW, backBtnY + backBtnH, btnColor);
+            graphics.fill(backBtnX, backBtnY, backBtnX + backBtnW, backBtnY + backBtnH, hover ? 0xFF555555 : 0xFF333333);
             graphics.renderOutline(backBtnX, backBtnY, backBtnW, backBtnH, 0xFF6A6A6A);
             graphics.drawString(Minecraft.getInstance().font, text, backBtnX + 5, backBtnY + 4, 0xFFFFFFFF);
-        }
-
-        if (this.leftPanel != null && showLeftPanel) {
-            this.leftPanel.render(graphics, 0, topHeight, this.leftWidth, screenHeight - topHeight - this.bottomHeight, mouseX, mouseY, partialTick);
         }
 
         if (this.rightPanel != null) {
@@ -100,7 +102,7 @@ public class IdeScreenFramework {
             activeTab.render(graphics, 0, bottomY + 20, screenWidth, this.bottomHeight - 20, mouseX, mouseY, partialTick);
         }
 
-        drawSplitters(graphics, screenWidth, screenHeight, activeLeftWidth, this.rightWidth, topHeight, this.bottomHeight, mouseX, mouseY);
+        drawSplitters(graphics, screenWidth, screenHeight, this.rightWidth, topHeight, this.bottomHeight, mouseX, mouseY);
     }
 
     private void drawBottomTabHeaders(GuiGraphics graphics, int screenWidth, int bottomY, int mouseX, int mouseY) {
@@ -122,16 +124,10 @@ public class IdeScreenFramework {
         graphics.fill(0, bottomY + tabHeight - 1, screenWidth, bottomY + tabHeight, this.splitterColor);
     }
 
-    private void drawSplitters(GuiGraphics graphics, int width, int height, int left, int right, int top, int bottom, int mouseX, int mouseY) {
+    private void drawSplitters(GuiGraphics graphics, int width, int height, int right, int top, int bottom, int mouseX, int mouseY) {
         graphics.fill(0, top, width, top + 1, this.splitterColor);
         int colorBottom = (draggingSplitter == 3 || Math.abs(mouseY - (height - bottom)) <= SPLITTER_HITBOX) ? 0xFF007ACC : this.splitterColor;
         graphics.fill(0, height - bottom, width, height - bottom + 1, colorBottom);
-
-        if (showLeftPanel) {
-            boolean hoverLeft = Math.abs(mouseX - left) <= SPLITTER_HITBOX && mouseY >= top && mouseY <= (height - bottom);
-            int colorLeft = (draggingSplitter == 1 || hoverLeft) ? 0xFF007ACC : this.splitterColor;
-            graphics.fill(left - 1, top, left, height - bottom, colorLeft);
-        }
 
         boolean hoverRight = Math.abs(mouseX - (width - right)) <= SPLITTER_HITBOX && mouseY >= top && mouseY <= (height - bottom);
         int colorRight = (draggingSplitter == 2 || hoverRight) ? 0xFF007ACC : this.splitterColor;
@@ -146,25 +142,20 @@ public class IdeScreenFramework {
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button, int screenWidth, int screenHeight, int topHeight) {
-        int activeLeftWidth = showLeftPanel ? this.leftWidth : 0;
         int bottomY = screenHeight - this.bottomHeight;
-
-        int vpWidth = screenWidth - this.rightWidth - activeLeftWidth;
+        int vpWidth = screenWidth - this.rightWidth;
         int vpHeight = screenHeight - topHeight - this.bottomHeight;
 
         if (Math.abs(mouseY - bottomY) <= SPLITTER_HITBOX) { draggingSplitter = 3; return true; }
-
         if (mouseY >= topHeight && mouseY <= bottomY) {
-            if (showLeftPanel && Math.abs(mouseX - activeLeftWidth) <= SPLITTER_HITBOX) { draggingSplitter = 1; return true; }
             if (Math.abs(mouseX - (screenWidth - this.rightWidth)) <= SPLITTER_HITBOX) { draggingSplitter = 2; return true; }
         }
 
-        // 戻るボタンの判定
         if (this.customCenterPanel != null && button == 0) {
             String text = "◀ Back to 3D View";
             int backBtnW = Minecraft.getInstance().font.width(text) + 10;
             int backBtnH = 16;
-            int backBtnX = activeLeftWidth + 10;
+            int backBtnX = 10;
             int backBtnY = topHeight + 10;
             if (mouseX >= backBtnX && mouseX <= backBtnX + backBtnW && mouseY >= backBtnY && mouseY <= backBtnY + backBtnH) {
                 Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
@@ -192,92 +183,65 @@ public class IdeScreenFramework {
             return false;
         }
 
-        if (this.leftPanel != null && showLeftPanel && mouseX <= activeLeftWidth && mouseY >= topHeight && mouseY <= bottomY) {
-            if (this.leftPanel.mouseClicked(0, topHeight, activeLeftWidth, screenHeight - topHeight - this.bottomHeight, mouseX, mouseY, button)) return true;
-        }
         if (this.rightPanel != null && mouseX >= screenWidth - this.rightWidth && mouseY >= topHeight && mouseY <= bottomY) {
             if (this.rightPanel.mouseClicked(screenWidth - this.rightWidth, topHeight, this.rightWidth, screenHeight - topHeight - this.bottomHeight, mouseX, mouseY, button)) return true;
         }
-
-        // ジャックされた中央パネルへのイベント送信
-        if (this.customCenterPanel != null && mouseX >= activeLeftWidth && mouseX <= activeLeftWidth + vpWidth && mouseY >= topHeight && mouseY <= topHeight + vpHeight) {
-            return this.customCenterPanel.mouseClicked(activeLeftWidth, topHeight, vpWidth, vpHeight, mouseX, mouseY, button);
+        if (this.customCenterPanel != null && mouseX >= 0 && mouseX <= vpWidth && mouseY >= topHeight && mouseY <= topHeight + vpHeight) {
+            return this.customCenterPanel.mouseClicked(0, topHeight, vpWidth, vpHeight, mouseX, mouseY, button);
         }
-
         return false;
     }
 
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY, int screenWidth, int screenHeight, int topHeight) {
-        if (draggingSplitter == 1) {
-            this.leftWidth = Mth.clamp((int) mouseX, 100, screenWidth / 2 - 50);
-            return true;
-        } else if (draggingSplitter == 2) {
-            this.rightWidth = Mth.clamp(screenWidth - (int) mouseX, 150, screenWidth / 2 - 50);
+        if (draggingSplitter == 2) {
+            int minVPWidth = Math.max(150, screenWidth / 2);
+            this.rightWidth = Mth.clamp(screenWidth - (int) mouseX, 140, screenWidth - minVPWidth);
             return true;
         } else if (draggingSplitter == 3) {
-            this.bottomHeight = Mth.clamp(screenHeight - (int) mouseY, 60, screenHeight - 100);
+            int minVPHeight = 100;
+            this.bottomHeight = Mth.clamp(screenHeight - (int) mouseY, 60, screenHeight - minVPHeight);
             return true;
         }
 
-        int vpX = showLeftPanel ? this.leftWidth : 0;
+        int vpX = 0;
         int vpWidth = screenWidth - this.rightWidth - vpX;
         int vpHeight = screenHeight - topHeight - this.bottomHeight;
-
         if (this.customCenterPanel != null && mouseX >= vpX && mouseX <= vpX + vpWidth && mouseY >= topHeight && mouseY <= topHeight + vpHeight) {
             return this.customCenterPanel.mouseDragged(vpX, topHeight, vpWidth, vpHeight, mouseX, mouseY, button, dragX, dragY);
         }
-
         return false;
     }
 
     public boolean mouseReleased(double mouseX, double mouseY, int button, int screenWidth, int screenHeight, int topHeight) {
         this.draggingSplitter = 0;
-
-        int vpX = showLeftPanel ? this.leftWidth : 0;
+        int vpX = 0;
         int vpWidth = screenWidth - this.rightWidth - vpX;
         int vpHeight = screenHeight - topHeight - this.bottomHeight;
-
         if (this.customCenterPanel != null && mouseX >= vpX && mouseX <= vpX + vpWidth && mouseY >= topHeight && mouseY <= topHeight + vpHeight) {
             return this.customCenterPanel.mouseReleased(vpX, topHeight, vpWidth, vpHeight, mouseX, mouseY, button);
         }
-
         return false;
     }
 
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY, int screenWidth, int screenHeight, int topHeight) {
-        int activeLeftWidth = showLeftPanel ? this.leftWidth : 0;
         int bottomY = screenHeight - this.bottomHeight;
-
-        int vpWidth = screenWidth - this.rightWidth - activeLeftWidth;
+        int vpWidth = screenWidth - this.rightWidth;
         int vpHeight = screenHeight - topHeight - this.bottomHeight;
 
         if (mouseY > bottomY) {
-            if (!bottomTabs.isEmpty()) {
-                bottomTabs.get(activeBottomTabIndex).mouseScrolled(0, bottomY + 20, screenWidth, this.bottomHeight - 20, mouseX, mouseY, scrollX, scrollY);
-            }
-            return true;
-        }
-        if (showLeftPanel && mouseX <= activeLeftWidth && mouseY >= topHeight && mouseY <= bottomY) {
-            if (this.leftPanel != null) {
-                this.leftPanel.mouseScrolled(0, topHeight, activeLeftWidth, screenHeight - topHeight - this.bottomHeight, mouseX, mouseY, scrollX, scrollY);
-            }
+            if (!bottomTabs.isEmpty()) bottomTabs.get(activeBottomTabIndex).mouseScrolled(0, bottomY + 20, screenWidth, this.bottomHeight - 20, mouseX, mouseY, scrollX, scrollY);
             return true;
         }
         if (mouseX >= screenWidth - this.rightWidth && mouseY >= topHeight && mouseY <= bottomY) {
-            if (this.rightPanel != null) {
-                this.rightPanel.mouseScrolled(screenWidth - this.rightWidth, topHeight, this.rightWidth, screenHeight - topHeight - this.bottomHeight, mouseX, mouseY, scrollX, scrollY);
-            }
+            if (this.rightPanel != null) this.rightPanel.mouseScrolled(screenWidth - this.rightWidth, topHeight, this.rightWidth, screenHeight - topHeight - this.bottomHeight, mouseX, mouseY, scrollX, scrollY);
             return true;
         }
-
-        if (this.customCenterPanel != null && mouseX >= activeLeftWidth && mouseX <= activeLeftWidth + vpWidth && mouseY >= topHeight && mouseY <= topHeight + vpHeight) {
-            return this.customCenterPanel.mouseScrolled(activeLeftWidth, topHeight, vpWidth, vpHeight, mouseX, mouseY, scrollX, scrollY);
+        if (this.customCenterPanel != null && mouseX >= 0 && mouseX <= vpWidth && mouseY >= topHeight && mouseY <= topHeight + vpHeight) {
+            return this.customCenterPanel.mouseScrolled(0, topHeight, vpWidth, vpHeight, mouseX, mouseY, scrollX, scrollY);
         }
-
         return false;
     }
 
-    // キーボードイベントの伝播用メソッド
     public boolean keyPressed(int keyCode, int scanCode, int modifiers, int screenWidth, int screenHeight, int topHeight) {
         if (!bottomTabs.isEmpty() && activeBottomTabIndex >= 0 && activeBottomTabIndex < bottomTabs.size()) {
             return bottomTabs.get(activeBottomTabIndex).keyPressed(keyCode, scanCode, modifiers);
@@ -292,19 +256,12 @@ public class IdeScreenFramework {
         return false;
     }
 
-    public interface ILeftPanel {
-        void render(GuiGraphics graphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick);
-        default boolean mouseClicked(int x, int y, int width, int height, double mouseX, double mouseY, int button) { return false; }
-        default boolean mouseScrolled(int x, int y, int width, int height, double mouseX, double mouseY, double scrollX, double scrollY) { return false; }
-    }
-
     public interface IRightPanel {
         void render(GuiGraphics graphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick);
         int getScrollY();
         default boolean mouseClicked(int x, int y, int width, int height, double mouseX, double mouseY, int button) { return false; }
         default boolean mouseScrolled(int x, int y, int width, int height, double mouseX, double mouseY, double scrollX, double scrollY) { return false; }
     }
-
     public interface ICenterPanel {
         void render(GuiGraphics graphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick);
         default boolean mouseClicked(int x, int y, int width, int height, double mouseX, double mouseY, int button) { return false; }
@@ -312,17 +269,13 @@ public class IdeScreenFramework {
         default boolean mouseDragged(int x, int y, int width, int height, double mouseX, double mouseY, int button, double dragX, double dragY) { return false; }
         default boolean mouseScrolled(int x, int y, int width, int height, double mouseX, double mouseY, double scrollX, double scrollY) { return false; }
     }
-
     public interface IBottomTab {
         String getTitle();
         void render(GuiGraphics graphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick);
         default boolean mouseClicked(int x, int y, int width, int height, double mouseX, double mouseY, int button) { return false; }
         default boolean mouseScrolled(int x, int y, int width, int height, double mouseX, double mouseY, double scrollX, double scrollY) { return false; }
-
-        // 検索ボックスなどを機能させるためのキー入力インターフェースを追加
         default boolean keyPressed(int keyCode, int scanCode, int modifiers) { return false; }
         default boolean charTyped(char codePoint, int modifiers) { return false; }
-
         default int getPlayerInventoryX() { return 9999; }
         default int getPlayerInventoryY(int screenHeight, int bottomHeight) { return 9999; }
     }

@@ -1,10 +1,8 @@
-package com.nishiyu.lunex.api.client.ui.extensions;
+package com.nishiyu.lunex.api.client.ui.panel;
 
-import com.nishiyu.lunex.api.client.IMainframeUIExtension;
-import com.nishiyu.lunex.menu.MainframeOverviewScreen;
+import com.nishiyu.lunex.api.client.MainframeUIRegistry;
 import com.nishiyu.lunex.network.packet.c2s.MainframeOverviewActionC2SPacket;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -25,53 +23,47 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.Optional;
-import java.util.function.Consumer;
 
-public class FurnaceUIExtension implements IMainframeUIExtension {
+public class FurnaceUIExtension extends AbstractRightPanel {
 
-    @Override
-    public int getPanelHeight(BlockEntity be) {
-        return 130; // ★変更: 検索ボタンを削除したため高さを元に調整
-    }
+    public FurnaceUIExtension(BlockPos pos, BlockEntity be) {
+        super(pos, be);
+        this.maxScroll = 130;
 
-    @Override
-    public void buildWidgets(MainframeOverviewScreen screen, BlockPos pos, BlockEntity be, int panelX, int textY, Consumer<AbstractWidget> addWidget) {
         CompoundTag data = be.getPersistentData();
         boolean isActive = data.getBoolean("AutoSmeltActive");
 
-        AutoToggleButton activeBtn = new AutoToggleButton(panelX + 5, textY + 15, 65, 20, isActive, be, pos);
-        addWidget.accept(activeBtn);
+        addWidget(new AutoToggleButton(0, 0, 65, 20, isActive, be, pos), 5, 65);
 
-        int gridX = panelX + 15;
-        int gridY = textY + 68;
-
-        addWidget.accept(new TargetSlotWidget(gridX, gridY, pos, be, true, "SmeltTarget"));
-
-        int barX = gridX + 22;
-        addWidget.accept(new TargetSlotWidget(barX + 28, gridY, pos, be, false, "SmeltResult"));
-
-        // ★変更: ここにあった searchBtn (JEI呼び出しボタン) は不要になったため削除
+        int gridX = 15;
+        int gridY = 118;
+        addWidget(new TargetSlotWidget(0, 0, pos, be, true, "SmeltTarget"), gridX, gridY);
+        addWidget(new TargetSlotWidget(0, 0, pos, be, false, "SmeltResult"), gridX + 50, gridY);
     }
 
     @Override
-    public void renderDetails(GuiGraphics guiGraphics, Font font, BlockPos pos, BlockEntity be, int panelX, int textY) {
-        guiGraphics.drawString(font, "Furnace Settings:", panelX + 5, textY, 0x00E5FF);
-        guiGraphics.drawString(font, "Target Item:", panelX + 5, textY + 53, 0xFFFFFF);
+    protected void renderContent(GuiGraphics graphics, int startX, int startY, int width, int height, int mouseX, int mouseY, float partialTick) {
+        var font = Minecraft.getInstance().font;
+        Component displayName = MainframeUIRegistry.getDisplayBlockName(be);
+
+        graphics.drawString(font, "Target: " + displayName.getString(), startX + 10, startY + 10, 0xFFD4D4D4);
+        graphics.drawString(font, "Pos: " + pos.toShortString(), startX + 10, startY + 22, 0xFF4EC9B0);
+
+        graphics.drawString(font, "Furnace Settings:", startX + 5, startY + 50, 0x00E5FF);
+        graphics.drawString(font, "Target Item:", startX + 5, startY + 103, 0xFFFFFF);
 
         CompoundTag data = be.getPersistentData();
         int progress = data.getInt("CookTime");
         int total = data.getInt("CookTimeTotal");
         if (total <= 0) total = 200;
 
-        int gridX = panelX + 15;
-        int gridY = textY + 68;
-        int barX = gridX + 22;
-        int barY = gridY + 3;
-
+        int barX = startX + 15 + 22;
+        int barY = startY + 118 + 3;
         int maxWidth = 22;
         int currentWidth = progress > 0 ? (progress * maxWidth / total) : 0;
-        guiGraphics.fill(barX, barY, barX + maxWidth, barY + 10, 0xFF555555);
-        guiGraphics.fill(barX, barY, barX + currentWidth, barY + 10, 0xFF00FF00);
+
+        graphics.fill(barX, barY, barX + maxWidth, barY + 10, 0xFF555555);
+        graphics.fill(barX, barY, barX + currentWidth, barY + 10, 0xFF00FF00);
     }
 
     private static class AutoToggleButton extends Button {
@@ -90,13 +82,10 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
         @Override
         public void onPress() {
             if (be.getPersistentData().getString("SmeltTarget").isEmpty()) return;
-
             this.localState = !this.localState;
             this.lastClickedTime = System.currentTimeMillis();
-
             this.setMessage(Component.literal("Auto: " + (this.localState ? "ON" : "OFF")));
             be.getPersistentData().putBoolean("AutoSmeltActive", this.localState);
-
             PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(pos, "toggle_autosmelt", ""));
         }
 
@@ -112,7 +101,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
             } else {
                 this.active = true;
                 boolean serverState = be.getPersistentData().getBoolean("AutoSmeltActive");
-
                 if (System.currentTimeMillis() - lastClickedTime > 2000) {
                     if (this.localState != serverState) {
                         this.localState = serverState;
@@ -122,7 +110,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
                     be.getPersistentData().putBoolean("AutoSmeltActive", this.localState);
                 }
             }
-
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
@@ -132,7 +119,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
         private final BlockEntity be;
         private final boolean isEditable;
         private final String tagKey;
-
         private ItemStack displayStack = ItemStack.EMPTY;
         private String lastTargetId = "";
 
@@ -142,7 +128,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
             this.be = be;
             this.isEditable = isEditable;
             this.tagKey = tagKey;
-
             updateDisplayStack();
         }
 
@@ -196,7 +181,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
 
             if (!displayStack.isEmpty()) {
                 guiGraphics.renderItem(displayStack, getX(), getY());
-
                 if (displayStack.getCount() > 1) {
                     guiGraphics.renderItemDecorations(Minecraft.getInstance().font, displayStack, getX(), getY());
                 }
@@ -210,23 +194,18 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
 
         public void acceptDrop(ItemStack stack) {
             if (!isEditable || be.getPersistentData().getBoolean("AutoSmeltActive")) return;
-
             String itemId = "";
             if (!stack.isEmpty()) {
                 ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
                 itemId = id.toString();
             }
-
             PacketDistributor.sendToServer(new MainframeOverviewActionC2SPacket(blockPos, "set_furnace_target", itemId));
-
-            Minecraft mc = Minecraft.getInstance();
-            mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
         }
 
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (!isEditable || !isHovered() || be.getPersistentData().getBoolean("AutoSmeltActive")) return false;
-
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 ItemStack carried = mc.player.containerMenu.getCarried();
@@ -240,7 +219,6 @@ public class FurnaceUIExtension implements IMainframeUIExtension {
             }
             return true;
         }
-
         @Override
         protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {}
     }
