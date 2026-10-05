@@ -56,8 +56,9 @@ public class DatabaseAPI implements IMainframeAPI {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return "0 / 0";
 
-            long used = master.getResourceAmount("item");
-            long max = master.getResourceCapacity("item");
+            // ★修正: getCore()経由に変更
+            long used = master.getCore().getResourceAmount("item");
+            long max = master.getCore().getResourceCapacity("item");
             return String.format("%d / %d", used, max);
         });
     }
@@ -72,7 +73,8 @@ public class DatabaseAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return 0;
-            return (int) master.getResourceAmount("item");
+            // ★修正: getCore()経由に変更
+            return (int) master.getCore().getResourceAmount("item");
         });
     }
 
@@ -86,11 +88,11 @@ public class DatabaseAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return 0;
-            return (int) master.getResourceCapacity("item");
+            // ★修正: getCore()経由に変更
+            return (int) master.getCore().getResourceCapacity("item");
         });
     }
 
-    // ★変更: IResourceProvider を使用した汎用リソース取得に変更
     @LuaFunction(
             value = "指定した動的リソース（item, energy, gas, mana等）の現在の使用量を取得します。",
             args = {"str:target", "str:resourceType"},
@@ -101,11 +103,11 @@ public class DatabaseAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return 0;
-            return (int) master.getResourceAmount(resourceType);
+            // ★修正: getCore()経由に変更
+            return (int) master.getCore().getResourceAmount(resourceType);
         });
     }
 
-    // ★変更: IResourceProvider を使用した汎用リソース容量取得に変更
     @LuaFunction(
             value = "指定した動的リソース（item, energy, gas, mana等）の最大容量を取得します。",
             args = {"str:target", "str:resourceType"},
@@ -116,11 +118,11 @@ public class DatabaseAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return 0;
-            return (int) master.getResourceCapacity(resourceType);
+            // ★修正: getCore()経由に変更
+            return (int) master.getCore().getResourceCapacity(resourceType);
         });
     }
 
-    // ★追加: 登録されている全リソースの種類と情報をテーブルで取得
     @LuaFunction(
             value = "Mainframeに登録されているすべてのリソース情報をテーブルで取得します。",
             args = {"str:target"},
@@ -133,7 +135,8 @@ public class DatabaseAPI implements IMainframeAPI {
             SimpleMachineBlockEntity master = getMainframe(targetStr);
             if (master == null) return result;
 
-            for (Map.Entry<String, SimpleMachineBlockEntity.IResourceProvider> entry : master.resourceProviders.entrySet()) {
+            // ★修正: getCore()経由に変更
+            for (Map.Entry<String, com.nishiyu.lunex.machine.IResourceProvider> entry : master.getCore().resourceProviders.entrySet()) {
                 LuaTable info = new LuaTable();
                 info.set("amount", LuaValue.valueOf(entry.getValue().getAmount()));
                 info.set("capacity", LuaValue.valueOf(entry.getValue().getCapacity()));

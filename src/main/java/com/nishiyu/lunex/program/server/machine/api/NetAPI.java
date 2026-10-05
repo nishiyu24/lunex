@@ -37,6 +37,10 @@ public class NetAPI implements IMainframeAPI {
     }
 
     private CompoundTag getBeData(BlockEntity be) {
+        // ★修正: SimpleMachineBlockEntity の場合は getCore() の NBT を返す
+        if (be instanceof SimpleMachineBlockEntity sm && sm.getCore() != null) {
+            return sm.getCore().persistentData;
+        }
         return be.getPersistentData();
     }
 
@@ -48,9 +52,10 @@ public class NetAPI implements IMainframeAPI {
 
     private SimpleMachineBlockEntity findConnectedRouter() {
         SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
-        if (machine == null || machine.getLevel() == null) return null;
+        if (machine == null || machine.getLevel() == null || machine.getCore() == null) return null;
 
-        if (machine.isMainframeMaster && machine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+        // ★修正: activeFeatures の参照を getCore() 経由に変更
+        if (machine.isMainframeMaster && machine.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
             return machine;
         }
 
@@ -58,7 +63,7 @@ public class NetAPI implements IMainframeAPI {
         if (data != null && data.contains("RouterPos")) {
             BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
             BlockEntity be = machine.getLevel().getBlockEntity(routerPos);
-            if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.getCore() != null && router.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                 return router;
             }
         }
@@ -171,16 +176,18 @@ public class NetAPI implements IMainframeAPI {
 
                 if (targetPos != null) {
                     BlockEntity targetBe = router.getLevel().getBlockEntity(targetPos);
-                    if (targetBe instanceof SimpleMachineBlockEntity targetMachine && targetMachine.vm != null && targetMachine.vm.isRunning) {
-                        targetMachine.vm.triggerEvent("net_receive", myIp, port, data);
+                    // ★修正: getCore()経由のVMにアクセスする
+                    if (targetBe instanceof SimpleMachineBlockEntity targetMachine && targetMachine.getCore() != null && targetMachine.getCore().vm != null && targetMachine.getCore().vm.isRunning) {
+                        targetMachine.getCore().vm.triggerEvent("net_receive", myIp, port, data);
                         return true;
                     }
                 }
             } else {
-                if (router.persistentData.getBoolean("IsRunningStatus") || (router.vm != null && router.vm.isRunning)) {
+                // ★修正: getCore()経由のNBTやVMにアクセスする
+                if (router.getCore().persistentData.getBoolean("IsRunningStatus") || (router.getCore().vm != null && router.getCore().vm.isRunning)) {
                     boolean sent = false;
                     for (ServerLuaVM wanNode : McNetManager.getAllWanNodes().values()) {
-                        String routerWanIp = router.persistentData.contains("AssignedWanIP") ? router.persistentData.getString("AssignedWanIP") : "0.0.0.0";
+                        String routerWanIp = router.getCore().persistentData.contains("AssignedWanIP") ? router.getCore().persistentData.getString("AssignedWanIP") : "0.0.0.0";
                         wanNode.triggerEvent("net_wan_receive", routerWanIp, port, data);
                         sent = true;
                     }
@@ -203,8 +210,9 @@ public class NetAPI implements IMainframeAPI {
 
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = findConnectedRouter();
-            if (router != null) {
-                CompoundTag rData = router.persistentData;
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() 経由に変更
+                CompoundTag rData = router.getCore().persistentData;
                 if (rData != null && rData.getBoolean("DNSServerEnabled")) {
                     CompoundTag records = rData.getCompound("DNSRecords");
                     if (records.contains(domain)) {
@@ -250,7 +258,8 @@ public class NetAPI implements IMainframeAPI {
                 }
             }
 
-            CompoundTag rData = router.persistentData;
+            // ★修正: getCore() 経由に変更
+            CompoundTag rData = router.getCore().persistentData;
             if (rData != null && rData.contains("DHCPLeases")) {
                 CompoundTag leases = rData.getCompound("DHCPLeases");
                 for (String macOrUuid : leases.getAllKeys()) {
@@ -319,9 +328,10 @@ public class NetAPI implements IMainframeAPI {
     public boolean setTag(String tag) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
-            if (machine == null) return false;
+            if (machine == null || machine.getCore() == null) return false;
 
-            machine.setMachineLabel(tag);
+            // ★修正: getCore() 経由に変更
+            machine.getCore().setMachineLabel(tag);
             return true;
         });
     }

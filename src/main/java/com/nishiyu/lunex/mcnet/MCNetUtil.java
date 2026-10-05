@@ -103,7 +103,7 @@ public class MCNetUtil {
             for (BlockPos p : connected) {
                 if (level.getBlockEntity(p) instanceof SimpleMachineBlockEntity sm
                         && sm.isMainframeMaster
-                        && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                        && sm.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) { // ★修正
                     routersToUpdate.add(p);
                 }
             }
@@ -111,8 +111,9 @@ public class MCNetUtil {
 
         for (BlockPos p : routersToUpdate) {
             if (level.getBlockEntity(p) instanceof SimpleMachineBlockEntity sm) {
-                if (sm.vm != null && sm.vm.isRunning) {
-                    sm.vm.forceTriggerEvent("network_updated");
+                // ★修正: getCore() 経由に変更
+                if (sm.getCore().vm != null && sm.getCore().vm.isRunning) {
+                    sm.getCore().vm.forceTriggerEvent("network_updated");
                 }
             }
         }
@@ -136,17 +137,24 @@ public class MCNetUtil {
         for (BlockPos pos : connected) {
             BlockEntity be = level.getBlockEntity(pos);
             if (isMCNetDevice(be)) {
-                CompoundTag data = be.getPersistentData();
-                String tag = data.getString("NetworkTag");
+                String tag = "";
+                String ip = "";
 
-                if (be instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity sm && sm.isMainframeMaster) {
-                    if (data.contains("MainframeNetworkTag") && !data.getString("MainframeNetworkTag").isEmpty()) {
+                // ★修正: SimpleMachineBlockEntity の場合は getCore() からデータを読む
+                if (be instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity sm) {
+                    CompoundTag data = sm.getCore().persistentData;
+                    tag = data.getString("NetworkTag");
+                    if (sm.isMainframeMaster && data.contains("MainframeNetworkTag") && !data.getString("MainframeNetworkTag").isEmpty()) {
                         tag = data.getString("MainframeNetworkTag");
                     }
+                    ip = data.getString("IPAddress");
+                } else {
+                    CompoundTag data = be.getPersistentData();
+                    tag = data.getString("NetworkTag");
+                    ip = data.getString("IPAddress");
                 }
 
                 if (targetTag.equals(tag)) {
-                    String ip = data.getString("IPAddress");
                     if (ip != null && !ip.isEmpty() && !"0.0.0.0".equals(ip)) {
                         result.add(ip);
                     }
@@ -168,11 +176,9 @@ public class MCNetUtil {
         return !isDirection && !isIp;
     }
 
-    /**
-     * ポータブルデバイス(アイテム)をルーターに登録する共通メソッド
-     */
     public static boolean registerPortableDevice(Level level, SimpleMachineBlockEntity router, ItemStack stack, Player player, String deviceType, String msgRegistered, String msgFailedIp, String msgDhcpDisabled) {
-        if (!router.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+        // ★修正: getCore() 経由に変更
+        if (!router.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
             if (player != null) {
                 player.displayClientMessage(Component.translatable(msgDhcpDisabled).withStyle(net.minecraft.ChatFormatting.RED), true);
             }
@@ -185,18 +191,17 @@ public class MCNetUtil {
         String deviceId = tag.contains("DeviceId") ? tag.getString("DeviceId") : UUID.randomUUID().toString();
         tag.putString("DeviceId", deviceId);
 
-        if (router.machineId == null) {
-            router.machineId = UUID.randomUUID();
+        if (router.getCore().machineId == null) {
+            router.getCore().machineId = UUID.randomUUID();
             router.setChanged();
         }
-        tag.putUUID("NetworkId", router.machineId);
+        tag.putUUID("NetworkId", router.getCore().machineId);
 
         tag.putLong("RouterPos", router.getBlockPos().asLong());
         tag.putString("RouterDim", level.dimension().location().toString());
-        // ★ルーターアップグレードの概念が消えたため無制限として設定
         tag.putDouble("RouterRange", Double.MAX_VALUE);
 
-        CompoundTag rData = router.persistentData;
+        CompoundTag rData = router.getCore().persistentData;
         if (rData != null && rData.getBoolean("DHCPServerEnabled")) {
             CompoundTag leases = rData.contains("DHCPLeases") ? rData.getCompound("DHCPLeases") : new CompoundTag();
             CompoundTag deviceTypes = rData.contains("DeviceTypes") ? rData.getCompound("DeviceTypes") : new CompoundTag();

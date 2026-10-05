@@ -91,8 +91,9 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                 return turtle.getCore().workspaceId != null && !turtle.getCore().workspaceId.isEmpty() ? turtle.getCore().workspaceId : "default";
             }
             if (be instanceof SimpleMachineBlockEntity sm) {
-                if (sm.persistentData != null && sm.persistentData.contains("WorkspaceId")) {
-                    return sm.persistentData.getString("WorkspaceId");
+                // ★修正: getCore() 経由に変更
+                if (sm.getCore().persistentData != null && sm.getCore().persistentData.contains("WorkspaceId")) {
+                    return sm.getCore().persistentData.getString("WorkspaceId");
                 }
             }
         }
@@ -323,9 +324,10 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     break;
             }
         } else if (be instanceof SimpleMachineBlockEntity master) {
-            if (master.persistentData.getBoolean("IsPrivateMode")) {
-                if (master.persistentData.contains("OwnerUUID")) {
-                    if (!master.persistentData.getUUID("OwnerUUID").equals(player.getUUID())) {
+            // ★修正: getCore() 経由に変更
+            if (master.getCore().persistentData.getBoolean("IsPrivateMode")) {
+                if (master.getCore().persistentData.contains("OwnerUUID")) {
+                    if (!master.getCore().persistentData.getUUID("OwnerUUID").equals(player.getUUID())) {
                         player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] You do not have permission to modify this machine.§r"), true);
                         return;
                     }
@@ -337,59 +339,59 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     master.sync();
                     break;
                 case "boot":
-                    if (master.vm != null) master.vm.isRunning = true;
+                    if (master.getCore().vm != null) master.getCore().vm.isRunning = true;
                     master.setChanged();
                     master.sync();
                     break;
                 case "stop":
                 case "kill":
-                    if (master.vm != null) master.vm.stopProgram();
+                    if (master.getCore().vm != null) master.getCore().vm.stopProgram();
                     master.setChanged();
                     master.sync();
                     break;
                 case "reboot":
-                    if (master.vm != null) master.vm.restartProgram(master.getProgramName());
+                    if (master.getCore().vm != null) master.getCore().vm.restartProgram(master.getCore().getProgramName());
                     master.setChanged();
                     master.sync();
                     break;
                 case "label":
-                    master.setMachineLabel(arg.startsWith("set ") ? arg.substring(4).trim() : (arg.equals("clear") ? "" : master.getMachineLabel()));
+                    master.getCore().setMachineLabel(arg.startsWith("set ") ? arg.substring(4).trim() : (arg.equals("clear") ? "" : master.getCore().getMachineLabel()));
                     break;
                 case "toggle_private":
-                    master.persistentData.putBoolean("IsPrivateMode", Boolean.parseBoolean(arg));
+                    master.getCore().persistentData.putBoolean("IsPrivateMode", Boolean.parseBoolean(arg));
                     master.setChanged();
                     master.sync();
                     break;
                 case "show_error":
-                    if (master.persistentData.contains("LastError")) {
-                        String errMsg = master.persistentData.getString("LastError");
+                    if (master.getCore().persistentData.contains("LastError")) {
+                        String errMsg = master.getCore().persistentData.getString("LastError");
                         PacketDistributor.sendToPlayer(player, new ErrorToastS2CPacket(errMsg));
                     } else {
                         player.displayClientMessage(net.minecraft.network.chat.Component.literal("§a[System] No recent errors found.§r"), true);
                     }
                     break;
                 case "clear_error":
-                    master.persistentData.remove("LastError");
+                    master.getCore().persistentData.remove("LastError");
                     master.setChanged();
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("§e[System] Error history cleared.§r"), true);
                     break;
                 case "update_dhcp":
-                    if (master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                    if (master.isMainframeMaster && master.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                         String[] updateParts = arg.split("\\|");
                         if (updateParts.length >= 2) {
                             String mac = updateParts[0];
                             String ip = updateParts[1];
                             String port = updateParts.length >= 3 ? updateParts[2] : "";
 
-                            CompoundTag leases = master.persistentData.contains("DHCPLeases") ? master.persistentData.getCompound("DHCPLeases") : new CompoundTag();
+                            CompoundTag leases = master.getCore().persistentData.contains("DHCPLeases") ? master.getCore().persistentData.getCompound("DHCPLeases") : new CompoundTag();
                             leases.putString(mac, ip);
-                            master.persistentData.put("DHCPLeases", leases);
+                            master.getCore().persistentData.put("DHCPLeases", leases);
 
-                            CompoundTag pfTag = master.persistentData.contains("PortForwards") ? master.persistentData.getCompound("PortForwards") : new CompoundTag();
+                            CompoundTag pfTag = master.getCore().persistentData.contains("PortForwards") ? master.getCore().persistentData.getCompound("PortForwards") : new CompoundTag();
                             if (!port.isEmpty()) {
                                 pfTag.putString(port, ip);
                             }
-                            master.persistentData.put("PortForwards", pfTag);
+                            master.getCore().persistentData.put("PortForwards", pfTag);
 
                             master.setChanged();
                             master.sync();
@@ -397,14 +399,14 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     }
                     break;
                 case "remove_dhcp":
-                    if (!arg.isEmpty() && master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
-                        CompoundTag leases = master.persistentData.contains("DHCPLeases") ? master.persistentData.getCompound("DHCPLeases") : new CompoundTag();
+                    if (!arg.isEmpty() && master.isMainframeMaster && master.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                        CompoundTag leases = master.getCore().persistentData.contains("DHCPLeases") ? master.getCore().persistentData.getCompound("DHCPLeases") : new CompoundTag();
                         String ipToRemove = leases.getString(arg);
                         leases.remove(arg);
-                        master.persistentData.put("DHCPLeases", leases);
+                        master.getCore().persistentData.put("DHCPLeases", leases);
 
                         if (!ipToRemove.isEmpty()) {
-                            CompoundTag pfTag = master.persistentData.contains("PortForwards") ? master.persistentData.getCompound("PortForwards") : new CompoundTag();
+                            CompoundTag pfTag = master.getCore().persistentData.contains("PortForwards") ? master.getCore().persistentData.getCompound("PortForwards") : new CompoundTag();
                             List<String> keysToRemove = new ArrayList<>();
                             for (String p : pfTag.getAllKeys()) {
                                 if (pfTag.getString(p).equals(ipToRemove)) {
@@ -414,15 +416,15 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                             for (String p : keysToRemove) {
                                 pfTag.remove(p);
                             }
-                            master.persistentData.put("PortForwards", pfTag);
+                            master.getCore().persistentData.put("PortForwards", pfTag);
                         }
                         master.setChanged();
                         master.sync();
                     }
                     break;
                 case "set_wan_target":
-                    if (master.isMainframeMaster && master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
-                        master.persistentData.putString("WAN_Target", arg);
+                    if (master.isMainframeMaster && master.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                        master.getCore().persistentData.putString("WAN_Target", arg);
                         master.setChanged();
                         master.sync();
                     }

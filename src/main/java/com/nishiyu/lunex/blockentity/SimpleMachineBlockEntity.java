@@ -6,11 +6,12 @@ import com.nishiyu.lunex.api.MainframeComponentRegistry;
 import com.nishiyu.lunex.api.MainframeConstants;
 import com.nishiyu.lunex.api.mainframe.IMainframeExtension;
 import com.nishiyu.lunex.api.mainframe.MainframeExtensionRegistry;
+import com.nishiyu.lunex.machine.MainframeCore;
 import com.nishiyu.lunex.machine.IMainframePart;
 import com.nishiyu.lunex.machine.MainframeItemHandler;
 import com.nishiyu.lunex.machine.MainframeScanner;
 import com.nishiyu.lunex.machine.CoreMachineVMCache;
-import com.nishiyu.lunex.machine.VirtualStorage;
+import com.nishiyu.lunex.machine.IResourceProvider;
 import com.nishiyu.lunex.mcnet.IMCNetDevice;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import net.minecraft.core.BlockPos;
@@ -31,22 +32,10 @@ import net.neoforged.neoforge.energy.EnergyStorage;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class SimpleMachineBlockEntity extends BlockEntity implements IMainframePart, IMCNetDevice {
 
-    // ★追加: 外部から動的にリソース情報を取得するためのインターフェース
-    public interface IResourceProvider {
-        long getAmount();
-        long getCapacity();
-    }
-
-    public CoreMachineServerLuaVM vm = null;
-    public UUID machineId = null;
-    public CompoundTag persistentData = new CompoundTag();
-
-    public final List<String> clientTerminalLog = new ArrayList<>();
-    public final List<String> clientSuggestions = new ArrayList<>();
+    private MainframeCore core;
 
     public boolean isMainframeMaster = false;
     public BlockPos masterPos = null;
@@ -55,17 +44,7 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
     public int mainframeMachines = 1;
     public final Map<String, Integer> componentCounts = new HashMap<>();
     public final Map<String, List<BlockPos>> componentPositions = new HashMap<>();
-
-    public final Set<String> activeFeatures = new HashSet<>();
-    public final Set<String> activeApis = new HashSet<>();
     public final Map<ResourceLocation, IMainframeExtension> extensions = new HashMap<>();
-    public final VirtualStorage virtualStorage = new VirtualStorage(this);
-
-    public final Map<String, Long> resourceCapacities = new ConcurrentHashMap<>();
-    public final Map<String, Long> resourceUsages = new ConcurrentHashMap<>();
-
-    // ★追加: リソースプロバイダーを管理するマップ
-    public final Map<String, IResourceProvider> resourceProviders = new ConcurrentHashMap<>();
 
     public class DynamicEnergyStorage extends EnergyStorage {
         public DynamicEnergyStorage(int capacity) { super(capacity, 10000, 10000); }
@@ -114,34 +93,22 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
     public SimpleMachineBlockEntity(BlockPos pos, BlockState state) {
         super(Lunex.SIMPLE_MACHINE_BE.get(), pos, state);
 
-        // ★追加: デフォルトのリソース（item, energy）をプロバイダーとして登録
-        this.resourceProviders.put("item", new IResourceProvider() {
+        // 仮想コアの初期化
+        this.core = new MainframeCore(UUID.randomUUID());
+        this.core.bind(this);
+
+        this.core.registerResourceProvider("item", new IResourceProvider() {
             @Override public long getAmount() { return mainframeStorage.getTotalItems(); }
             @Override public long getCapacity() { return mainframeStorage.getCapacity(); }
         });
 
-        this.resourceProviders.put("energy", new IResourceProvider() {
+        this.core.registerResourceProvider("energy", new IResourceProvider() {
             @Override public long getAmount() { return energyStorage.getEnergyStored(); }
             @Override public long getCapacity() { return energyStorage.getMaxEnergyStored(); }
         });
     }
 
-    // ★追加: 動的リソースプロバイダーを登録するためのメソッド
-    public void registerResourceProvider(String resourceName, IResourceProvider provider) {
-        this.resourceProviders.put(resourceName, provider);
-    }
-
-    // ★追加: 指定したリソースの現在の量を取得
-    public long getResourceAmount(String resourceName) {
-        IResourceProvider provider = this.resourceProviders.get(resourceName);
-        return provider != null ? provider.getAmount() : 0;
-    }
-
-    // ★追加: 指定したリソースの最大容量を取得
-    public long getResourceCapacity(String resourceName) {
-        IResourceProvider provider = this.resourceProviders.get(resourceName);
-        return provider != null ? provider.getCapacity() : 0;
-    }
+    public MainframeCore getCore() { return this.core; }
 
     @Override
     public boolean isNetworkActive() { return true; }
@@ -167,7 +134,7 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             }
         }
 
-        if (targetStr.equals(this.persistentData.getString("NetworkTag"))) {
+        if (targetStr.equals(this.core.persistentData.getString("NetworkTag"))) {
             return this.getBlockPos();
         }
         return null;
@@ -185,22 +152,17 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
         return false;
     }
 
-    public String getMachineLabel() { return this.persistentData.getString("NetworkTag"); }
-    public void setMachineLabel(String label) {
-        this.persistentData.putString("NetworkTag", label != null ? label : "");
-        this.setChanged();
-        this.sync();
-    }
-    public String getProgramName() { return this.persistentData.getString("BootProgram"); }
-    public void setProgramName(String name) {
-        this.persistentData.putString("BootProgram", name != null ? name : "");
-        this.setChanged();
-    }
-    public String getWorkspaceId() { return this.persistentData.getString("WorkspaceId"); }
-    public void setWorkspaceId(String id) {
-        this.persistentData.putString("WorkspaceId", id != null ? id : "");
-        this.setChanged();
-    }
+    // 古い参照元との互換性のためのデリゲートメソッド
+    public UUID getMachineId() { return this.core.machineId; }
+    public String getMachineLabel() { return this.core.getMachineLabel(); }
+    public void setMachineLabel(String label) { this.core.setMachineLabel(label); }
+    public String getProgramName() { return this.core.getProgramName(); }
+    public void setProgramName(String name) { this.core.setProgramName(name); }
+    public String getWorkspaceId() { return this.core.getWorkspaceId(); }
+    public void setWorkspaceId(String id) { this.core.setWorkspaceId(id); }
+    public CompoundTag getPersistentData() { return this.core.persistentData; }
+    public CoreMachineServerLuaVM getVM() { return this.core.vm; }
+
     public boolean isValidSlot(int luaSlot) {
         return luaSlot >= 1 && luaSlot <= this.mainframeStorage.getSlots();
     }
@@ -208,13 +170,12 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
     public void updateResourceUsages() {
         if (level == null || level.isClientSide) return;
 
-        // ★変更: IResourceProvider を使用して resourceUsages を更新
-        for (Map.Entry<String, IResourceProvider> entry : this.resourceProviders.entrySet()) {
-            this.resourceUsages.put(entry.getKey(), entry.getValue().getAmount());
+        for (Map.Entry<String, IResourceProvider> entry : this.core.resourceProviders.entrySet()) {
+            this.core.resourceUsages.put(entry.getKey(), entry.getValue().getAmount());
         }
 
         for (IMainframeExtension ext : this.extensions.values()) {
-            ext.updateResourceUsages(this.resourceUsages);
+            ext.updateResourceUsages(this.core.resourceUsages);
         }
     }
 
@@ -223,9 +184,9 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
 
         this.componentCounts.clear();
         this.componentPositions.clear();
-        this.activeFeatures.clear();
-        this.activeApis.clear();
-        this.resourceCapacities.clear();
+        this.core.activeFeatures.clear();
+        this.core.activeApis.clear();
+        this.core.resourceCapacities.clear();
 
         Set<ResourceLocation> requiredExtensions = new HashSet<>();
 
@@ -242,16 +203,15 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
                 Block block = originalState.getBlock();
                 String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
                 this.componentCounts.put(blockId, this.componentCounts.getOrDefault(blockId, 0) + 1);
-
                 this.componentPositions.computeIfAbsent(blockId, k -> new ArrayList<>()).add(pos);
 
                 MainframeComponentData data = MainframeComponentRegistry.get(block);
                 if (data != null) {
-                    this.activeFeatures.addAll(data.getFeatures());
-                    this.activeApis.addAll(data.getApis());
+                    this.core.activeFeatures.addAll(data.getFeatures());
+                    this.core.activeApis.addAll(data.getApis());
 
                     for (Map.Entry<String, Long> entry : data.getResourceCapacities().entrySet()) {
-                        this.resourceCapacities.put(entry.getKey(), this.resourceCapacities.getOrDefault(entry.getKey(), 0L) + entry.getValue());
+                        this.core.resourceCapacities.put(entry.getKey(), this.core.resourceCapacities.getOrDefault(entry.getKey(), 0L) + entry.getValue());
                     }
 
                     requiredExtensions.addAll(data.getExtensions().keySet());
@@ -271,12 +231,12 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
 
         long baseItemCap = 0L;
         long baseEnergyCap = this.mainframeMachines * 100L;
-        this.resourceCapacities.put("item", this.resourceCapacities.getOrDefault("item", 0L) + baseItemCap);
-        this.resourceCapacities.put("energy", this.resourceCapacities.getOrDefault("energy", 0L) + baseEnergyCap);
+        this.core.resourceCapacities.put("item", this.core.resourceCapacities.getOrDefault("item", 0L) + baseItemCap);
+        this.core.resourceCapacities.put("energy", this.core.resourceCapacities.getOrDefault("energy", 0L) + baseEnergyCap);
 
-        long itemCap = this.resourceCapacities.getOrDefault("item", 0L);
+        long itemCap = this.core.resourceCapacities.getOrDefault("item", 0L);
         this.mainframeStorage.updateCapacity((int) Math.min(Integer.MAX_VALUE, itemCap));
-        long energyCap = this.resourceCapacities.getOrDefault("energy", 0L);
+        long energyCap = this.core.resourceCapacities.getOrDefault("energy", 0L);
         this.energyStorage.setCapacity((int) Math.min(Integer.MAX_VALUE, energyCap));
 
         for (BlockPos partPos : this.mainframeParts) {
@@ -298,10 +258,10 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             ext.onAssembled(this);
         }
 
-        if (this.vm instanceof CoreMachineServerLuaVM cvm) {
+        if (this.core.vm instanceof CoreMachineServerLuaVM cvm) {
             cvm.terminalLog.add("[System] Mainframe assembled.");
             cvm.terminalLog.add("[System] CPUs: " + this.mainframeMachines + ", Item Capacity: " + itemCap);
-            cvm.upgradeToMainframe(this.activeApis);
+            cvm.upgradeToMainframe(this.core.activeApis);
             cvm.syncClient();
         }
 
@@ -316,7 +276,7 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             ext.onDisassembled(this);
         }
 
-        if (this.vm instanceof CoreMachineServerLuaVM cvm) {
+        if (this.core.vm instanceof CoreMachineServerLuaVM cvm) {
             cvm.terminalLog.add("[System] CRITICAL: Mainframe connection lost. Disassembled.");
             cvm.downgradeToInteractive();
             cvm.syncClient();
@@ -383,16 +343,16 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
         this.mainframeParts.clear();
         this.mainframeMachines = 1;
 
-        this.resourceCapacities.clear();
-        this.resourceUsages.clear();
+        this.core.resourceCapacities.clear();
+        this.core.resourceUsages.clear();
 
         this.mainframeStorage.updateCapacity(0);
         this.energyStorage.setCapacity(0);
 
         this.componentCounts.clear();
         this.componentPositions.clear();
-        this.activeFeatures.clear();
-        this.activeApis.clear();
+        this.core.activeFeatures.clear();
+        this.core.activeApis.clear();
 
         this.setChanged();
         this.sync();
@@ -402,37 +362,38 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
     public void onLoad() {
         super.onLoad();
         if (this.level != null && !this.level.isClientSide) {
-            if (this.machineId == null) this.machineId = UUID.randomUUID();
-            this.vm = CoreMachineVMCache.getOrCreateVM(this.machineId, this);
-            if (this.vm instanceof CoreMachineServerLuaVM cvm) {
+            // ※ CoreMachineVMCacheの引数がこのブロックエンティティを要求している場合はthisを渡します。
+            // 将来的にはthis.coreを渡すようリファクタリングすると依存が綺麗になります。
+            this.core.vm = CoreMachineVMCache.getOrCreateVM(this.core.machineId, this);
+            if (this.core.vm instanceof CoreMachineServerLuaVM cvm) {
                 cvm.syncClient();
             }
         }
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, SimpleMachineBlockEntity entity) {
-        if (level.isClientSide) return;
+        if (level.isClientSide || entity.core == null || entity.core.isDisposed()) return;
 
         if (entity.isMainframeMaster) {
-            if (entity.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
-                entity.virtualStorage.tick(level);
+            if (entity.core.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                entity.core.virtualStorage.tick(level);
             }
             for (IMainframeExtension ext : entity.extensions.values()) {
                 ext.tick(level, entity);
             }
         }
 
-        if (entity.vm != null) {
-            entity.vm.tick();
-            if (entity.vm.isRunning) {
-                entity.vm.triggerEvent("on_tick");
+        if (entity.core.vm != null) {
+            entity.core.vm.tick();
+            if (entity.core.vm.isRunning) {
+                entity.core.vm.triggerEvent("on_tick");
             }
         }
     }
 
     @Override
     public void setRemoved() {
-        if (this.vm != null) this.vm.stopProgram();
+        if (this.core != null) this.core.dispose();
         super.setRemoved();
     }
 
@@ -446,17 +407,22 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
     protected void saveAdditional(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
         super.saveAdditional(tag, registries);
 
-        if (this.machineId != null) tag.putUUID("MachineId", this.machineId);
+        if (this.core != null) {
+            tag.putUUID("MachineId", this.core.machineId);
+
+            CompoundTag capTag = new CompoundTag();
+            for (Map.Entry<String, Long> entry : this.core.resourceCapacities.entrySet()) capTag.putLong(entry.getKey(), entry.getValue());
+            tag.put("ResourceCapacities", capTag);
+
+            CompoundTag usageTag = new CompoundTag();
+            for (Map.Entry<String, Long> entry : this.core.resourceUsages.entrySet()) usageTag.putLong(entry.getKey(), entry.getValue());
+            tag.put("ResourceUsages", usageTag);
+
+            tag.put("PersistentData", this.core.persistentData);
+        }
+
         tag.putBoolean("IsMainframeMaster", this.isMainframeMaster);
         tag.putInt("MainframeMachines", this.mainframeMachines);
-
-        CompoundTag capTag = new CompoundTag();
-        for (Map.Entry<String, Long> entry : resourceCapacities.entrySet()) capTag.putLong(entry.getKey(), entry.getValue());
-        tag.put("ResourceCapacities", capTag);
-
-        CompoundTag usageTag = new CompoundTag();
-        for (Map.Entry<String, Long> entry : resourceUsages.entrySet()) usageTag.putLong(entry.getKey(), entry.getValue());
-        tag.put("ResourceUsages", usageTag);
 
         CompoundTag posTag = new CompoundTag();
         for (Map.Entry<String, List<BlockPos>> entry : this.componentPositions.entrySet()) {
@@ -483,21 +449,32 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             for (int i = 0; i < this.mainframeParts.size(); i++) partsArray[i] = this.mainframeParts.get(i).asLong();
             tag.putLongArray("MainframeParts", partsArray);
         }
-
-        tag.put("PersistentData", this.persistentData);
     }
 
     @Override
     protected void loadAdditional(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
         super.loadAdditional(tag, registries);
 
-        if (tag.contains("MachineId")) this.machineId = tag.getUUID("MachineId");
+        UUID loadedId = tag.contains("MachineId") ? tag.getUUID("MachineId") : UUID.randomUUID();
+        if (this.core == null || !this.core.machineId.equals(loadedId)) {
+            this.core = new MainframeCore(loadedId);
+            this.core.bind(this);
+            // ※再生成時はリソースプロバイダーの再登録を確実に行う
+            this.core.registerResourceProvider("item", new IResourceProvider() {
+                @Override public long getAmount() { return mainframeStorage.getTotalItems(); }
+                @Override public long getCapacity() { return mainframeStorage.getCapacity(); }
+            });
+            this.core.registerResourceProvider("energy", new IResourceProvider() {
+                @Override public long getAmount() { return energyStorage.getEnergyStored(); }
+                @Override public long getCapacity() { return energyStorage.getMaxEnergyStored(); }
+            });
+        }
 
         updateDataFromTag(tag);
 
-        long itemCap = this.resourceCapacities.getOrDefault("item", 0L);
+        long itemCap = this.core.resourceCapacities.getOrDefault("item", 0L);
         this.mainframeStorage.updateCapacity((int) Math.min(Integer.MAX_VALUE, itemCap));
-        long energyCap = this.resourceCapacities.getOrDefault("energy", 0L);
+        long energyCap = this.core.resourceCapacities.getOrDefault("energy", 0L);
         this.energyStorage.setCapacity((int) Math.min(Integer.MAX_VALUE, energyCap));
 
         if (tag.contains("MasterPos")) this.masterPos = BlockPos.of(tag.getLong("MasterPos"));
@@ -505,7 +482,7 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             this.mainframeStorage.deserializeNBT(registries, tag.getCompound("MainframeStorage"));
         }
         if (tag.contains("Energy")) {
-            this.energyStorage.deserializeNBT(registries, tag.get("Energy"));
+            this.energyStorage.deserializeNBT(registries, Objects.requireNonNull(tag.get("Energy")));
         }
 
         if (tag.contains("MainframeExtensions")) {
@@ -529,39 +506,9 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
     @Override
     public CompoundTag getUpdateTag(HolderLookup.@NotNull Provider provider) {
         CompoundTag tag = super.getUpdateTag(provider);
-        if (this.machineId != null) tag.putUUID("MachineId", this.machineId);
-        tag.putBoolean("IsMainframeMaster", this.isMainframeMaster);
-        tag.putInt("MainframeMachines", this.mainframeMachines);
+        saveAdditional(tag, provider);
 
-        CompoundTag capTag = new CompoundTag();
-        for (Map.Entry<String, Long> entry : resourceCapacities.entrySet()) capTag.putLong(entry.getKey(), entry.getValue());
-        tag.put("ResourceCapacities", capTag);
-
-        CompoundTag usageTag = new CompoundTag();
-        for (Map.Entry<String, Long> entry : resourceUsages.entrySet()) usageTag.putLong(entry.getKey(), entry.getValue());
-        tag.put("ResourceUsages", usageTag);
-
-        CompoundTag posTag = new CompoundTag();
-        for (Map.Entry<String, List<BlockPos>> entry : this.componentPositions.entrySet()) {
-            long[] arr = new long[entry.getValue().size()];
-            for (int i = 0; i < entry.getValue().size(); i++) {
-                arr[i] = entry.getValue().get(i).asLong();
-            }
-            posTag.putLongArray(entry.getKey(), arr);
-        }
-        tag.put("ComponentPositions", posTag);
-
-        tag.put("PersistentData", this.persistentData);
-        tag.put("MainframeStorage", this.mainframeStorage.serializeNBT(provider));
-        tag.put("Energy", this.energyStorage.serializeNBT(provider));
-
-        if (!this.mainframeParts.isEmpty()) {
-            long[] partsArray = new long[this.mainframeParts.size()];
-            for (int i = 0; i < this.mainframeParts.size(); i++) partsArray[i] = this.mainframeParts.get(i).asLong();
-            tag.putLongArray("MainframeParts", partsArray);
-        }
-
-        if (this.vm instanceof CoreMachineServerLuaVM cvm) {
+        if (this.core != null && this.core.vm instanceof CoreMachineServerLuaVM cvm) {
             ListTag logTag = new ListTag();
             for (String line : cvm.terminalLog) logTag.add(StringTag.valueOf(line));
             tag.put("TerminalLog", logTag);
@@ -584,39 +531,41 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
         CompoundTag tag = pkt.getTag();
         if (tag != null) {
             updateDataFromTag(tag);
-            long itemCap = this.resourceCapacities.getOrDefault("item", 0L);
+            long itemCap = this.core.resourceCapacities.getOrDefault("item", 0L);
             this.mainframeStorage.updateCapacity((int) Math.min(Integer.MAX_VALUE, itemCap));
-            long energyCap = this.resourceCapacities.getOrDefault("energy", 0L);
+            long energyCap = this.core.resourceCapacities.getOrDefault("energy", 0L);
             this.energyStorage.setCapacity((int) Math.min(Integer.MAX_VALUE, energyCap));
         }
     }
 
     private void updateDataFromTag(CompoundTag tag) {
+        if (this.core == null) return;
+
         if (tag.contains("TerminalLog")) {
-            this.clientTerminalLog.clear();
+            this.core.clientTerminalLog.clear();
             ListTag logTag = tag.getList("TerminalLog", 8);
-            for (int i = 0; i < logTag.size(); i++) this.clientTerminalLog.add(logTag.getString(i));
+            for (int i = 0; i < logTag.size(); i++) this.core.clientTerminalLog.add(logTag.getString(i));
         }
         if (tag.contains("Suggestions")) {
-            this.clientSuggestions.clear();
+            this.core.clientSuggestions.clear();
             ListTag suggestTag = tag.getList("Suggestions", 8);
-            for (int i = 0; i < suggestTag.size(); i++) this.clientSuggestions.add(suggestTag.getString(i));
+            for (int i = 0; i < suggestTag.size(); i++) this.core.clientSuggestions.add(suggestTag.getString(i));
         }
-        if (tag.contains("PersistentData")) this.persistentData.merge(tag.getCompound("PersistentData"));
+        if (tag.contains("PersistentData")) this.core.persistentData.merge(tag.getCompound("PersistentData"));
 
         if (tag.contains("IsMainframeMaster")) this.isMainframeMaster = tag.getBoolean("IsMainframeMaster");
         if (tag.contains("MainframeMachines")) this.mainframeMachines = tag.getInt("MainframeMachines");
 
-        this.resourceCapacities.clear();
+        this.core.resourceCapacities.clear();
         if (tag.contains("ResourceCapacities")) {
             CompoundTag capTag = tag.getCompound("ResourceCapacities");
-            for (String key : capTag.getAllKeys()) this.resourceCapacities.put(key, capTag.getLong(key));
+            for (String key : capTag.getAllKeys()) this.core.resourceCapacities.put(key, capTag.getLong(key));
         }
 
-        this.resourceUsages.clear();
+        this.core.resourceUsages.clear();
         if (tag.contains("ResourceUsages")) {
             CompoundTag usageTag = tag.getCompound("ResourceUsages");
-            for (String key : usageTag.getAllKeys()) this.resourceUsages.put(key, usageTag.getLong(key));
+            for (String key : usageTag.getAllKeys()) this.core.resourceUsages.put(key, usageTag.getLong(key));
         }
 
         if (tag.contains("MainframeParts")) {
@@ -630,9 +579,7 @@ public class SimpleMachineBlockEntity extends BlockEntity implements IMainframeP
             for (String key : posTag.getAllKeys()) {
                 long[] arr = posTag.getLongArray(key);
                 List<BlockPos> list = new ArrayList<>(arr.length);
-                for (long l : arr) {
-                    list.add(BlockPos.of(l));
-                }
+                for (long l : arr) list.add(BlockPos.of(l));
                 this.componentPositions.put(key, list);
             }
         }

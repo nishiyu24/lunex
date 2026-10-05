@@ -37,18 +37,18 @@ public class ScreenSessionManager {
 
         String determinedId = UUID.randomUUID().toString();
 
-        // ★修正: vm.hardware / vm.machine を cvm.simpleMachine で取得する
         SimpleMachineBlockEntity sm = (vm instanceof CoreMachineServerLuaVM cvm) ? cvm.simpleMachine : null;
         if (sm != null) {
-            CompoundTag data = sm.persistentData;
+            // ★修正: getCore() 経由に変更
+            CompoundTag data = sm.getCore().persistentData;
             if (data.contains("NetworkId")) {
                 determinedId = data.getString("NetworkId");
             } else {
                 data.putString("NetworkId", determinedId);
                 sm.setChanged();
             }
-            if (sm.isMainframeMaster && sm.machineId != null) {
-                determinedId = sm.machineId.toString();
+            if (sm.isMainframeMaster && sm.getCore().machineId != null) {
+                determinedId = sm.getCore().machineId.toString();
             }
         }
 
@@ -106,18 +106,19 @@ public class ScreenSessionManager {
     public String getUniversalSessionId() {
         SimpleMachineBlockEntity sm = (vm instanceof CoreMachineServerLuaVM cvm) ? cvm.simpleMachine : null;
         if (sm != null && sm.getLevel() != null) {
-            if (sm.persistentData.contains("RouterPos")) {
-                BlockPos routerPos = BlockPos.of(sm.persistentData.getLong("RouterPos"));
+            // ★修正: getCore() 経由に変更
+            if (sm.getCore().persistentData.contains("RouterPos")) {
+                BlockPos routerPos = BlockPos.of(sm.getCore().persistentData.getLong("RouterPos"));
                 BlockEntity be = sm.getLevel().getBlockEntity(routerPos);
-                if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.machineId != null) {
-                    return router.machineId.toString();
+                if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.getCore().machineId != null) {
+                    return router.getCore().machineId.toString();
                 }
             }
-            if (sm.isMainframeMaster && sm.machineId != null) {
-                return sm.machineId.toString();
+            if (sm.isMainframeMaster && sm.getCore().machineId != null) {
+                return sm.getCore().machineId.toString();
             }
-            if (sm.persistentData.contains("NetworkId")) {
-                return sm.persistentData.getString("NetworkId");
+            if (sm.getCore().persistentData.contains("NetworkId")) {
+                return sm.getCore().persistentData.getString("NetworkId");
             }
         }
         return this.fallbackSessionId;
@@ -220,7 +221,6 @@ public class ScreenSessionManager {
             return screens;
         }
 
-        // ★修正: "all" の場合は方角ではなくネットワーク全体から ScreenBlockEntity を探す
         List<BlockPos> connected = MCNetUtil.getConnectedDevices(level, pos, 2048);
         for (BlockPos p : connected) {
             if (level.getBlockEntity(p) instanceof ScreenBlockEntity screen) {

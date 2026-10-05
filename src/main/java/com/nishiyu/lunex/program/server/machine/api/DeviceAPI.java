@@ -213,12 +213,10 @@ public class DeviceAPI implements IMainframeAPI {
 
     public void buildDatabaseWrapper(LuaTable obj, String target) {
         DatabaseAPI dbAPI = vm.getOrCreateAPI(DatabaseAPI.class, DatabaseAPI::new);
-        // ★修正: DatabaseAPI側の変更に追従し、新しいメソッド名と機能でラップする
         obj.set("getUsage", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getUsage(target)); } });
         obj.set("getUsedCount", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getUsedCount(target)); } });
         obj.set("getMaxCount", new ZeroArgFunction() { @Override public LuaValue call() { return LuaValue.valueOf(dbAPI.getMaxCount(target)); } });
 
-        // ★追加: 動的リソース（gas, manaなど）の取得用メソッドもラッパーに露出
         obj.set("getResourceUsage", new OneArgFunction() { @Override public LuaValue call(LuaValue resType) { return LuaValue.valueOf(dbAPI.getResourceUsage(target, resType.tojstring())); } });
         obj.set("getResourceCapacity", new OneArgFunction() { @Override public LuaValue call(LuaValue resType) { return LuaValue.valueOf(dbAPI.getResourceCapacity(target, resType.tojstring())); } });
 
@@ -335,13 +333,14 @@ public class DeviceAPI implements IMainframeAPI {
     private SimpleMachineBlockEntity getRouterForVM() {
         SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
         if (machine != null && machine.getLevel() != null) {
-            if (machine.isMainframeMaster && machine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            // ★修正: getCore() 経由に変更
+            if (machine.isMainframeMaster && machine.getCore() != null && machine.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                 return machine;
             }
-            if (machine.getPersistentData().contains("RouterPos")) {
-                long posLong = machine.getPersistentData().getLong("RouterPos");
+            if (machine.getCore() != null && machine.getCore().persistentData.contains("RouterPos")) {
+                long posLong = machine.getCore().persistentData.getLong("RouterPos");
                 net.minecraft.world.level.block.entity.BlockEntity be = machine.getLevel().getBlockEntity(net.minecraft.core.BlockPos.of(posLong));
-                if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.getCore() != null && sm.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                     return sm;
                 }
             }
@@ -351,10 +350,11 @@ public class DeviceAPI implements IMainframeAPI {
 
     private boolean isIpDevicePresent(String ip) {
         SimpleMachineBlockEntity router = getRouterForVM();
-        if (router == null) return false;
+        if (router == null || router.getCore() == null) return false;
 
-        if (router.persistentData.contains("DHCPLeases")) {
-            net.minecraft.nbt.CompoundTag leases = router.persistentData.getCompound("DHCPLeases");
+        // ★修正: getCore() 経由に変更
+        if (router.getCore().persistentData.contains("DHCPLeases")) {
+            net.minecraft.nbt.CompoundTag leases = router.getCore().persistentData.getCompound("DHCPLeases");
             for (String key : leases.getAllKeys()) {
                 if (leases.getString(key).equals(ip)) {
                     return true;
@@ -366,13 +366,14 @@ public class DeviceAPI implements IMainframeAPI {
 
     private String resolveDeviceTypeFromIp(String ip) {
         SimpleMachineBlockEntity router = getRouterForVM();
-        if (router == null) return "none";
+        if (router == null || router.getCore() == null) return "none";
 
-        if (!router.persistentData.contains("DHCPLeases")) return "none";
+        // ★修正: getCore() 経由に変更
+        if (!router.getCore().persistentData.contains("DHCPLeases")) return "none";
 
-        net.minecraft.nbt.CompoundTag leases = router.persistentData.getCompound("DHCPLeases");
-        net.minecraft.nbt.CompoundTag deviceTypes = router.persistentData.contains("DeviceTypes")
-                ? router.persistentData.getCompound("DeviceTypes") : new net.minecraft.nbt.CompoundTag();
+        net.minecraft.nbt.CompoundTag leases = router.getCore().persistentData.getCompound("DHCPLeases");
+        net.minecraft.nbt.CompoundTag deviceTypes = router.getCore().persistentData.contains("DeviceTypes")
+                ? router.getCore().persistentData.getCompound("DeviceTypes") : new net.minecraft.nbt.CompoundTag();
 
         for (String key : leases.getAllKeys()) {
             if (leases.getString(key).equals(ip)) {

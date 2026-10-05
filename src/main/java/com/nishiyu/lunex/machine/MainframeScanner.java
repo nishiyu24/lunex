@@ -35,7 +35,8 @@ public class MainframeScanner {
     }
 
     private static void logToVM(SimpleMachineBlockEntity master, String message) {
-        if (master.vm instanceof CoreMachineServerLuaVM cvm) {
+        // ★修正: getCore() 経由に変更
+        if (master.getCore().vm instanceof CoreMachineServerLuaVM cvm) {
             cvm.terminalLog.add(message);
             cvm.syncClient();
         }

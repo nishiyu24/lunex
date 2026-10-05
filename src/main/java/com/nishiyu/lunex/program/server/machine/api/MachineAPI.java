@@ -140,7 +140,8 @@ public class MachineAPI implements IMainframeAPI {
     public String getLabel() {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
-            return machine != null && machine.getMachineLabel() != null ? machine.getMachineLabel() : "";
+            // ★修正: getCore()経由に変更
+            return (machine != null && machine.getCore() != null && machine.getCore().getMachineLabel() != null) ? machine.getCore().getMachineLabel() : "";
         });
     }
 
@@ -151,10 +152,9 @@ public class MachineAPI implements IMainframeAPI {
     public void setLabel(String label) {
         vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
-            if (machine != null) {
-                machine.setMachineLabel(label != null ? label : "");
-                machine.setChanged();
-                machine.sync();
+            // ★修正: getCore()経由に変更
+            if (machine != null && machine.getCore() != null) {
+                machine.getCore().setMachineLabel(label != null ? label : "");
             }
             return null;
         });
@@ -167,8 +167,9 @@ public class MachineAPI implements IMainframeAPI {
     public String getBootProgram() {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
-            if (machine != null) {
-                String prog = machine.getProgramName();
+            // ★修正: getCore()経由に変更
+            if (machine != null && machine.getCore() != null) {
+                String prog = machine.getCore().getProgramName();
                 return (prog == null || prog.isEmpty()) ? "startup.lua" : prog;
             }
             return "startup.lua";
@@ -182,7 +183,8 @@ public class MachineAPI implements IMainframeAPI {
     public void setBootProgram(String programName) {
         vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
-            if (machine != null) machine.setProgramName(programName != null ? programName : "");
+            // ★修正: getCore()経由に変更
+            if (machine != null && machine.getCore() != null) machine.getCore().setProgramName(programName != null ? programName : "");
             return null;
         });
     }
@@ -248,7 +250,8 @@ public class MachineAPI implements IMainframeAPI {
 
         if (pos != null) {
             BlockEntity be = machine.getLevel().getBlockEntity(pos);
-            if (be instanceof SimpleMachineBlockEntity targetMachine) return targetMachine.vm;
+            // ★修正: getCore()経由に変更
+            if (be instanceof SimpleMachineBlockEntity targetMachine && targetMachine.getCore() != null) return targetMachine.getCore().vm;
         }
         return null;
     }

@@ -98,8 +98,9 @@ public class ScreenUIExtension extends AbstractRightPanel {
             graphics.drawString(font, "Found: " + count, startX + 5, startY + 125, 0x00E5FF);
         } else {
             if (screen.mainframeMasterPos != null && level.getBlockEntity(screen.mainframeMasterPos) instanceof SimpleMachineBlockEntity master) {
-                long maxItem = master.resourceCapacities.getOrDefault("item", 0L);
-                long usedItem = master.resourceUsages.getOrDefault("item", 0L);
+                // ★修正: getCore() 経由でリソース情報を取得
+                long maxItem = master.getCore().resourceCapacities.getOrDefault("item", 0L);
+                long usedItem = master.getCore().resourceUsages.getOrDefault("item", 0L);
                 graphics.drawString(font, "Items: " + usedItem + " / " + maxItem, startX + 5, startY + 95, 0x00E5FF);
             } else {
                 graphics.drawString(font, "Items: 0 / 0", startX + 5, startY + 95, 0x00E5FF);

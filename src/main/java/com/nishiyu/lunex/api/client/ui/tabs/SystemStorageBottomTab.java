@@ -25,7 +25,7 @@ public class SystemStorageBottomTab extends AbstractBottomTab {
     private SortType currentSort = SortType.COUNT_DESC;
     private List<DisplayItem> cachedDisplayItems = null;
 
-    // ★追加: ホバー中のアイテムを一時保持する変数
+    // ホバー中のアイテムを一時保持する変数
     private ItemStack currentHoveredStack = null;
 
     // UIレイアウト定数
@@ -120,6 +120,8 @@ public class SystemStorageBottomTab extends AbstractBottomTab {
 
         if (Minecraft.getInstance().screen instanceof MainframeOverviewScreen screen) {
             BlockEntity be = screen.getMenu().getLevel().getBlockEntity(screen.getMenu().getMasterPos());
+
+            // 物理層にある mainframeStorage に直接アクセスしてアイテム一覧を取得する
             if (be instanceof SimpleMachineBlockEntity master) {
                 List<DisplayItem> displayItems = getDisplayItems(master.mainframeStorage.getStacks());
                 this.cachedDisplayItems = displayItems;
@@ -146,13 +148,13 @@ public class SystemStorageBottomTab extends AbstractBottomTab {
                     }
                 }
 
-                // ★修正: 描画を直接行わず、ホバー中のアイテムを保持する
+                // 描画を直接行わず、ホバー中のアイテムを保持する
                 this.currentHoveredStack = hoveredStack;
             }
         }
     }
 
-    // ★追加: クリッピング解除後にツールチップを描画する
+    // クリッピング解除後にツールチップを描画する
     @Override
     protected void renderTooltips(GuiGraphics graphics, int mouseX, int mouseY) {
         if (this.currentHoveredStack != null) {

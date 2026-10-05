@@ -73,8 +73,8 @@ public class ARGlassesItem extends Item implements net.minecraft.world.item.Equi
         }
 
         BlockEntity be = level.getBlockEntity(context.getClickedPos());
-        // ★修正: RouterBlockEntity ではなく、ルーター機能を持つ SimpleMachineBlockEntity か判定
-        if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+        // ★修正: getCore() 経由に変更
+        if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.getCore() != null && sm.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
             MCNetUtil.registerPortableDevice(
                     level, sm, context.getItemInHand(), context.getPlayer(),
                     this.getDeviceType(), MSG_REGISTERED, MSG_FAILED_IP, MSG_DHCP_DISABLED

@@ -145,10 +145,9 @@ public class ARGlassesHudRenderer {
 
         if (isSameDim && mc.level.isLoaded(routerPos)) {
             net.minecraft.world.level.block.entity.BlockEntity be = mc.level.getBlockEntity(routerPos);
-            // 複合マシンのマスターノードか確認
             if (be instanceof SimpleMachineBlockEntity master) {
-                // マスターとして成立していない、またはルーター機能が組み込まれていない場合は無効
-                if (!master.isMainframeMaster || !master.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                // ★修正: getCore() 経由に変更
+                if (!master.isMainframeMaster || master.getCore() == null || !master.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                     return false;
                 }
             } else {

@@ -68,8 +68,8 @@ public class PortableScreenItem extends Item implements IMCNetDevice {
         }
 
         BlockEntity be = level.getBlockEntity(context.getClickedPos());
-        // ★修正: RouterBlockEntity からルーター機能付きの SimpleMachineBlockEntity へ変更
-        if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+        // ★修正: getCore() 経由に変更
+        if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.getCore() != null && sm.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
             MCNetUtil.registerPortableDevice(
                     level, sm, context.getItemInHand(), context.getPlayer(),
                     this.getDeviceType(), MSG_REGISTERED, MSG_FAILED_IP, MSG_DHCP_DISABLED

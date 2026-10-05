@@ -133,7 +133,6 @@ public class SimpleMachineScreen extends AbstractContainerScreen<SimpleMachineMe
 
     private List<String> getSuggestions() {
 
-        // ★修正: サーバーからの同期を待たずに、確実によく使うAPIをサジェストに追加
         List<String> list = new ArrayList<>(List.of(
                 "print(\"\")", "system.chat(\"\")", "system.sleep(0)", "system.getTime()",
                 "system.startTimer(0, \"\")", "system.startTimeout(0, \"\")", "system.stopTimer(0)",
@@ -144,9 +143,12 @@ public class SimpleMachineScreen extends AbstractContainerScreen<SimpleMachineMe
         if (this.minecraft != null && this.minecraft.level != null) {
             BlockEntity be = this.minecraft.level.getBlockEntity(this.menu.blockPos);
             if (be instanceof SimpleMachineBlockEntity machineEntity) {
-                for (String s : machineEntity.clientSuggestions) {
-                    if (!list.contains(s)) {
-                        list.add(s);
+                // ★修正: getCore() 経由に変更
+                if (machineEntity.getCore() != null) {
+                    for (String s : machineEntity.getCore().clientSuggestions) {
+                        if (!list.contains(s)) {
+                            list.add(s);
+                        }
                     }
                 }
             }
@@ -158,7 +160,6 @@ public class SimpleMachineScreen extends AbstractContainerScreen<SimpleMachineMe
         this.currentSuggestion = "";
         String text = this.inputField.getValue();
 
-        // ★修正: text.startsWith("/") の条件を削除し、/ 系でもサジェストが出るように変更
         if (text.isEmpty()) return;
 
         String[] parts = text.split("[\\s]+");
@@ -400,7 +401,7 @@ public class SimpleMachineScreen extends AbstractContainerScreen<SimpleMachineMe
                 break;
             case "/assemble":
                 PacketDistributor.sendToServer(new SimpleMachineActionC2SPacket(this.menu.blockPos, "assemble", "", ""));
-                this.onClose(); // ★追加: assemble実行後に即座にメニューを閉じる
+                this.onClose();
                 break;
             default:
                 PacketDistributor.sendToServer(new SimpleMachineActionC2SPacket(this.menu.blockPos, "unknown_cmd", "", parts[0]));
@@ -422,7 +423,10 @@ public class SimpleMachineScreen extends AbstractContainerScreen<SimpleMachineMe
         if (this.minecraft != null && this.minecraft.level != null) {
             BlockEntity be = this.minecraft.level.getBlockEntity(this.menu.blockPos);
             if (be instanceof SimpleMachineBlockEntity machineEntity) {
-                return machineEntity.clientTerminalLog;
+                // ★修正: getCore() 経由に変更
+                if (machineEntity.getCore() != null) {
+                    return machineEntity.getCore().clientTerminalLog;
+                }
             }
         }
         return new ArrayList<>();

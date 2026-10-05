@@ -43,7 +43,8 @@ public class ClientModEvents {
         event.enqueueWork(() -> {
             MainframeBottomTabRegistry.registerGlobal(
                     SystemStorageBottomTab::new,
-                    (master, level) -> !master.resourceCapacities.isEmpty()
+                    // ★修正: getCore() 経由に変更
+                    (master, level) -> master.getCore() != null && !master.getCore().resourceCapacities.isEmpty()
             );
 
             MainframeBottomTabRegistry.registerBlockTab(Lunex.ROUTER_BLOCK.get(), NetworkStatusBottomTab::new);
@@ -51,12 +52,10 @@ public class ClientModEvents {
             MainframeUIRegistry.register(Lunex.PROBE_BLOCK.get(), ProbeUIExtension::new);
             MainframeUIRegistry.register(Lunex.SCREEN_BLOCK.get(), ScreenUIExtension::new);
             MainframeUIRegistry.register(Lunex.DATABASE_BLOCK.get(), DatabaseUIExtension::new);
-            MainframeUIRegistry.register(Lunex.SIMPLE_MACHINE.get(), SimpleMachineUIExtension::new);
             MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.CRAFTER, CrafterUIExtension::new);
             MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.FURNACE, FurnaceUIExtension::new);
         });
     }
-
 
     @SubscribeEvent
     public static void registerScreens(RegisterMenuScreensEvent event) {

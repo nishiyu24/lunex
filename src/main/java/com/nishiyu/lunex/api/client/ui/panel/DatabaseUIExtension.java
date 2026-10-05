@@ -45,8 +45,9 @@ public class DatabaseUIExtension extends AbstractRightPanel {
             Level level = db.getLevel();
             BlockEntity masterBe = level.getBlockEntity(db.getMasterPos());
             if (masterBe instanceof SimpleMachineBlockEntity master) {
-                long maxItem = master.resourceCapacities.getOrDefault("item", 0L);
-                long usedItem = master.resourceUsages.getOrDefault("item", 0L);
+                // ★修正: getCore() 経由でリソース情報にアクセス
+                long maxItem = master.getCore().resourceCapacities.getOrDefault("item", 0L);
+                long usedItem = master.getCore().resourceUsages.getOrDefault("item", 0L);
                 graphics.drawString(font, "Items: " + usedItem, startX + 5, startY + 50, 0x00E5FF);
                 graphics.drawString(font, "Max:   " + maxItem, startX + 5, startY + 65, 0x00E5FF);
             }

@@ -98,19 +98,19 @@ public class ProgramDiskItem extends Item {
         BlockEntity be = level.getBlockEntity(pos);
         boolean installed = false;
 
-        // ★修正: SimpleMachineBlockEntity にインストールするよう変更
         if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && level instanceof ServerLevel serverLevel) {
-            String wsId = sm.getWorkspaceId();
+            // ★修正: getCore() 経由に変更
+            String wsId = sm.getCore().getWorkspaceId();
             if (wsId == null || wsId.isEmpty()) {
-                wsId = sm.machineId != null ? sm.machineId.toString() : java.util.UUID.randomUUID().toString();
-                sm.setWorkspaceId(wsId);
+                wsId = sm.getCore().machineId != null ? sm.getCore().machineId.toString() : java.util.UUID.randomUUID().toString();
+                sm.getCore().setWorkspaceId(wsId);
             }
 
             if (installToFileSystem(serverLevel, wsId, programName, programCode)) {
                 ServerProgramData.saveProgram(wsId, programName, programCode);
                 installed = true;
 
-                if (sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+                if (sm.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                     player.displayClientMessage(Component.translatable(MSG_INSTALLED_ROUTER, programName).withStyle(ChatFormatting.GREEN), true);
                 } else {
                     player.displayClientMessage(Component.translatable(MSG_INSTALLED_MACHINE, programName).withStyle(ChatFormatting.GREEN), true);

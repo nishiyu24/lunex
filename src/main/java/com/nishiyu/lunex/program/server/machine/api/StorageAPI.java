@@ -38,17 +38,18 @@ public class StorageAPI implements IMainframeAPI {
 
     private SimpleMachineBlockEntity findConnectedRouter() {
         SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
-        if (machine == null || machine.getLevel() == null) return null;
+        if (machine == null || machine.getLevel() == null || machine.getCore() == null) return null;
 
-        if (machine.isMainframeMaster && machine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+        // ★修正: getCore() 経由に変更
+        if (machine.isMainframeMaster && machine.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
             return machine;
         }
 
-        CompoundTag data = machine.getPersistentData();
+        CompoundTag data = machine.getCore().persistentData;
         if (data != null && data.contains("RouterPos")) {
             BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
             BlockEntity be = machine.getLevel().getBlockEntity(routerPos);
-            if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            if (be instanceof SimpleMachineBlockEntity router && router.isMainframeMaster && router.getCore() != null && router.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                 return router;
             }
         }
@@ -66,10 +67,11 @@ public class StorageAPI implements IMainframeAPI {
             LuaTable storageObj = new LuaTable();
             SimpleMachineBlockEntity router = findConnectedRouter();
 
-            if (router == null || router.getLevel() == null || router.virtualStorage == null) return storageObj;
+            // ★修正: virtualStorage は getCore() 経由に変更
+            if (router == null || router.getLevel() == null || router.getCore() == null || router.getCore().virtualStorage == null) return storageObj;
 
-            if (router.virtualStorage.getAllItems().isEmpty() && router.virtualStorage.rules.isEmpty()) {
-                router.virtualStorage.rebuildNetworkCache(router.getLevel());
+            if (router.getCore().virtualStorage.getAllItems().isEmpty() && router.getCore().virtualStorage.rules.isEmpty()) {
+                router.getCore().virtualStorage.rebuildNetworkCache(router.getLevel());
             }
 
             final SimpleMachineBlockEntity finalRouter = router;
@@ -155,7 +157,7 @@ public class StorageAPI implements IMainframeAPI {
                     if (arg.istable()) {
                         LuaValue hidden = arg.get("_pattern");
                         if (!hidden.isnil() && hidden.isuserdata(com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern.class)) {
-                            finalRouter.virtualStorage.crafting.addPattern((com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern) hidden.checkuserdata());
+                            finalRouter.getCore().virtualStorage.crafting.addPattern((com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern) hidden.checkuserdata());
                             return LuaValue.TRUE;
                         }
                     }
@@ -166,7 +168,7 @@ public class StorageAPI implements IMainframeAPI {
             craftingObj.set("request", new TwoArgFunction() {
                 @Override
                 public LuaValue call(LuaValue item, LuaValue amount) {
-                    int jobId = finalRouter.virtualStorage.crafting.requestCraft(item.tojstring(), amount.toint(), finalRouter.virtualStorage);
+                    int jobId = finalRouter.getCore().virtualStorage.crafting.requestCraft(item.tojstring(), amount.toint(), finalRouter.getCore().virtualStorage);
                     return jobId >= 0 ? LuaValue.valueOf(jobId) : LuaValue.NIL;
                 }
             });
@@ -174,7 +176,7 @@ public class StorageAPI implements IMainframeAPI {
             craftingObj.set("getStatus", new OneArgFunction() {
                 @Override
                 public LuaValue call(LuaValue jobId) {
-                    com.nishiyu.lunex.machine.VirtualStorage.CraftingJob job = finalRouter.virtualStorage.crafting.getJob(jobId.toint());
+                    com.nishiyu.lunex.machine.VirtualStorage.CraftingJob job = finalRouter.getCore().virtualStorage.crafting.getJob(jobId.toint());
                     if (job == null) return LuaValue.NIL;
 
                     LuaTable status = new LuaTable();
@@ -195,7 +197,7 @@ public class StorageAPI implements IMainframeAPI {
                 public LuaValue call() {
                     LuaTable list = new LuaTable();
                     int i = 1;
-                    for (com.nishiyu.lunex.machine.VirtualStorage.CraftingJob job : finalRouter.virtualStorage.crafting.getJobs()) {
+                    for (com.nishiyu.lunex.machine.VirtualStorage.CraftingJob job : finalRouter.getCore().virtualStorage.crafting.getJobs()) {
                         LuaTable j = new LuaTable();
                         j.set("id", job.id);
                         j.set("item", job.requestItem);
@@ -209,37 +211,37 @@ public class StorageAPI implements IMainframeAPI {
             });
 
             storageObj.set("crafting", craftingObj);
-            storageObj.set("userdata", CoerceJavaToLua.coerce(finalRouter.virtualStorage));
+            storageObj.set("userdata", CoerceJavaToLua.coerce(finalRouter.getCore().virtualStorage));
 
             return storageObj;
         });
     }
 
     public LuaValue getItemCount(SimpleMachineBlockEntity router, LuaValue itemName) {
-        if (router.virtualStorage == null) return LuaValue.valueOf(0);
-        return LuaValue.valueOf(router.virtualStorage.getItemCount(itemName.tojstring()));
+        if (router.getCore() == null || router.getCore().virtualStorage == null) return LuaValue.valueOf(0);
+        return LuaValue.valueOf(router.getCore().virtualStorage.getItemCount(itemName.tojstring()));
     }
 
     public LuaValue pushToTag(SimpleMachineBlockEntity router, LuaValue tag, LuaValue itemName, LuaValue amount) {
-        if (router.virtualStorage == null) return LuaValue.FALSE;
-        boolean result = router.virtualStorage.pushToTag(tag.tojstring(), itemName.tojstring(), amount.toint(), router.getLevel());
+        if (router.getCore() == null || router.getCore().virtualStorage == null) return LuaValue.FALSE;
+        boolean result = router.getCore().virtualStorage.pushToTag(tag.tojstring(), itemName.tojstring(), amount.toint(), router.getLevel());
         return LuaValue.valueOf(result);
     }
 
     public LuaValue forceUpdate(SimpleMachineBlockEntity router) {
-        if (router.virtualStorage != null) {
-            router.virtualStorage.onStorageChanged(router.getLevel());
+        if (router.getCore() != null && router.getCore().virtualStorage != null) {
+            router.getCore().virtualStorage.onStorageChanged(router.getLevel());
         }
         return LuaValue.NIL;
     }
 
     public LuaValue addRule(SimpleMachineBlockEntity router, LuaValue ruleArg) {
-        if (ruleArg.istable() && router.virtualStorage != null) {
+        if (ruleArg.istable() && router.getCore() != null && router.getCore().virtualStorage != null) {
             LuaValue hiddenRule = ruleArg.get("_rule");
             if (!hiddenRule.isnil() && hiddenRule.isuserdata(com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule.class)) {
                 com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule rule = (com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule) hiddenRule.checkuserdata();
                 rule.compile();
-                router.virtualStorage.addRule(rule);
+                router.getCore().virtualStorage.addRule(rule);
                 return LuaValue.TRUE;
             }
         }
@@ -247,8 +249,8 @@ public class StorageAPI implements IMainframeAPI {
     }
 
     public LuaValue clearRules(SimpleMachineBlockEntity router) {
-        if (router.virtualStorage != null) {
-            router.virtualStorage.clearRules();
+        if (router.getCore() != null && router.getCore().virtualStorage != null) {
+            router.getCore().virtualStorage.clearRules();
         }
         return LuaValue.NIL;
     }

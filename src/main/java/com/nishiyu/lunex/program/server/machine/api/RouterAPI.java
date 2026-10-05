@@ -31,11 +31,11 @@ public class RouterAPI implements IMainframeAPI {
 
     private SimpleMachineBlockEntity getTargetRouter(String targetStr) {
         SimpleMachineBlockEntity machine = ((CoreMachineServerLuaVM) vm).simpleMachine;
-        if (machine == null || targetStr == null || targetStr.isEmpty()) return null;
+        if (machine == null || machine.getCore() == null || targetStr == null || targetStr.isEmpty()) return null;
 
-        // "self" などの特別な指定があればマスター機をそのまま返す
+        // ★修正: getCore() の activeFeatures を判定
         if (targetStr.equals("self") || targetStr.equals("localhost")) {
-            if (machine.isMainframeMaster && machine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            if (machine.isMainframeMaster && machine.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                 return machine;
             }
             return null;
@@ -44,8 +44,7 @@ public class RouterAPI implements IMainframeAPI {
         BlockPos pos = machine.resolveDevice(targetStr);
         if (pos != null && machine.getLevel() != null) {
             net.minecraft.world.level.block.entity.BlockEntity be = machine.getLevel().getBlockEntity(pos);
-            // 対象がSimpleMachineであり、かつルーター機能を持っているかを判定
-            if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
+            if (be instanceof SimpleMachineBlockEntity sm && sm.isMainframeMaster && sm.getCore() != null && sm.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)) {
                 return sm;
             }
         }
@@ -61,8 +60,9 @@ public class RouterAPI implements IMainframeAPI {
     public boolean startDHCPServer(String target, String baseIp, int startOctet, int poolSize, String subnet, String gateway) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null) {
-                CompoundTag data = router.persistentData;
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() の persistentData を使用
+                CompoundTag data = router.getCore().persistentData;
                 data.putBoolean("DHCPServerEnabled", true);
                 data.putString("DHCPBaseIP", baseIp);
                 data.putInt("DHCPStartOctet", startOctet);
@@ -71,8 +71,7 @@ public class RouterAPI implements IMainframeAPI {
                 data.putString("DHCPGateway", gateway);
                 if (!data.contains("DHCPLeases")) data.put("DHCPLeases", new CompoundTag());
                 router.setChanged();
-                // ※ルーター側の明示的な networkUpdate メソッドは削除されたため、単純に sync などを呼ぶ
-                if(router.vm != null) router.vm.forceTriggerEvent("network_updated");
+                if(router.getCore().vm != null) router.getCore().vm.forceTriggerEvent("network_updated");
                 return true;
             }
             return false;
@@ -88,8 +87,9 @@ public class RouterAPI implements IMainframeAPI {
     public boolean stopDHCPServer(String target) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null) {
-                router.persistentData.putBoolean("DHCPServerEnabled", false);
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() 経由に変更
+                router.getCore().persistentData.putBoolean("DHCPServerEnabled", false);
                 router.setChanged();
                 return true;
             }
@@ -106,10 +106,11 @@ public class RouterAPI implements IMainframeAPI {
     public boolean startDNSServer(String target) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null) {
-                router.persistentData.putBoolean("DNSServerEnabled", true);
-                if (!router.persistentData.contains("DNSRecords"))
-                    router.persistentData.put("DNSRecords", new CompoundTag());
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() 経由に変更
+                router.getCore().persistentData.putBoolean("DNSServerEnabled", true);
+                if (!router.getCore().persistentData.contains("DNSRecords"))
+                    router.getCore().persistentData.put("DNSRecords", new CompoundTag());
                 router.setChanged();
                 return true;
             }
@@ -126,10 +127,11 @@ public class RouterAPI implements IMainframeAPI {
     public boolean addDNSRecord(String target, String domain, String ip) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null && router.persistentData.getBoolean("DNSServerEnabled")) {
-                CompoundTag records = router.persistentData.getCompound("DNSRecords");
+            // ★修正: getCore() 経由に変更
+            if (router != null && router.getCore() != null && router.getCore().persistentData.getBoolean("DNSServerEnabled")) {
+                CompoundTag records = router.getCore().persistentData.getCompound("DNSRecords");
                 records.putString(domain, ip);
-                router.persistentData.put("DNSRecords", records);
+                router.getCore().persistentData.put("DNSRecords", records);
                 router.setChanged();
                 return true;
             }
@@ -146,8 +148,9 @@ public class RouterAPI implements IMainframeAPI {
     public String getWanIp(String target) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            return (router != null && router.persistentData.contains("AssignedWanIP"))
-                    ? router.persistentData.getString("AssignedWanIP")
+            // ★修正: getCore() 経由に変更
+            return (router != null && router.getCore() != null && router.getCore().persistentData.contains("AssignedWanIP"))
+                    ? router.getCore().persistentData.getString("AssignedWanIP")
                     : "0.0.0.0";
         });
     }
@@ -161,10 +164,11 @@ public class RouterAPI implements IMainframeAPI {
     public boolean setPortForward(String target, int port, String destIp) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null) {
-                CompoundTag pfTag = router.persistentData.contains("PortForwards") ? router.persistentData.getCompound("PortForwards") : new CompoundTag();
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() 経由に変更
+                CompoundTag pfTag = router.getCore().persistentData.contains("PortForwards") ? router.getCore().persistentData.getCompound("PortForwards") : new CompoundTag();
                 pfTag.putString(String.valueOf(port), destIp);
-                router.persistentData.put("PortForwards", pfTag);
+                router.getCore().persistentData.put("PortForwards", pfTag);
                 router.setChanged();
                 return true;
             }
@@ -181,10 +185,11 @@ public class RouterAPI implements IMainframeAPI {
     public boolean removePortForward(String target, int port) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null && router.persistentData.contains("PortForwards")) {
-                CompoundTag pfTag = router.persistentData.getCompound("PortForwards");
+            // ★修正: getCore() 経由に変更
+            if (router != null && router.getCore() != null && router.getCore().persistentData.contains("PortForwards")) {
+                CompoundTag pfTag = router.getCore().persistentData.getCompound("PortForwards");
                 pfTag.remove(String.valueOf(port));
-                router.persistentData.put("PortForwards", pfTag);
+                router.getCore().persistentData.put("PortForwards", pfTag);
                 router.setChanged();
                 return true;
             }
@@ -201,14 +206,15 @@ public class RouterAPI implements IMainframeAPI {
     public boolean addReplaceRule(String target, int port, String targetStr, String replaceStr) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null) {
-                ListTag rules = router.persistentData.contains("ReplaceRules") ? router.persistentData.getList("ReplaceRules", Tag.TAG_COMPOUND) : new ListTag();
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() 経由に変更
+                ListTag rules = router.getCore().persistentData.contains("ReplaceRules") ? router.getCore().persistentData.getList("ReplaceRules", Tag.TAG_COMPOUND) : new ListTag();
                 CompoundTag rule = new CompoundTag();
                 rule.putInt("port", port);
                 rule.putString("search", targetStr);
                 rule.putString("replace", replaceStr);
                 rules.add(rule);
-                router.persistentData.put("ReplaceRules", rules);
+                router.getCore().persistentData.put("ReplaceRules", rules);
                 router.setChanged();
                 return true;
             }
@@ -225,8 +231,9 @@ public class RouterAPI implements IMainframeAPI {
     public boolean clearReplaceRules(String target) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null) {
-                router.persistentData.remove("ReplaceRules");
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() 経由に変更
+                router.getCore().persistentData.remove("ReplaceRules");
                 router.setChanged();
                 return true;
             }
@@ -243,10 +250,11 @@ public class RouterAPI implements IMainframeAPI {
     public boolean addFilterRule(String target, String ip, boolean isBlocked) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null) {
-                CompoundTag filters = router.persistentData.contains("FilterRules") ? router.persistentData.getCompound("FilterRules") : new CompoundTag();
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() 経由に変更
+                CompoundTag filters = router.getCore().persistentData.contains("FilterRules") ? router.getCore().persistentData.getCompound("FilterRules") : new CompoundTag();
                 filters.putBoolean(ip, isBlocked);
-                router.persistentData.put("FilterRules", filters);
+                router.getCore().persistentData.put("FilterRules", filters);
                 router.setChanged();
                 return true;
             }
@@ -264,8 +272,9 @@ public class RouterAPI implements IMainframeAPI {
         return vm.executeInMainThreadSync(() -> {
             LuaTable logTable = new LuaTable();
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null && router.persistentData.contains("PacketLogs")) {
-                ListTag logs = router.persistentData.getList("PacketLogs", Tag.TAG_COMPOUND);
+            // ★修正: getCore() 経由に変更
+            if (router != null && router.getCore() != null && router.getCore().persistentData.contains("PacketLogs")) {
+                ListTag logs = router.getCore().persistentData.getList("PacketLogs", Tag.TAG_COMPOUND);
                 for (int i = 0; i < logs.size(); i++) {
                     CompoundTag logEntry = logs.getCompound(i);
                     LuaTable entryTable = new LuaTable();
@@ -290,8 +299,9 @@ public class RouterAPI implements IMainframeAPI {
     public boolean clearPacketLogs(String target) {
         return vm.executeInMainThreadSync(() -> {
             SimpleMachineBlockEntity router = getTargetRouter(target);
-            if (router != null) {
-                router.persistentData.remove("PacketLogs");
+            if (router != null && router.getCore() != null) {
+                // ★修正: getCore() 経由に変更
+                router.getCore().persistentData.remove("PacketLogs");
                 router.setChanged();
                 return true;
             }

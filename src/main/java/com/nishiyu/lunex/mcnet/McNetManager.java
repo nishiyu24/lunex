@@ -37,11 +37,11 @@ public class McNetManager {
 
         if (srcVm == null || destVm == null) return false;
 
-        // ★修正: CoreMachineServerLuaVM にキャストして simpleMachine から Router機能を判定
+        // ★修正: getCore() を経由してルーター機能が有効か判定
         if (srcVm instanceof CoreMachineServerLuaVM cvmSrc && destVm instanceof CoreMachineServerLuaVM cvmDest) {
             if (cvmSrc.simpleMachine != null && cvmDest.simpleMachine != null) {
-                return cvmSrc.simpleMachine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)
-                        && cvmDest.simpleMachine.activeFeatures.contains(MainframeConstants.FEATURE_ROUTER);
+                return cvmSrc.simpleMachine.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER)
+                        && cvmDest.simpleMachine.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER);
             }
         }
         return false;

@@ -84,7 +84,6 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
         this.updateNetworkOnPlace(state, level, pos, oldState);
     }
 
-    // ★追加: 重複していた解体処理を共通メソッドとして切り出し
     private void triggerDisassembly(Level level, BlockPos pos) {
         if (level.isClientSide) return;
         BlockEntity blockEntity = level.getBlockEntity(pos);
@@ -105,20 +104,16 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof SimpleMachineBlockEntity sm) {
             if (!level.isClientSide) {
-                // 切り出した共通メソッドで解体処理を走らせて中身を分配
                 triggerDisassembly(level, pos);
 
-                // 自身に残った分の NBT データをアイテムに焼き付ける
                 net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(this.asItem());
                 net.minecraft.nbt.CompoundTag beTag = sm.saveWithoutMetadata(level.registryAccess());
                 net.minecraft.world.item.BlockItem.setBlockEntityData(stack, sm.getType(), beTag);
 
-                // クリエイティブでもサバイバルでも自前でドロップさせる
                 net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(level, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, stack);
                 itemEntity.setDefaultPickUpDelay();
                 level.addFreshEntity(itemEntity);
 
-                // 破壊エフェクトを再生しつつ、ブロックを消去してバニラのルートテーブルドロップ（二重ドロップ）を防ぐ
                 level.levelEvent(player, 2001, pos, Block.getId(state));
                 level.removeBlock(pos, false);
                 return state;
@@ -131,13 +126,13 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
     public void onRemove(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
         if (state.getBlock() != newState.getBlock()) {
             if (!level.isClientSide) {
-                // 切り出した共通メソッドを呼び出す（爆発などで消滅した際の備え）
                 triggerDisassembly(level, pos);
 
                 BlockEntity blockEntity = level.getBlockEntity(pos);
                 if (blockEntity instanceof SimpleMachineBlockEntity machineEntity) {
-                    if (machineEntity.machineId != null) {
-                        CoreMachineVMCache.removeVM(machineEntity.machineId);
+                    // ★修正: getCore() 経由に変更
+                    if (machineEntity.getCore().machineId != null) {
+                        CoreMachineVMCache.removeVM(machineEntity.getCore().machineId);
                     }
                 }
             }
@@ -149,7 +144,6 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
     @Override
     protected @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hitResult) {
         if (!level.isClientSide()) {
-            // 合体完了後は SimpleMachineBlock 自身がOverview画面を開く
             if (state.getValue(ASSEMBLED)) {
                 if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                     serverPlayer.openMenu(new SimpleMenuProvider(
@@ -160,7 +154,6 @@ public class SimpleMachineBlock extends Block implements EntityBlock, IMCNetBloc
                 return InteractionResult.CONSUME;
             }
 
-            // 未合体の場合は CLIターミナルを開く
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity instanceof SimpleMachineBlockEntity) {
                 if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {

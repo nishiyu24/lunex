@@ -45,7 +45,6 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
         }
     }
 
-    // ★追加: 設置時やロード時に確実な初期値を NBT に持たせ、UI とのズレを防ぐ
     @Override
     public void onLoad() {
         super.onLoad();
@@ -57,7 +56,6 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, ProbeBlockEntity be) {
-        // ★修正: be.getPersistentData() ではなく、確実な内部変数(isDetected)を見る
         if (!state.getValue(com.nishiyu.lunex.block.ProbeBlock.ASSEMBLED) || !be.isDetected || be.mainframeMasterPos == null) return;
         if (level.getGameTime() % 20L != 0L) return;
 
@@ -187,7 +185,10 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
             BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
             BlockEntity be = this.level.getBlockEntity(routerPos);
             if (be instanceof SimpleMachineBlockEntity master) {
-                master.virtualStorage.onStorageChanged(this.level);
+                // ★修正: getCore() 経由に変更
+                if (master.getCore().virtualStorage != null) {
+                    master.getCore().virtualStorage.onStorageChanged(this.level);
+                }
             }
         }
     }
@@ -199,13 +200,16 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
             BlockPos routerPos = BlockPos.of(data.getLong("RouterPos"));
             BlockEntity be = this.level.getBlockEntity(routerPos);
             if (be instanceof SimpleMachineBlockEntity master) {
-                master.virtualStorage.addDeviceNode(this.getBlockPos(), this.level, false);
+                // ★修正: getCore() 経由に変更
+                if (master.getCore().virtualStorage != null) {
+                    master.getCore().virtualStorage.addDeviceNode(this.getBlockPos(), this.level, false);
+                }
             }
         }
     }
 
     @Override
-    public boolean isNetworkActive() { return this.isDetected; } // ★ここも isDetected を使う
+    public boolean isNetworkActive() { return this.isDetected; }
 
     @Override
     public void setRemoved() {
@@ -216,7 +220,10 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
                 if (this.level.isLoaded(routerPos)) {
                     BlockEntity be = this.level.getBlockEntity(routerPos);
                     if (be instanceof SimpleMachineBlockEntity master) {
-                        master.virtualStorage.removeDeviceNode(this.getBlockPos());
+                        // ★修正: getCore() 経由に変更
+                        if (master.getCore().virtualStorage != null) {
+                            master.getCore().virtualStorage.removeDeviceNode(this.getBlockPos());
+                        }
                     }
                 }
             }
@@ -228,7 +235,6 @@ public class ProbeBlockEntity extends BlockEntity implements MenuProvider, IMCNe
     protected void saveAdditional(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider registries) {
         super.saveAdditional(tag, registries);
 
-        // ★修正: 保存する直前に、内部変数を PersistentData へ確実に同期させる
         this.getPersistentData().putBoolean("IsDetected", this.isDetected);
 
         tag.putBoolean("IsDetected", this.isDetected);

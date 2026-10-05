@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nishiyu.lunex.api.client.*;
 import com.nishiyu.lunex.api.client.ui.panel.AbstractRightPanel;
+import com.nishiyu.lunex.api.client.ui.panel.MachineOverviewUIExtension;
 import com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
@@ -183,26 +184,36 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
     }
 
     public void rebuildUI() {
-        BlockEntity be = this.selectedPos != null ? this.menu.getLevel().getBlockEntity(this.selectedPos) : null;
-        this.uiFramework.setRightPanel(MainframeUIRegistry.createRightPanel(this.selectedPos, be));
+        if (this.selectedPos == null) {
+            // 未選択時はマスターブロックの情報を元に SimpleMachineUIExtension を汎用UIとして表示
+            BlockPos masterPos = this.menu.getMasterPos();
+            BlockEntity masterBe = this.menu.getLevel().getBlockEntity(masterPos);
+            this.uiFramework.setRightPanel(new MachineOverviewUIExtension(masterPos, masterBe));
+        } else {
+            // 選択時はそのブロック専用のUIを表示
+            BlockEntity be = this.menu.getLevel().getBlockEntity(this.selectedPos);
+            this.uiFramework.setRightPanel(MainframeUIRegistry.createRightPanel(this.selectedPos, be));
+        }
     }
 
     private void selectBlock(BlockPos pos) {
         this.selectedPos = pos;
-        BlockEntity be = this.menu.getLevel().getBlockEntity(pos);
-        if (be instanceof ScreenBlockEntity screenBe && screenBe.masterPos != null) {
-            this.selectedPos = screenBe.masterPos;
+        if (pos != null) {
+            BlockEntity be = this.menu.getLevel().getBlockEntity(pos);
+            // Screenの場合はマスターにリダイレクト
+            if (be instanceof ScreenBlockEntity screenBe && screenBe.masterPos != null) {
+                this.selectedPos = screenBe.masterPos;
+            }
         }
         lastSelectedPos = this.selectedPos;
         rebuildUI();
     }
 
-    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
+    public void renderBackground(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
     public void renderBackground(GuiGraphics guiGraphics) {}
 
     // ★追加: スロットを画面外に退避させるメソッド
     private void hidePlayerSlots() {
-        if (this.menu == null || this.menu.slots == null) return;
         int startIndex = this.menu.slots.size() - 36;
         if (startIndex >= 0) {
             for (int i = startIndex; i < this.menu.slots.size(); i++) {
@@ -216,8 +227,6 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
     @Override
     public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
 
-        // ★追加: 毎フレーム、描画前に全てのプレイヤースロットを一旦画面外へ飛ばす。
-        // アクティブなタブ（SystemStorageBottomTab等）が render された場合のみ、後続処理で正しい座標に戻されます。
         hidePlayerSlots();
 
         guiGraphics.fill(0, 0, this.width, this.height, 0x80000000);
@@ -674,6 +683,10 @@ public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOv
                         Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
                         selectBlock(hitPos);
                         return true;
+                    } else {
+                        if (this.selectedPos != null) {
+                            selectBlock(null);
+                        }
                     }
                 }
             }

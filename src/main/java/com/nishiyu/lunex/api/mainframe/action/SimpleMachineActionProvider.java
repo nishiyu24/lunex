@@ -1,4 +1,4 @@
-// SimpleMachineActionProvider.java (新規作成)
+// SimpleMachineActionProvider.java
 package com.nishiyu.lunex.api.mainframe.action;
 
 import com.nishiyu.lunex.api.mainframe.IMainframeActionProvider;
@@ -67,7 +67,8 @@ public class SimpleMachineActionProvider implements IMainframeActionProvider<Sim
 
         // タグ名の変更
         if ("set_mainframe_tag".equals(action)) {
-            machine.persistentData.putString("MainframeNetworkTag", payload);
+            // ★修正: getCore() 経由に変更
+            machine.getCore().persistentData.putString("MainframeNetworkTag", payload);
             machine.setChanged();
             level.sendBlockUpdated(machine.getBlockPos(), machine.getBlockState(), machine.getBlockState(), 3);
             com.nishiyu.lunex.mcnet.MCNetUtil.triggerNetworkUpdate(level, machine.getBlockPos());
