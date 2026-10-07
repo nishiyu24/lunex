@@ -2,7 +2,6 @@ package com.nishiyu.lunex;
 
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
-import com.nishiyu.lunex.api.MainframeComponentData;
 import com.nishiyu.lunex.api.MainframeComponentRegistry;
 import com.nishiyu.lunex.block.*;
 import com.nishiyu.lunex.blockentity.*;
@@ -12,7 +11,7 @@ import com.nishiyu.lunex.item.ARGlassesItem;
 import com.nishiyu.lunex.item.ProgramDiskItem;
 import com.nishiyu.lunex.item.WrenchItem;
 import com.nishiyu.lunex.item.InactiveBookItem;
-import com.nishiyu.lunex.machine.MainframeCapabilityHandler;
+import com.nishiyu.lunex.machine.frame.MainframeCapabilityHandler;
 import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsMenu;
 import com.nishiyu.lunex.menu.*;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterMenu;
@@ -239,7 +238,7 @@ public class Lunex {
         modEventBus.addListener(MainframeCapabilityHandler::registerCapabilities);
         modEventBus.addListener(DataGenerators::gatherData);
 
-        NeoForge.EVENT_BUS.addListener(this::onServerStarting);
+        NeoForge.EVENT_BUS.addListener(this::onServerStarted);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
     }
 
@@ -259,7 +258,8 @@ public class Lunex {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.energyStorage);
     }
 
-    private void onServerStarting(ServerStartingEvent event) {
+    private void onServerStarted(ServerStartingEvent event) {
+        com.nishiyu.lunex.chemistry.ChemicalCalculator.calculateAll(event.getServer());
     }
 
     private void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {

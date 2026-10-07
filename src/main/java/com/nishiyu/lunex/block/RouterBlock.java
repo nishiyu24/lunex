@@ -2,7 +2,7 @@ package com.nishiyu.lunex.block;
 
 import com.nishiyu.lunex.blockentity.RouterBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.machine.IMainframePart;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -42,7 +42,7 @@ public class RouterBlock extends Block implements EntityBlock {
     protected @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hitResult) {
         if (!level.isClientSide()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+            if (be instanceof com.nishiyu.lunex.machine.frame.IMainframePart part) {
                 InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
                 if (delegateResult != null) {
                     return delegateResult;

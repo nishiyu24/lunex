@@ -1,6 +1,7 @@
 package com.nishiyu.lunex.block;
 
 import com.nishiyu.lunex.blockentity.SpeakerBlockEntity;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import com.nishiyu.lunex.mcnet.IMCNetBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -63,7 +64,7 @@ public class SpeakerBlock extends Block implements EntityBlock, IMCNetBlock {
     protected @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hitResult) {
         if (!level.isClientSide()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+            if (be instanceof IMainframePart part) {
                 InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
                 if (delegateResult != null) {
                     return delegateResult;

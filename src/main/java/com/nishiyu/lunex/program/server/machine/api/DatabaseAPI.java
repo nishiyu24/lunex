@@ -3,6 +3,7 @@ package com.nishiyu.lunex.program.server.machine.api;
 import com.nishiyu.lunex.api.mainframe.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.machine.frame.IResourceProvider;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
@@ -136,7 +137,7 @@ public class DatabaseAPI implements IMainframeAPI {
             if (master == null) return result;
 
             // ★修正: getCore()経由に変更
-            for (Map.Entry<String, com.nishiyu.lunex.machine.IResourceProvider> entry : master.getCore().resourceProviders.entrySet()) {
+            for (Map.Entry<String, IResourceProvider> entry : master.getCore().resourceProviders.entrySet()) {
                 LuaTable info = new LuaTable();
                 info.set("amount", LuaValue.valueOf(entry.getValue().getAmount()));
                 info.set("capacity", LuaValue.valueOf(entry.getValue().getCapacity()));

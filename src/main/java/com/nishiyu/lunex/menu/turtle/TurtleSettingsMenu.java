@@ -2,7 +2,7 @@ package com.nishiyu.lunex.menu.turtle;
 
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.blockentity.TurtleBotBlockEntity;
-import com.nishiyu.lunex.machine.TurtleCore;
+import com.nishiyu.lunex.machine.turtle.TurtleCore;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;

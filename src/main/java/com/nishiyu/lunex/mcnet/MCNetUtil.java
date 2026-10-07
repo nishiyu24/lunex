@@ -3,7 +3,7 @@ package com.nishiyu.lunex.mcnet;
 import com.nishiyu.lunex.block.LANCableBlock;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.machine.IMainframePart;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import com.nishiyu.lunex.api.MainframeConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

@@ -43,7 +43,6 @@ public class ClientModEvents {
         event.enqueueWork(() -> {
             MainframeBottomTabRegistry.registerGlobal(
                     SystemStorageBottomTab::new,
-                    // ★修正: getCore() 経由に変更
                     (master, level) -> master.getCore() != null && !master.getCore().resourceCapacities.isEmpty()
             );
 
@@ -52,6 +51,7 @@ public class ClientModEvents {
             MainframeUIRegistry.register(Lunex.PROBE_BLOCK.get(), ProbeUIExtension::new);
             MainframeUIRegistry.register(Lunex.SCREEN_BLOCK.get(), ScreenUIExtension::new);
             MainframeUIRegistry.register(Lunex.DATABASE_BLOCK.get(), DatabaseUIExtension::new);
+            MainframeUIRegistry.register(Lunex.SIMPLE_MACHINE.get(), MachineUIExtension::new);
             MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.CRAFTER, CrafterUIExtension::new);
             MainframeUIRegistry.register(net.minecraft.world.level.block.Blocks.FURNACE, FurnaceUIExtension::new);
         });

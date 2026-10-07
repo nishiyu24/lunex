@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.machine;
+package com.nishiyu.lunex.machine.frame;
 
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;

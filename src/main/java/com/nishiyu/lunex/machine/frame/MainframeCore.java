@@ -1,6 +1,7 @@
-package com.nishiyu.lunex.machine;
+package com.nishiyu.lunex.machine.frame;
 
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.mcnet.VirtualStorage;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import net.minecraft.nbt.CompoundTag;
 
@@ -95,5 +96,38 @@ public class MainframeCore {
             this.vm = null;
         }
         this.boundEntity = null;
+    }
+
+    // ==========================================
+    // VM 実行・停止 制御メソッド
+    // ==========================================
+
+    public boolean isRunning() {
+        return this.vm != null && this.vm.isRunning;
+    }
+
+    public void setRunning(boolean running) {
+        if (this.vm != null) {
+            this.vm.workspaceId = this.getWorkspaceId();
+            boolean was = this.vm.isRunning;
+
+            if (running) {
+                if (was) this.vm.stopProgram(); // 既に動いていれば一度止める
+
+                String progName = this.getProgramName();
+                if (progName != null && !progName.isEmpty()) {
+                    String runName = progName.replace(".lua", "");
+                    this.vm.startProgram(runName);
+                }
+            } else if (was) {
+                this.vm.stopProgram();
+            }
+
+            // クライアントへ状態を同期
+            if (this.boundEntity != null && this.boundEntity.getLevel() != null && !this.boundEntity.getLevel().isClientSide) {
+                this.boundEntity.setChanged();
+                this.boundEntity.sync();
+            }
+        }
     }
 }

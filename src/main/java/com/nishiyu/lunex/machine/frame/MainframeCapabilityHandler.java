@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.machine;
+package com.nishiyu.lunex.machine.frame;
 
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
@@ -82,7 +82,7 @@ public class MainframeCapabilityHandler {
 
         private boolean passesFilter(ItemStack stack) {
             String filter = probe.getPersistentData().getString("NBTFilter");
-            if (filter == null || filter.isEmpty() || filter.equals("{}")) return true;
+            if (filter.isEmpty() || filter.equals("{}")) return true;
 
             boolean isNbtFilter = filter.startsWith("{") && filter.endsWith("}");
             String searchStr = isNbtFilter ? filter.substring(1, filter.length() - 1) : filter;

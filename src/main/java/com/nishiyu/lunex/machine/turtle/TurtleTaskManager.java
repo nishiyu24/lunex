@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.machine;
+package com.nishiyu.lunex.machine.turtle;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;

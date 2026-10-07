@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.machine;
+package com.nishiyu.lunex.machine.frame;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;

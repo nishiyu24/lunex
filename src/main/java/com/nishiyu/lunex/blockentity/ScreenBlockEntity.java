@@ -2,7 +2,7 @@ package com.nishiyu.lunex.blockentity;
 
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.block.ScreenBlock;
-import com.nishiyu.lunex.machine.IMainframePart;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import com.nishiyu.lunex.mcnet.IMCNetDevice;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

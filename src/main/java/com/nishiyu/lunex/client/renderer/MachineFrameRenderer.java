@@ -8,7 +8,7 @@ import com.nishiyu.lunex.block.SimpleMachineBlock;
 import com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.machine.IMainframePart;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.neoforged.neoforge.client.model.data.ModelData;
+import org.jetbrains.annotations.NotNull;
 
 public class MachineFrameRenderer<T extends BlockEntity & IMainframePart> implements BlockEntityRenderer<T> {
 
@@ -40,7 +41,7 @@ public class MachineFrameRenderer<T extends BlockEntity & IMainframePart> implem
     }
 
     @Override
-    public void render(T blockEntity, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight, int packedOverlay) {
+    public void render(T blockEntity, float partialTick, @NotNull PoseStack poseStack, @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
         Level level = blockEntity.getLevel();
         if (level == null) return;
 
@@ -123,20 +124,20 @@ public class MachineFrameRenderer<T extends BlockEntity & IMainframePart> implem
 
                     // 四隅の描画 (隣接状況に応じてUV座標を適切に切り出す)
                     if (!hasUp && !hasLeft) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 1-e, e, 1, 0, 0, e, e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
-                    else if (!hasUp && hasLeft) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 1-e, e, 1, e, 0, 1-e, e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
-                    else if (hasUp && !hasLeft) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 1-e, e, 1, 0, e, e, 1-e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
+                    else if (!hasUp) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 1-e, e, 1, e, 0, 1-e, e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
+                    else if (!hasLeft) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 1-e, e, 1, 0, e, e, 1-e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
 
                     if (!hasUp && !hasRight) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 1-e, 1, 1, 1-e, 0, 1, e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
-                    else if (!hasUp && hasRight) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 1-e, 1, 1, e, 0, 1-e, e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
-                    else if (hasUp && !hasRight) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 1-e, 1, 1, 1-e, e, 1, 1-e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
+                    else if (!hasUp) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 1-e, 1, 1, e, 0, 1-e, e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
+                    else if (!hasRight) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 1-e, 1, 1, 1-e, e, 1, 1-e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
 
                     if (!hasDown && !hasLeft) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 0, e, e, 0, 1-e, e, 1, borderSprite, faceLight, packedOverlay, borderOffset, shade);
-                    else if (!hasDown && hasLeft) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 0, e, e, e, 1-e, 1-e, 1, borderSprite, faceLight, packedOverlay, borderOffset, shade);
-                    else if (hasDown && !hasLeft) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 0, e, e, 0, e, e, 1-e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
+                    else if (!hasDown) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 0, e, e, e, 1-e, 1-e, 1, borderSprite, faceLight, packedOverlay, borderOffset, shade);
+                    else if (!hasLeft) drawQuadUV(vertexConsumer, poseEntry, dir, 0, 0, e, e, 0, e, e, 1-e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
 
                     if (!hasDown && !hasRight) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 0, 1, e, 1-e, 1-e, 1, 1, borderSprite, faceLight, packedOverlay, borderOffset, shade);
-                    else if (!hasDown && hasRight) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 0, 1, e, e, 1-e, 1-e, 1, borderSprite, faceLight, packedOverlay, borderOffset, shade);
-                    else if (hasDown && !hasRight) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 0, 1, e, 1-e, e, 1, 1-e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
+                    else if (!hasDown) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 0, 1, e, e, 1-e, 1-e, 1, borderSprite, faceLight, packedOverlay, borderOffset, shade);
+                    else if (!hasRight) drawQuadUV(vertexConsumer, poseEntry, dir, 1-e, 0, 1, e, 1-e, e, 1, 1-e, borderSprite, faceLight, packedOverlay, borderOffset, shade);
 
                 } else {
                     // 未合体時は四辺を描画

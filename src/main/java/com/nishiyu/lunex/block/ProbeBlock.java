@@ -3,8 +3,7 @@ package com.nishiyu.lunex.block;
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.machine.IMainframePart;
-import com.nishiyu.lunex.machine.MainframeScanner;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import com.nishiyu.lunex.mcnet.IMCNetBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -103,7 +102,7 @@ public class ProbeBlock extends Block implements EntityBlock, IMCNetBlock {
             BlockEntity be = level.getBlockEntity(pos);
 
             // 1. 合体時はマスターブロックに処理を委譲
-            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+            if (be instanceof IMainframePart part) {
                 InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
                 if (delegateResult != null) {
                     return delegateResult;

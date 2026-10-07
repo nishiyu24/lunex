@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.machine;
+package com.nishiyu.lunex.machine.turtle;
 
 import com.nishiyu.lunex.blockentity.TurtleBotBlockEntity;
 import com.nishiyu.lunex.program.server.turtle.TurtleServerLuaVM;
@@ -17,7 +17,7 @@ public class TurtleCore {
     public final TurtleTaskManager tasks = new TurtleTaskManager();
 
     // ▼ 修正: 配置時からフル充電状態にする
-    public int energy = 100000;
+    public int energy = 0;
 
     public final ItemStackHandler itemHandler;
     public CompoundTag persistentData = new CompoundTag();

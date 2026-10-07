@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.block;
 
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.machine.CoreMachineVMCache;
+import com.nishiyu.lunex.machine.frame.CoreMachineVMCache;
 import com.nishiyu.lunex.mcnet.IMCNetBlock;
 import com.nishiyu.lunex.menu.MainframeOverviewMenu;
 import com.nishiyu.lunex.menu.SimpleMachineMenu;

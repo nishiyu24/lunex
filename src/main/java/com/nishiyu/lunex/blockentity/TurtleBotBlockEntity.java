@@ -2,9 +2,8 @@ package com.nishiyu.lunex.blockentity;
 
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.block.TurtleBotBlock;
-import com.nishiyu.lunex.machine.TurtleCore;
+import com.nishiyu.lunex.machine.turtle.TurtleCore;
 import com.nishiyu.lunex.program.server.turtle.TurtleServerLuaVM;
-import com.nishiyu.lunex.util.TargetUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;

@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.block;
 
 import com.nishiyu.lunex.blockentity.MachineFrameBlockEntity;
-import com.nishiyu.lunex.machine.MainframeScanner;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -50,7 +50,7 @@ public class MachineFrameBlock extends Block implements EntityBlock {
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part && part.getMasterPos() != null) {
+            if (be instanceof IMainframePart part && part.getMasterPos() != null) {
                 BlockEntity masterBe = level.getBlockEntity(part.getMasterPos());
                 if (masterBe instanceof com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity master) {
                     master.disassembleMainframe();
@@ -64,7 +64,7 @@ public class MachineFrameBlock extends Block implements EntityBlock {
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (!level.isClientSide()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+            if (be instanceof IMainframePart part) {
                 InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
                 if (delegateResult != null) {
                     return delegateResult;

@@ -4,7 +4,7 @@ import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.item.WrenchItem;
-import com.nishiyu.lunex.machine.IMainframePart;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -156,7 +156,7 @@ public class DatabaseBlock extends Block implements EntityBlock {
     public @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hit) {
         if (!level.isClientSide()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+            if (be instanceof com.nishiyu.lunex.machine.frame.IMainframePart part) {
                 InteractionResult delegateResult = part.delegateToMaster(level, player, hit);
                 if (delegateResult != null) {
                     return delegateResult;

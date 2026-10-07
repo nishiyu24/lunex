@@ -1,7 +1,7 @@
 package com.nishiyu.lunex.blockentity;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.machine.IMainframePart;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;

@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.machine;
+package com.nishiyu.lunex.mcnet;
 
 import com.nishiyu.lunex.blockentity.DatabaseBlockEntity;
 import com.nishiyu.lunex.blockentity.ProbeBlockEntity;
@@ -121,15 +121,13 @@ public class VirtualStorage {
                 }
 
                 IItemHandler smHandler = sm.mainframeStorage;
-                if(smHandler != null) {
-                    InventoryNode node = new InventoryNode(devicePos, devicePos, smHandler, mTag);
-                    inventoryCache.put(devicePos, node);
-                    allPhysicalNodes.add(node);
-                    physicalNodesByTag.computeIfAbsent(mTag, k -> new CopyOnWriteArrayList<>()).add(node);
-                    if (!scanKeys.contains(devicePos)) scanKeys.add(devicePos);
-                    if (!isRebuilding) {
-                        if (node.updateDeltaAndCheck(this, false)) wakeUpRulesForTag(mTag);
-                    }
+                InventoryNode node = new InventoryNode(devicePos, devicePos, smHandler, mTag);
+                inventoryCache.put(devicePos, node);
+                allPhysicalNodes.add(node);
+                physicalNodesByTag.computeIfAbsent(mTag, k -> new CopyOnWriteArrayList<>()).add(node);
+                if (!scanKeys.contains(devicePos)) scanKeys.add(devicePos);
+                if (!isRebuilding) {
+                    if (node.updateDeltaAndCheck(this, false)) wakeUpRulesForTag(mTag);
                 }
             }
             default -> {
@@ -520,13 +518,14 @@ public class VirtualStorage {
 
         if ((srcPhysical.isEmpty() && srcDigital.isEmpty()) || validDsts.isEmpty()) return 0;
 
-        if ("random".equals(rule.distribution)) Collections.shuffle(validDsts);
-        else if ("least_full".equals(rule.distribution)) validDsts.sort(Comparator.comparingDouble(w -> w.getFullness(rule)));
-        else if ("round_robin".equals(rule.distribution)) {
-            rule.rrIndex = rule.rrIndex % validDsts.size();
-            Collections.rotate(validDsts, -rule.rrIndex);
-        } else {
-            validDsts.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
+        switch (rule.distribution) {
+            case "random" -> Collections.shuffle(validDsts);
+            case "least_full" -> validDsts.sort(Comparator.comparingDouble(w -> w.getFullness(rule)));
+            case "round_robin" -> {
+                rule.rrIndex = rule.rrIndex % validDsts.size();
+                Collections.rotate(validDsts, -rule.rrIndex);
+            }
+            case null, default -> validDsts.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
         }
 
         for (DatabaseNode srcNode : srcDigital) {

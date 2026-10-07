@@ -3,6 +3,7 @@ package com.nishiyu.lunex.program.server.machine.api;
 import com.nishiyu.lunex.api.MainframeConstants;
 import com.nishiyu.lunex.api.mainframe.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.mcnet.VirtualStorage;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
@@ -93,7 +94,7 @@ public class StorageAPI implements IMainframeAPI {
                 @Override
                 public LuaValue call() {
                     LuaTable builder = new LuaTable();
-                    com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule rule = new com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule();
+                    VirtualStorage.LogisticsRule rule = new VirtualStorage.LogisticsRule();
 
                     builder.set("type", new OneArgFunction() { @Override public LuaValue call(LuaValue arg) { rule.type = arg.tojstring(); return builder; }});
                     builder.set("source", new OneArgFunction() { @Override public LuaValue call(LuaValue arg) { rule.sourceTag = arg.tojstring(); return builder; }});
@@ -124,7 +125,7 @@ public class StorageAPI implements IMainframeAPI {
                 @Override
                 public LuaValue call() {
                     LuaTable builder = new LuaTable();
-                    com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern pattern = new com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern();
+                    VirtualStorage.CraftingPattern pattern = new VirtualStorage.CraftingPattern();
 
                     builder.set("inputs", new OneArgFunction() {
                         @Override public LuaValue call(LuaValue arg) {
@@ -156,8 +157,8 @@ public class StorageAPI implements IMainframeAPI {
                 public LuaValue call(LuaValue arg) {
                     if (arg.istable()) {
                         LuaValue hidden = arg.get("_pattern");
-                        if (!hidden.isnil() && hidden.isuserdata(com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern.class)) {
-                            finalRouter.getCore().virtualStorage.crafting.addPattern((com.nishiyu.lunex.machine.VirtualStorage.CraftingPattern) hidden.checkuserdata());
+                        if (!hidden.isnil() && hidden.isuserdata(VirtualStorage.CraftingPattern.class)) {
+                            finalRouter.getCore().virtualStorage.crafting.addPattern((VirtualStorage.CraftingPattern) hidden.checkuserdata());
                             return LuaValue.TRUE;
                         }
                     }
@@ -176,7 +177,7 @@ public class StorageAPI implements IMainframeAPI {
             craftingObj.set("getStatus", new OneArgFunction() {
                 @Override
                 public LuaValue call(LuaValue jobId) {
-                    com.nishiyu.lunex.machine.VirtualStorage.CraftingJob job = finalRouter.getCore().virtualStorage.crafting.getJob(jobId.toint());
+                    VirtualStorage.CraftingJob job = finalRouter.getCore().virtualStorage.crafting.getJob(jobId.toint());
                     if (job == null) return LuaValue.NIL;
 
                     LuaTable status = new LuaTable();
@@ -197,7 +198,7 @@ public class StorageAPI implements IMainframeAPI {
                 public LuaValue call() {
                     LuaTable list = new LuaTable();
                     int i = 1;
-                    for (com.nishiyu.lunex.machine.VirtualStorage.CraftingJob job : finalRouter.getCore().virtualStorage.crafting.getJobs()) {
+                    for (VirtualStorage.CraftingJob job : finalRouter.getCore().virtualStorage.crafting.getJobs()) {
                         LuaTable j = new LuaTable();
                         j.set("id", job.id);
                         j.set("item", job.requestItem);
@@ -238,8 +239,8 @@ public class StorageAPI implements IMainframeAPI {
     public LuaValue addRule(SimpleMachineBlockEntity router, LuaValue ruleArg) {
         if (ruleArg.istable() && router.getCore() != null && router.getCore().virtualStorage != null) {
             LuaValue hiddenRule = ruleArg.get("_rule");
-            if (!hiddenRule.isnil() && hiddenRule.isuserdata(com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule.class)) {
-                com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule rule = (com.nishiyu.lunex.machine.VirtualStorage.LogisticsRule) hiddenRule.checkuserdata();
+            if (!hiddenRule.isnil() && hiddenRule.isuserdata(VirtualStorage.LogisticsRule.class)) {
+                VirtualStorage.LogisticsRule rule = (VirtualStorage.LogisticsRule) hiddenRule.checkuserdata();
                 rule.compile();
                 router.getCore().virtualStorage.addRule(rule);
                 return LuaValue.TRUE;

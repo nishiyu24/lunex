@@ -34,7 +34,6 @@ public class MainframeComponentRegistry {
                 .addApi(MainframeConstants.API_ROUTER)
                 .addApi(MainframeConstants.API_STORAGE)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
-                .addPlacement(MainframeConstants.PLACEMENT_FACE)
                 .build());
 
         register(Lunex.DATABASE_BLOCK.get(), MainframeComponentData.builder()
@@ -43,7 +42,6 @@ public class MainframeComponentRegistry {
                 .addApi(MainframeConstants.API_DATABASE)
                 .addApi(MainframeConstants.API_FS)
                 .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
-                .addPlacement(MainframeConstants.PLACEMENT_FACE)
                 .addResourceCapacity("item", 3000)
                 .setActionProvider(new DatabaseActionProvider())
                 .build());
@@ -53,6 +51,7 @@ public class MainframeComponentRegistry {
                 .addFeature(MainframeConstants.FEATURE_SPEAKER)
                 .addApi(MainframeConstants.API_SPEAKER)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
+                .addPlacement(MainframeConstants.PLACEMENT_EDGE)
                 .build());
 
         register(Lunex.PROBE_BLOCK.get(), MainframeComponentData.builder()
@@ -64,7 +63,6 @@ public class MainframeComponentRegistry {
                 .addApi("net")
                 .addPlacement(MainframeConstants.PLACEMENT_EDGE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
-                .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
                 .setActionProvider(new ProbeActionProvider())
                 .build());
 
@@ -73,6 +71,7 @@ public class MainframeComponentRegistry {
                 .addFeature(MainframeConstants.FEATURE_SCREEN)
                 .addApi(MainframeConstants.API_SCREEN)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
+                .addPlacement(MainframeConstants.PLACEMENT_EDGE)
                 .setActionProvider(new ScreenActionProvider())
                 .build());
 
@@ -109,9 +108,8 @@ public class MainframeComponentRegistry {
                 .maxCount(10)
                 .addPlacement(MainframeConstants.PLACEMENT_EDGE)
                 .addPlacement(MainframeConstants.PLACEMENT_FACE)
-                .addPlacement(MainframeConstants.PLACEMENT_INSIDE)
                 .addResourceCapacity("energy", 10000)
-                .setActionProvider(new SimpleMachineActionProvider())
+                .setActionProvider(new MachineActionProvider())
                 .build());
 
         register(Lunex.MAINFRAME_ADAPTER_BLOCK.get(), MainframeComponentData.builder()

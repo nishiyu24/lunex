@@ -3,8 +3,7 @@ package com.nishiyu.lunex.block;
 import com.mojang.serialization.MapCodec;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.machine.IMainframePart;
-import com.nishiyu.lunex.machine.MainframeScanner;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import com.nishiyu.lunex.mcnet.IMCNetBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -74,7 +73,7 @@ public class ScreenBlock extends BaseEntityBlock implements IMCNetBlock {
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (!level.isClientSide()) {
             BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+            if (be instanceof com.nishiyu.lunex.machine.frame.IMainframePart part) {
                 InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
                 if (delegateResult != null) {
                     return delegateResult;

@@ -3,6 +3,7 @@ package com.nishiyu.lunex.api.mainframe.action;
 
 import com.nishiyu.lunex.api.mainframe.IMainframeActionProvider;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.lunex.machine.frame.MainframeItemHandler;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -20,7 +21,7 @@ public class SimpleMachineActionProvider implements IMainframeActionProvider<Sim
                     int index = Integer.parseInt(parts[0]);
                     int button = Integer.parseInt(parts[1]);
                     ItemStack carried = player.containerMenu.getCarried();
-                    com.nishiyu.lunex.machine.MainframeItemHandler handler = machine.mainframeStorage;
+                    MainframeItemHandler handler = machine.mainframeStorage;
 
                     if (index >= 0 && index < handler.getStacks().size()) {
                         ItemStack target = handler.getStacks().get(index);
@@ -50,7 +51,7 @@ public class SimpleMachineActionProvider implements IMainframeActionProvider<Sim
             try {
                 int button = Integer.parseInt(payload);
                 ItemStack carried = player.containerMenu.getCarried();
-                com.nishiyu.lunex.machine.MainframeItemHandler handler = machine.mainframeStorage;
+                MainframeItemHandler handler = machine.mainframeStorage;
 
                 if (!carried.isEmpty()) {
                     int insertAmount = (button == 0) ? carried.getCount() : 1;

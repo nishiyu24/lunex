@@ -1,6 +1,7 @@
 package com.nishiyu.lunex.api.mainframe.action;
 
 import com.nishiyu.lunex.api.mainframe.IMainframeActionProvider;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -68,7 +69,7 @@ public class FurnaceActionProvider implements IMainframeActionProvider<BlockEnti
     }
 
     private void notifyMaster(BlockEntity be, Level level) {
-        if (be instanceof com.nishiyu.lunex.machine.IMainframePart part && part.getMasterPos() != null) {
+        if (be instanceof IMainframePart part && part.getMasterPos() != null) {
             BlockEntity master = level.getBlockEntity(part.getMasterPos());
             if (master != null) {
                 master.setChanged();

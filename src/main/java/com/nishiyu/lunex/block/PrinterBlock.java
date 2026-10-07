@@ -1,13 +1,11 @@
 package com.nishiyu.lunex.block;
 
 import com.nishiyu.lunex.blockentity.PrinterBlockEntity;
+import com.nishiyu.lunex.machine.frame.IMainframePart;
 import com.nishiyu.lunex.mcnet.IMCNetBlock;
-import com.nishiyu.lunex.menu.PrinterMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
@@ -76,7 +74,7 @@ public class PrinterBlock extends Block implements EntityBlock, IMCNetBlock {
             BlockEntity be = level.getBlockEntity(pos);
 
             // 1. 合体時はマスターブロックに処理を委譲
-            if (be instanceof com.nishiyu.lunex.machine.IMainframePart part) {
+            if (be instanceof IMainframePart part) {
                 InteractionResult delegateResult = part.delegateToMaster(level, player, hitResult);
                 if (delegateResult != null) {
                     return delegateResult;

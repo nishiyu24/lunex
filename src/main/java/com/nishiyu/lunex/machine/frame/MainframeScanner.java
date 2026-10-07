@@ -1,4 +1,4 @@
-package com.nishiyu.lunex.machine;
+package com.nishiyu.lunex.machine.frame;
 
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.api.MainframeComponentData;

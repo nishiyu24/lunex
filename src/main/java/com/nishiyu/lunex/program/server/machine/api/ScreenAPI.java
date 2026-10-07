@@ -6,7 +6,7 @@ import com.nishiyu.lunex.api.mainframe.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
-import com.nishiyu.lunex.machine.VirtualStorage;
+import com.nishiyu.lunex.mcnet.VirtualStorage;
 import com.nishiyu.lunex.mcnet.ScreenSession;
 import com.nishiyu.lunex.mcnet.ScreenSessionManager;
 import com.nishiyu.lunex.program.core.LuaFunction;
