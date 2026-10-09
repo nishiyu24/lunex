@@ -1,7 +1,0 @@
-{
-  "target_type": "tag",
-  "target": "minecraft:sand",
-  "compounds": {
-    "silica": 10
-  }
-}

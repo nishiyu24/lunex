@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:mangrove_log",
-  "base": "preset:base_wood",
-  "compounds": {
-    "water": 2,
-    "salt": 1
-  }
-}

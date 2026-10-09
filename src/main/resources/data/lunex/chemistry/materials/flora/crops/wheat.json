@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:wheat",
-  "compounds": {
-    "glucose": 4,
-    "cellulose": 3,
-    "amino_acid": 1
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:basalt",
-  "compounds": {
-    "anorthite": 3,
-    "forsterite": 2,
-    "fayalite": 2
-  }
-}

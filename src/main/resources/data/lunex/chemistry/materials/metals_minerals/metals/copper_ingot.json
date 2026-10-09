@@ -1,7 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:copper_ingot",
-  "compounds": {
-    "copper_pure": 9
-  }
-}

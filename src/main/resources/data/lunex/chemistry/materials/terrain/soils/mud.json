@@ -1,8 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:mud",
-  "base": "preset:base_soil",
-  "compounds": {
-    "water": 6
-  }
-}

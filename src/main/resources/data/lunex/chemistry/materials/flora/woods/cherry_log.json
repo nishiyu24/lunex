@@ -1,8 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:cherry_log",
-  "base": "preset:base_wood",
-  "compounds": {
-    "coumarin": 1
-  }
-}

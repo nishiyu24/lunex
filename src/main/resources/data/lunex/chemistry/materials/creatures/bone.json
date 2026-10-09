@@ -1,8 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:bone",
-  "compounds": {
-    "hydroxyapatite": 2,
-    "collagen": 1
-  }
-}

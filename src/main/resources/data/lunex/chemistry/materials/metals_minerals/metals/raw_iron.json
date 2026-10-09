@@ -1,7 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:raw_iron",
-  "compounds": {
-    "hematite": 3
-  }
-}

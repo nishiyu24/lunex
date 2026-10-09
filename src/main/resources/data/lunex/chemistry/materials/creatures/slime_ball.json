@@ -1,8 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:slime_ball",
-  "compounds": {
-    "water": 6,
-    "collagen": 2
-  }
-}

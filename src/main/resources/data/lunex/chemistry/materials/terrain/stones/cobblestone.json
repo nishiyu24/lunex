@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:cobblestone",
-  "base": "item:minecraft:stone",
-  "compounds": {
-    "kaolinite": 1,
-    "water": 1
-  }
-}

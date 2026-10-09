@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:blaze_rod",
-  "compounds": {
-    "sulfur_pure": 8,
-    "iron_pure": 2,
-    "troilite": 2
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "target_type": "tag",
-  "target": "minecraft:leaves",
-  "compounds": {
-    "cellulose": 1,
-    "water": 5,
-    "chlorophyll": 1
-  }
-}

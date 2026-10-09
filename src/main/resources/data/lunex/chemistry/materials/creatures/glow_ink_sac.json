@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:glow_ink_sac",
-  "base": "item:minecraft:ink_sac",
-  "elements": {
-    "Cu": 1,
-    "P": 1
-  }
-}

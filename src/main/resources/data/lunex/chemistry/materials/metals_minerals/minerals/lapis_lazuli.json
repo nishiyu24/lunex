@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:lapis_lazuli",
-  "compounds": {
-    "lazurite": 8,
-    "calcite": 2,
-    "pyrite": 1
-  }
-}

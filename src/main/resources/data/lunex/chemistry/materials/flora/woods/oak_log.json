@@ -1,8 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:oak_log",
-  "base": "preset:base_wood",
-  "compounds": {
-    "tannin": 1
-  }
-}

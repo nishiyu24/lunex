@@ -1,7 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:honeycomb",
-  "compounds": {
-    "lipid": 3
-  }
-}

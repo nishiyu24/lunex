@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:andesite",
-  "compounds": {
-    "silica": 6,
-    "anorthite": 3,
-    "forsterite": 1
-  }
-}

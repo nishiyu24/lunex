@@ -1,8 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:birch_log",
-  "base": "preset:base_wood",
-  "compounds": {
-    "betulin": 2
-  }
-}

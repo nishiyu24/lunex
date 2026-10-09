@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:grass_block",
-  "base": "preset:base_soil",
-  "compounds": {
-    "chlorophyll": 1,
-    "cellulose": 1
-  }
-}

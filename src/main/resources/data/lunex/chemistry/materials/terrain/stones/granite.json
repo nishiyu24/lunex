@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:granite",
-  "compounds": {
-    "silica": 9,
-    "orthoclase": 4,
-    "albite": 2
-  }
-}

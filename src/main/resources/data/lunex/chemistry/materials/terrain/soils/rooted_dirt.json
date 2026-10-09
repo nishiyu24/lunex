@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:rooted_dirt",
-  "base": "preset:base_soil",
-  "compounds": {
-    "lignin": 2,
-    "cellulose": 2
-  }
-}

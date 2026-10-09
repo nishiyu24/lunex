@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:ink_sac",
-  "compounds": {
-    "melanin": 2,
-    "water": 3,
-    "salt": 1
-  }
-}

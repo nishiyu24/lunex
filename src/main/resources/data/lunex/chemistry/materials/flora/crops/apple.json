@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:apple",
-  "compounds": {
-    "water": 6,
-    "glucose": 2,
-    "sucrose": 2
-  }
-}

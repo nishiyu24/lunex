@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:cobbled_deepslate",
-  "base": "item:minecraft:deepslate",
-  "compounds": {
-    "kaolinite": 1,
-    "water": 1
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:raw_gold",
-  "compounds": {
-    "gold_pure": 9
-  }
-}

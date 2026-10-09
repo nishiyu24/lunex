@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:potato",
-  "compounds": {
-    "water": 5,
-    "glucose": 4,
-    "cellulose": 1
-  }
-}

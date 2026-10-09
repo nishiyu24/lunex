@@ -1,9 +1,0 @@
-{
-  "target_type": "preset",
-  "target": "base_wood",
-  "compounds": {
-    "cellulose": 4,
-    "lignin": 2,
-    "water": 2
-  }
-}

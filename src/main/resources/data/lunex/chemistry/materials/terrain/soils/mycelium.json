@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:mycelium",
-  "base": "preset:base_soil",
-  "compounds": {
-    "chitin": 3,
-    "amino_acid": 2
-  }
-}

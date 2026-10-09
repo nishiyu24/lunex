@@ -1,9 +1,0 @@
-{
-  "target_type": "item",
-  "target": "minecraft:sugar_cane",
-  "compounds": {
-    "water": 4,
-    "sucrose": 3,
-    "cellulose": 2
-  }
-}
