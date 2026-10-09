@@ -1,0 +1,14 @@
+{
+  "target_type": "item",
+  "target": "minecraft:ancient_debris",
+  "base": "item:minecraft:netherrack",
+  "compounds": {
+    "gold_pure": 2,
+    "moissanite": 2,
+    "ringwoodite": 2
+  },
+  "elements": {
+    "W": 6,
+    "Pt": 3
+  }
+}

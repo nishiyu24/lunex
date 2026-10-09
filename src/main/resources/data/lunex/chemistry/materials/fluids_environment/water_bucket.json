@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:water_bucket",
+  "compounds": {
+    "water": 20
+  }
+}

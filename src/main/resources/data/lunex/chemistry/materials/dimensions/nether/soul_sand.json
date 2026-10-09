@@ -1,0 +1,10 @@
+{
+  "target_type": "item",
+  "target": "minecraft:soul_sand",
+  "compounds": {
+    "silica": 5,
+    "apatite": 1,
+    "carbon_pure": 2,
+    "fullerene": 1
+  }
+}

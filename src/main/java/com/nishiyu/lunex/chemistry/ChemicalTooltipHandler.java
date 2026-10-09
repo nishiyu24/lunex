@@ -1,6 +1,9 @@
 package com.nishiyu.lunex.chemistry;
 
 import com.nishiyu.lunex.Lunex;
+import com.nishiyu.lunex.chemistry.model.Compound;
+import com.nishiyu.lunex.chemistry.model.Element;
+import com.nishiyu.lunex.chemistry.model.Molecule;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -31,33 +34,53 @@ public class ChemicalTooltipHandler {
 
         if (molecule != null && !molecule.isEmpty()) {
             Player player = event.getEntity();
-
-            // Lunexの「ARグラス」を頭に装備しているか判定
             boolean wearingARGlasses = player != null && player.getItemBySlot(EquipmentSlot.HEAD).getItem() == Lunex.AR_GLASSES.get();
 
             if (Screen.hasShiftDown() || wearingARGlasses) {
-                event.getToolTip().add(Component.literal("")); // 視認性向上のための空行
+                event.getToolTip().add(Component.literal("")); // 視認性のための空行
 
-                // 元素ごとにフォーマットして表示
-                for (Map.Entry<Element, Integer> entry : molecule.getElements().entrySet()) {
-                    Element elem = entry.getKey();
-                    int amount = entry.getValue();
+                // 1. 化合物（鉱物・分子）の表示 (例: - 水 [H₂O] : 5)
+                if (!molecule.getCompounds().isEmpty()) {
+                    event.getToolTip().add(Component.literal("◆ 構成化合物 / 鉱物:").withStyle(ChatFormatting.AQUA));
+                    for (Map.Entry<Compound, Integer> entry : molecule.getCompounds().entrySet()) {
+                        Compound comp = entry.getKey();
+                        int count = entry.getValue();
 
-                    // RGB値からカスタムカラーのスタイルを生成
-                    Style elemStyle = Style.EMPTY.withColor(TextColor.fromRgb(elem.getColor()));
+                        MutableComponent line = Component.literal("  - " + comp.getLocalizedName() + " ")
+                                .withStyle(ChatFormatting.GRAY);
 
-                    // デザイン: [ Fe ] 鉄 : 9
-                    MutableComponent prefix = Component.literal("[ ").withStyle(ChatFormatting.DARK_GRAY);
-                    // 元素記号にだけ細かく設定したRGBカラーを適用する
-                    MutableComponent symbol = Component.literal(String.format("%-2s", elem.name())).withStyle(elemStyle);
-                    MutableComponent suffix = Component.literal(" ] ").withStyle(ChatFormatting.DARK_GRAY);
-                    MutableComponent name = Component.literal(elem.getLocalizedName() + " : ").withStyle(ChatFormatting.GRAY);
-                    MutableComponent count = Component.literal(String.valueOf(amount)).withStyle(ChatFormatting.WHITE);
+                        // 下付き文字の化学式部分を緑色で強調
+                        MutableComponent formulaComp = Component.literal("[" + comp.getFormulaString() + "] ")
+                                .withStyle(ChatFormatting.DARK_GREEN);
 
-                    event.getToolTip().add(prefix.append(symbol).append(suffix).append(name).append(count));
+                        MutableComponent countComp = Component.literal(": " + count)
+                                .withStyle(ChatFormatting.WHITE);
+
+                        event.getToolTip().add(line.append(formulaComp).append(countComp));
+                    }
+                }
+
+                // 2. 元素レベルの表示 (Ctrlキー押下またはARグラス装備時)
+                if (Screen.hasControlDown() || wearingARGlasses) {
+                    event.getToolTip().add(Component.literal("◆ 総元素内訳:").withStyle(ChatFormatting.YELLOW));
+                    for (Map.Entry<Element, Integer> entry : molecule.getElements().entrySet()) {
+                        Element elem = entry.getKey();
+                        int amount = entry.getValue();
+
+                        Style elemStyle = Style.EMPTY.withColor(TextColor.fromRgb(elem.getColor()));
+                        MutableComponent prefix = Component.literal("    [ ").withStyle(ChatFormatting.DARK_GRAY);
+                        MutableComponent symbol = Component.literal(String.format("%-2s", elem.name())).withStyle(elemStyle);
+                        MutableComponent suffix = Component.literal(" ] ").withStyle(ChatFormatting.DARK_GRAY);
+                        MutableComponent name = Component.literal(elem.getLocalizedName() + " : ").withStyle(ChatFormatting.GRAY);
+                        MutableComponent count = Component.literal(String.valueOf(amount)).withStyle(ChatFormatting.WHITE);
+
+                        event.getToolTip().add(prefix.append(symbol).append(suffix).append(name).append(count));
+                    }
+                } else {
+                    event.getToolTip().add(Component.literal("  ▶ 元素の詳細[Ctrl]").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
                 }
             } else {
-                event.getToolTip().add(Component.literal("▶ 組成を表示[Shift]").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
+                event.getToolTip().add(Component.literal("▶ 化学組成を表示[Shift]").withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC));
             }
         }
     }

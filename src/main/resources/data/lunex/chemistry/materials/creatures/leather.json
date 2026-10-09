@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:leather",
+  "compounds": {
+    "collagen": 4
+  }
+}

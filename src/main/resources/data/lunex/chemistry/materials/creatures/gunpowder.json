@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:gunpowder",
+  "compounds": {
+    "potassium_nitrate": 3,
+    "carbon_pure": 2,
+    "sulfur_pure": 1
+  }
+}

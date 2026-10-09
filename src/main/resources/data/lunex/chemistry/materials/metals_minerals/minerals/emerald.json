@@ -1,0 +1,10 @@
+{
+  "target_type": "item",
+  "target": "minecraft:emerald",
+  "compounds": {
+    "beryl": 8
+  },
+  "elements": {
+    "Cr": 1
+  }
+}

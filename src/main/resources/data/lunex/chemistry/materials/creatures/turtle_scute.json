@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:turtle_scute",
+  "compounds": {
+    "keratin": 4
+  }
+}

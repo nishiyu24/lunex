@@ -1,0 +1,8 @@
+{
+  "target_type": "item",
+  "target": "minecraft:clay_ball",
+  "compounds": {
+    "kaolinite": 2,
+    "water": 2
+  }
+}

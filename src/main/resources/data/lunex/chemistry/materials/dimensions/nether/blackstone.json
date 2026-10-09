@@ -1,0 +1,10 @@
+{
+  "target_type": "item",
+  "target": "minecraft:blackstone",
+  "compounds": {
+    "anorthite": 3,
+    "pyroxene": 3,
+    "magnetite": 2,
+    "moissanite": 2
+  }
+}

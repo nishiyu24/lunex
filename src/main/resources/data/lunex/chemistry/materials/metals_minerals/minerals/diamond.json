@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:diamond",
+  "compounds": {
+    "carbon_pure": 36
+  }
+}

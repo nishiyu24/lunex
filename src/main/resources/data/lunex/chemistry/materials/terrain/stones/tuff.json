@@ -1,0 +1,10 @@
+{
+  "target_type": "item",
+  "target": "minecraft:tuff",
+  "compounds": {
+    "silica": 6,
+    "alumina": 2,
+    "fayalite": 1,
+    "troilite": 1
+  }
+}

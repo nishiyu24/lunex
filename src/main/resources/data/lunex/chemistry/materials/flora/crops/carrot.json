@@ -1,0 +1,10 @@
+{
+  "target_type": "item",
+  "target": "minecraft:carrot",
+  "compounds": {
+    "water": 6,
+    "sucrose": 2,
+    "glucose": 1,
+    "cellulose": 1
+  }
+}

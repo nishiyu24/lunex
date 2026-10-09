@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:prismarine_shard",
+  "compounds": {
+    "silica": 4,
+    "copper_pure": 2,
+    "water": 2
+  }
+}

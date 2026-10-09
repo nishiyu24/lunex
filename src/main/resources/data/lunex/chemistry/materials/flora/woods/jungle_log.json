@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:jungle_log",
+  "base": "preset:base_wood",
+  "compounds": {
+    "water": 1,
+    "latex": 2
+  }
+}

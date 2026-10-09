@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:smooth_stone",
+  "compounds": {
+    "silica": 9,
+    "orthoclase": 2,
+    "quicklime": 1
+  }
+}

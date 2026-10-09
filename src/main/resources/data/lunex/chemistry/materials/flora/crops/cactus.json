@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:cactus",
+  "compounds": {
+    "water": 6,
+    "cellulose": 3,
+    "chlorophyll": 1
+  }
+}

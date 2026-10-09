@@ -1,0 +1,5 @@
+{
+  "target_type": "tag",
+  "target": "minecraft:dirt",
+  "base": "preset:base_soil"
+}

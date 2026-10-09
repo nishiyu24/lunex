@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:diorite",
+  "compounds": {
+    "silica": 4,
+    "anorthite": 4,
+    "albite": 2
+  }
+}

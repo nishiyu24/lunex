@@ -1,0 +1,8 @@
+{
+  "target_type": "item",
+  "target": "minecraft:flint",
+  "compounds": {
+    "silica": 9,
+    "carbon_pure": 1
+  }
+}

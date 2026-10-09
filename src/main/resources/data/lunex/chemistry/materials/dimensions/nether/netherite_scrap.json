@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:netherite_scrap",
+  "compounds": {
+    "gold_pure": 2,
+    "moissanite": 2
+  },
+  "elements": {
+    "W": 6,
+    "Pt": 3
+  }
+}

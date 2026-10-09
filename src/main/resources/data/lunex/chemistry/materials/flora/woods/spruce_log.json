@@ -1,0 +1,8 @@
+{
+  "target_type": "item",
+  "target": "minecraft:spruce_log",
+  "base": "preset:base_wood",
+  "compounds": {
+    "pinene": 2
+  }
+}

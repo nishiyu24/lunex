@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:redstone_block",
+  "compounds": {
+    "ferroelectric_crystal": 12,
+    "selenide_semiconductor": 12,
+    "cinnabar": 6
+  },
+  "elements": {
+    "P": 4
+  }
+}

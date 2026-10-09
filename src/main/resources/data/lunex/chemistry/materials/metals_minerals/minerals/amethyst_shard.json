@@ -1,0 +1,10 @@
+{
+  "target_type": "item",
+  "target": "minecraft:amethyst_shard",
+  "compounds": {
+    "silica": 8
+  },
+  "elements": {
+    "Fe": 1
+  }
+}

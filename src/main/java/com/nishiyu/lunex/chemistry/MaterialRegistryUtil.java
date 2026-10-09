@@ -1,5 +1,6 @@
 package com.nishiyu.lunex.chemistry;
 
+import com.nishiyu.lunex.chemistry.model.Molecule;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;

@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:obsidian",
+  "compounds": {
+    "silica": 12,
+    "forsterite": 2,
+    "fayalite": 1
+  }
+}

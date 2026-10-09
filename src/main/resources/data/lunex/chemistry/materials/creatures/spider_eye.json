@@ -1,0 +1,11 @@
+{
+  "target_type": "item",
+  "target": "minecraft:spider_eye",
+  "compounds": {
+    "chitin": 2,
+    "water": 2
+  },
+  "elements": {
+    "P": 1
+  }
+}

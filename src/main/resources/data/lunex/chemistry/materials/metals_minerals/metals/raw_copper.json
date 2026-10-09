@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:raw_copper",
+  "compounds": {
+    "chalcopyrite": 3
+  }
+}

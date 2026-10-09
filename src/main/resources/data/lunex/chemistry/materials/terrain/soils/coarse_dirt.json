@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:coarse_dirt",
+  "compounds": {
+    "silica": 8,
+    "alumina": 2,
+    "humus": 1
+  }
+}

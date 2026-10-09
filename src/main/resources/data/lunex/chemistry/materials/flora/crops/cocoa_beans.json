@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:cocoa_beans",
+  "compounds": {
+    "lipid": 4,
+    "theobromine": 2,
+    "cellulose": 2
+  }
+}

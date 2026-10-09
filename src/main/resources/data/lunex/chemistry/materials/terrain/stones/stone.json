@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:stone",
+  "compounds": {
+    "silica": 8,
+    "orthoclase": 2,
+    "calcite": 1
+  }
+}

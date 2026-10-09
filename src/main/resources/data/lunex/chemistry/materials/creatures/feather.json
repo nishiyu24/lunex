@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:feather",
+  "compounds": {
+    "keratin": 3
+  }
+}

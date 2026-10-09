@@ -1,0 +1,8 @@
+{
+  "target_type": "item",
+  "target": "minecraft:crying_obsidian",
+  "base": "item:minecraft:obsidian",
+  "elements": {
+    "Nd": 2
+  }
+}

@@ -5,23 +5,29 @@ import com.mojang.serialization.Codec;
 import com.nishiyu.lunex.api.MainframeComponentRegistry;
 import com.nishiyu.lunex.block.*;
 import com.nishiyu.lunex.blockentity.*;
+import com.nishiyu.lunex.chemistry.ChemicalCalculator;
+import com.nishiyu.lunex.chemistry.ReactionManager;
+import com.nishiyu.lunex.chemistry.loader.MaterialDataLoader;
 import com.nishiyu.lunex.datagen.DataGenerators;
 import com.nishiyu.lunex.datagen.Translatable;
 import com.nishiyu.lunex.item.ARGlassesItem;
+import com.nishiyu.lunex.item.InactiveBookItem;
 import com.nishiyu.lunex.item.ProgramDiskItem;
 import com.nishiyu.lunex.item.WrenchItem;
-import com.nishiyu.lunex.item.InactiveBookItem;
 import com.nishiyu.lunex.machine.frame.MainframeCapabilityHandler;
-import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsMenu;
 import com.nishiyu.lunex.menu.*;
+import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsMenu;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterMenu;
 import com.nishiyu.lunex.menu.turtle.TurtleBotMenu;
 import com.nishiyu.lunex.menu.turtle.TurtleSettingsMenu;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.*;
-import net.minecraft.core.component.DataComponentType;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -35,7 +41,8 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
@@ -238,6 +245,9 @@ public class Lunex {
         modEventBus.addListener(MainframeCapabilityHandler::registerCapabilities);
         modEventBus.addListener(DataGenerators::gatherData);
 
+        // データパックリロードリスナーの登録（JSON読み込み）
+        NeoForge.EVENT_BUS.addListener(this::onAddReloadListeners);
+        // サーバー起動完了時の処理（レシピ・データパック読み込み後の化学計算）
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
     }
@@ -247,7 +257,10 @@ public class Lunex {
     }
 
     private void setup(final FMLCommonSetupEvent event) {
-        event.enqueueWork(MainframeComponentRegistry::registerCoreComponents);
+        event.enqueueWork(() -> {
+            MainframeComponentRegistry.registerCoreComponents();
+            ReactionManager.registerDefaultReactions();
+        });
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
@@ -258,8 +271,18 @@ public class Lunex {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.energyStorage);
     }
 
-    private void onServerStarted(ServerStartingEvent event) {
-        com.nishiyu.lunex.chemistry.ChemicalCalculator.calculateAll(event.getServer());
+    /**
+     * データパック / JSON リロードリスナーの登録
+     */
+    private void onAddReloadListeners(AddReloadListenerEvent event) {
+        event.addListener(new MaterialDataLoader());
+    }
+
+    /**
+     * データパックとレシピが完全に読み込まれた後に化学計算を実行
+     */
+    private void onServerStarted(ServerStartedEvent event) {
+        ChemicalCalculator.calculateAll(event.getServer());
     }
 
     private void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {

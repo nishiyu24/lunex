@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:iron_ingot",
+  "compounds": {
+    "iron_pure": 9
+  }
+}

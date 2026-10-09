@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:gold_ingot",
+  "compounds": {
+    "gold_pure": 9
+  }
+}

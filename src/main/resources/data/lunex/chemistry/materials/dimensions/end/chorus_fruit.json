@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:chorus_fruit",
+  "compounds": {
+    "water": 4,
+    "sucrose": 2,
+    "fullerene": 1
+  }
+}

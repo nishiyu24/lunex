@@ -1,0 +1,9 @@
+{
+  "target_type": "item",
+  "target": "minecraft:beef",
+  "compounds": {
+    "water": 7,
+    "amino_acid": 3,
+    "lipid": 1
+  }
+}

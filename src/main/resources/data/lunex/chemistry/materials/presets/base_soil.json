@@ -1,0 +1,10 @@
+{
+  "target_type": "preset",
+  "target": "base_soil",
+  "compounds": {
+    "silica": 6,
+    "alumina": 1,
+    "humus": 2,
+    "water": 1
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "target_type": "item",
+  "target": "minecraft:gravel",
+  "compounds": {
+    "silica": 8,
+    "alumina": 1
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lava_bucket",
+  "compounds": {
+    "silica": 10,
+    "fayalite": 4,
+    "forsterite": 4,
+    "anorthite": 2
+  }
+}

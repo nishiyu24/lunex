@@ -1,0 +1,8 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sandstone",
+  "compounds": {
+    "silica": 8,
+    "calcite": 2
+  }
+}

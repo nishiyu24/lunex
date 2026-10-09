@@ -1,0 +1,7 @@
+{
+  "target_type": "item",
+  "target": "minecraft:calcite",
+  "compounds": {
+    "calcite": 10
+  }
+}

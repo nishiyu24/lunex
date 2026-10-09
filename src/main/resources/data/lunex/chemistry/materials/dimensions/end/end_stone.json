@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:end_stone",
+  "compounds": {
+    "silica": 4,
+    "fullerene": 1,
+    "xenon_trioxide": 2
+  },
+  "elements": {
+    "Am": 2
+  }
+}

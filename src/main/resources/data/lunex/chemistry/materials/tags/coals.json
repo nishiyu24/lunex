@@ -1,0 +1,8 @@
+{
+  "target_type": "tag",
+  "target": "minecraft:coals",
+  "compounds": {
+    "carbon_pure": 16,
+    "sulfur_pure": 1
+  }
+}
