@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:obsidian",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "VOLATILE:SOLID",
+    "ASTRAL:SOLID",
+    "NONE"
+  ]
+}

@@ -3,11 +3,11 @@ package com.nishiyu.lunex.chemistry.loader;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.nishiyu.lunex.chemistry.ChemicalRegistry;
+import com.nishiyu.lunex.chemistry.MaterialRegistry;
 import com.nishiyu.lunex.chemistry.MaterialRegistryUtil;
-import com.nishiyu.lunex.chemistry.model.Compound;
-import com.nishiyu.lunex.chemistry.model.Element;
-import com.nishiyu.lunex.chemistry.model.Molecule;
+import com.nishiyu.lunex.chemistry.model.BaseInk;
+import com.nishiyu.lunex.chemistry.model.InkState;
+import com.nishiyu.lunex.chemistry.model.ItemDNA;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -24,9 +24,9 @@ public class MaterialDataLoader extends SimpleJsonResourceReloadListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(MaterialDataLoader.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
-    private final Map<String, Molecule> resolvedPresets = new HashMap<>();
-    private final Map<ResourceLocation, Molecule> resolvedItems = new HashMap<>();
-    private final Map<ResourceLocation, Molecule> resolvedTags = new HashMap<>();
+    private final Map<String, ItemDNA> resolvedPresets = new HashMap<>();
+    private final Map<ResourceLocation, ItemDNA> resolvedItems = new HashMap<>();
+    private final Map<ResourceLocation, ItemDNA> resolvedTags = new HashMap<>();
 
     public MaterialDataLoader() {
         super(GSON, "chemistry/materials");
@@ -60,20 +60,20 @@ public class MaterialDataLoader extends SimpleJsonResourceReloadListener {
                 MaterialJsonDefinition def = it.next();
                 String baseRef = def.getBase();
 
-                Molecule baseMolecule = null;
+                ItemDNA baseDNA = null;
                 boolean canResolve = true;
 
                 if (baseRef != null && !baseRef.isEmpty()) {
-                    baseMolecule = findResolvedMolecule(baseRef);
-                    if (baseMolecule == null) {
+                    baseDNA = findResolvedDNA(baseRef);
+                    if (baseDNA == null) {
                         canResolve = false;
                     }
                 }
 
                 if (canResolve) {
-                    Molecule molecule = (baseMolecule != null) ? new Molecule(baseMolecule) : new Molecule();
-                    applyDifferences(molecule, def);
-                    registerResolved(def, molecule);
+                    ItemDNA dna = (baseDNA != null) ? new ItemDNA(baseDNA) : new ItemDNA();
+                    applyDifferences(dna, def);
+                    registerResolved(def, dna);
 
                     it.remove();
                     progressed = true;
@@ -88,11 +88,11 @@ public class MaterialDataLoader extends SimpleJsonResourceReloadListener {
             }
         }
 
-        LOGGER.info("Successfully loaded {} chemical materials from datapacks.",
+        LOGGER.info("Successfully loaded {} item DNA materials from datapacks.",
                 resolvedItems.size() + resolvedTags.size() + resolvedPresets.size());
     }
 
-    private Molecule findResolvedMolecule(String reference) {
+    private ItemDNA findResolvedDNA(String reference) {
         String[] parts = reference.split(":", 2);
         if (parts.length < 2) {
             return resolvedPresets.get(reference);
@@ -114,41 +114,47 @@ public class MaterialDataLoader extends SimpleJsonResourceReloadListener {
         };
     }
 
-    private void applyDifferences(Molecule molecule, MaterialJsonDefinition def) {
-        for (Map.Entry<String, Integer> entry : def.getCompounds().entrySet()) {
-            try {
-                Compound compound = Compound.valueOf(entry.getKey().toUpperCase(Locale.ROOT));
-                molecule.addCompound(compound, entry.getValue());
-            } catch (IllegalArgumentException e) {
-                LOGGER.warn("Unknown compound name '{}' in material '{}'", entry.getKey(), def.getTarget());
-            }
-        }
+    private void applyDifferences(ItemDNA dna, MaterialJsonDefinition def) {
+        if (def.getDna() != null) {
+            List<String> dnalist = def.getDna();
+            for (int i = 0; i < ItemDNA.DNA_LENGTH && i < dnalist.size(); i++) {
+                String entry = dnalist.get(i);
+                if (entry == null || entry.equalsIgnoreCase("none")) {
+                    dna.setGene(i, BaseInk.NONE, InkState.NONE);
+                    continue;
+                }
 
-        for (Map.Entry<String, Integer> entry : def.getElements().entrySet()) {
-            try {
-                Element element = Element.valueOf(entry.getKey());
-                molecule.addElement(element, entry.getValue());
-            } catch (IllegalArgumentException e) {
-                LOGGER.warn("Unknown element symbol '{}' in material '{}'", entry.getKey(), def.getTarget());
+                String[] parts = entry.split(":");
+                try {
+                    BaseInk ink = BaseInk.valueOf(parts[0].toUpperCase(Locale.ROOT));
+                    InkState state = InkState.SOLID; // 状態が省略された場合のデフォルト
+
+                    if (parts.length > 1) {
+                        state = InkState.valueOf(parts[1].toUpperCase(Locale.ROOT));
+                    }
+                    dna.setGene(i, ink, state);
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("Unknown ink or state in material '{}': {}", def.getTarget(), entry);
+                }
             }
         }
     }
 
-    private void registerResolved(MaterialJsonDefinition def, Molecule molecule) {
+    private void registerResolved(MaterialJsonDefinition def, ItemDNA dna) {
         String target = def.getTarget();
         String targetType = def.getTargetType();
 
         switch (targetType) {
-            case "preset" -> resolvedPresets.put(target, molecule);
+            case "preset" -> resolvedPresets.put(target, dna);
             case "tag" -> {
                 ResourceLocation tagLoc = ResourceLocation.parse(target);
-                resolvedTags.put(tagLoc, molecule);
-                MaterialRegistryUtil.registerTag(TagKey.create(Registries.ITEM, tagLoc), molecule);
+                resolvedTags.put(tagLoc, dna);
+                MaterialRegistryUtil.registerTag(TagKey.create(Registries.ITEM, tagLoc), dna);
             }
             case "item" -> {
                 ResourceLocation itemLoc = ResourceLocation.parse(target);
-                resolvedItems.put(itemLoc, molecule);
-                ChemicalRegistry.registerBaseMaterial(itemLoc, molecule);
+                resolvedItems.put(itemLoc, dna);
+                MaterialRegistry.registerBaseMaterial(itemLoc, dna);
             }
             default -> LOGGER.warn("Unknown target_type '{}' for '{}'", targetType, target);
         }

@@ -5,8 +5,7 @@ import com.mojang.serialization.Codec;
 import com.nishiyu.lunex.api.MainframeComponentRegistry;
 import com.nishiyu.lunex.block.*;
 import com.nishiyu.lunex.blockentity.*;
-import com.nishiyu.lunex.chemistry.ChemicalCalculator;
-import com.nishiyu.lunex.chemistry.ReactionManager;
+import com.nishiyu.lunex.chemistry.MaterialCalculator;
 import com.nishiyu.lunex.chemistry.loader.MaterialDataLoader;
 import com.nishiyu.lunex.datagen.DataGenerators;
 import com.nishiyu.lunex.datagen.Translatable;
@@ -257,10 +256,7 @@ public class Lunex {
     }
 
     private void setup(final FMLCommonSetupEvent event) {
-        event.enqueueWork(() -> {
-            MainframeComponentRegistry.registerCoreComponents();
-            ReactionManager.registerDefaultReactions();
-        });
+        event.enqueueWork(MainframeComponentRegistry::registerCoreComponents);
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
@@ -282,7 +278,7 @@ public class Lunex {
      * データパックとレシピが完全に読み込まれた後に化学計算を実行
      */
     private void onServerStarted(ServerStartedEvent event) {
-        ChemicalCalculator.calculateAll(event.getServer());
+        MaterialCalculator.calculateAll(event.getServer());
     }
 
     private void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {
