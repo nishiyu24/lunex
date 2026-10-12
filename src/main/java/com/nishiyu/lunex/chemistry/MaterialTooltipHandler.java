@@ -31,6 +31,10 @@ public class MaterialTooltipHandler {
         ItemStack itemStack = event.getItemStack();
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(itemStack.getItem());
 
+        if (itemId.getNamespace().equals(Lunex.MODID)) {
+            return;
+        }
+
         ItemDNA dna = MaterialRegistry.getDNA(itemId);
 
         if (dna != null && !dna.isEmpty()) {

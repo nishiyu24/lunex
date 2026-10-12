@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dark_oak_sapling",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:raw_gold_block",
+  "dna": [
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "METALLIC:LIQUID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "NONE"
+  ]
+}

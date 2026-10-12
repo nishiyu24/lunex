@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:peony",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "METALLIC:SOLID",
+    "CARBONIC:SOLID",
+    "NONE"
+  ]
+}

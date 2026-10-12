@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:acacia_leaves",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

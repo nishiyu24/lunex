@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:soul_soil",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "BIOGENIC:SOLID",
+    "VOLATILE:SOLID",
+    "NONE"
+  ]
+}

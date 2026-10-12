@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:flowering_azalea_leaves",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "SILICATE:SOLID",
+    "LUMINOUS:SOLID",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:mangrove_roots",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "SILICATE:SOLID",
+    "NONE"
+  ]
+}

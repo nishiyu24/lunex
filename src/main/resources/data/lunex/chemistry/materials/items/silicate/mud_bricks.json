@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:mud_bricks",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "NONE"
+  ]
+}

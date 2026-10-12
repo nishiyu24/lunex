@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:large_fern",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE"
+  ]
+}

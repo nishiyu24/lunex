@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:shulker_shell",
+  "dna": [
+    "ASTRAL:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:GAS",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "ASTRAL:CHARGED"
+  ]
+}

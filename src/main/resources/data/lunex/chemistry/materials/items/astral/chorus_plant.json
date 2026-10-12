@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:chorus_plant",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:GAS",
+    "NONE"
+  ]
+}

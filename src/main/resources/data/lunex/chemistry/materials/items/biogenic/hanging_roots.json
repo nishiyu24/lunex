@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:hanging_roots",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

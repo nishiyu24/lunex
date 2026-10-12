@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:potion",
+  "dna": [
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

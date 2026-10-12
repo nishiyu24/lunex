@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:wheat_seeds",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

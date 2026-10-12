@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:goat_horn",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

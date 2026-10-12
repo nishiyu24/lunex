@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:cactus",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:ochre_froglight",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "LUMINOUS:SOLID",
+    "BIOGENIC:LIQUID",
+    "VOLATILE:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

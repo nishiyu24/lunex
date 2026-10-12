@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:bone_block",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID"
+  ]
+}

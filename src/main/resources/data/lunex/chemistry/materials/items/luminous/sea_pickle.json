@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sea_pickle",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "LUMINOUS:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

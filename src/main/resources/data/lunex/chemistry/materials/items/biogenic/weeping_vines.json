@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:weeping_vines",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "VOLATILE:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

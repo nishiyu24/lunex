@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:rabbit_foot",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "ASTRAL:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

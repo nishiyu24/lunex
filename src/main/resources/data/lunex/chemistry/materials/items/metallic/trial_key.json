@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:trial_key",
+  "dna": [
+    "METALLIC:SOLID",
+    "METALLIC:LIQUID",
+    "ASTRAL:SOLID",
+    "ASTRAL:GAS",
+    "NONE",
+    "NONE"
+  ]
+}

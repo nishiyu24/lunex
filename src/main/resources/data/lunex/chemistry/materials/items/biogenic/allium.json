@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:allium",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE"
+  ]
+}

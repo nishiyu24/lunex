@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:powder_snow_bucket",
+  "dna": [
+    "AQUEOUS:SOLID",
+    "AQUEOUS:SOLID",
+    "AQUEOUS:GAS",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:skeleton_skull",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "CONDUCTIVE:CHARGED",
+    "NONE",
+    "NONE"
+  ]
+}

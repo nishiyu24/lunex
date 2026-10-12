@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:quartz_block",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "LUMINOUS:SOLID",
+    "NONE"
+  ]
+}

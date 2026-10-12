@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:basalt",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:LIQUID",
+    "SILICATE:LIQUID",
+    "METALLIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

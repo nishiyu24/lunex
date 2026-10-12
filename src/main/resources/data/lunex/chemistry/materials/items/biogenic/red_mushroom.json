@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:red_mushroom",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "VOLATILE:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:smooth_basalt",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "VOLATILE:SOLID",
+    "VOLATILE:LIQUID",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:raw_copper",
+  "dna": [
+    "METALLIC:SOLID",
+    "CONDUCTIVE:SOLID",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

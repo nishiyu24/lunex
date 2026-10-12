@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:packed_mud",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "CARBONIC:SOLID",
+    "NONE"
+  ]
+}

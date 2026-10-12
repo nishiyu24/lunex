@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:horn_coral",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "METALLIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:raw_copper_block",
+  "dna": [
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "CONDUCTIVE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "NONE"
+  ]
+}

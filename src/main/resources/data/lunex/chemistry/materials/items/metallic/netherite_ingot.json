@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:netherite_ingot",
+  "dna": [
+    "METALLIC:SOLID",
+    "METALLIC:CHARGED",
+    "ANOMALOUS:SOLID",
+    "ANOMALOUS:CHARGED",
+    "CARBONIC:SOLID",
+    "VOLATILE:GAS"
+  ]
+}

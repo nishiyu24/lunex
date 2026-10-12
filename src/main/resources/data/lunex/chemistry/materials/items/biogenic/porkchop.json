@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:porkchop",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

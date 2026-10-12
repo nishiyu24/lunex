@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dried_kelp_block",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "VOLATILE:SOLID",
+    "NONE"
+  ]
+}

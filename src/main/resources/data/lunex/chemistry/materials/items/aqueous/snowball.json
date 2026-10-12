@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:snowball",
+  "dna": [
+    "AQUEOUS:SOLID",
+    "AQUEOUS:GAS",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

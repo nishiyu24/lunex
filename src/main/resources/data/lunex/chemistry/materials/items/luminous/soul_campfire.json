@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:soul_campfire",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "CARBONIC:SOLID",
+    "VOLATILE:GAS",
+    "SILICATE:SOLID",
+    "ASTRAL:GAS",
+    "NONE"
+  ]
+}

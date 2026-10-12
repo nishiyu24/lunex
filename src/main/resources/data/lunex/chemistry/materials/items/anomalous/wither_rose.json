@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:wither_rose",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "ANOMALOUS:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

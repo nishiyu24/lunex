@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:breeze_rod",
+  "dna": [
+    "VOLATILE:GAS",
+    "VOLATILE:GAS",
+    "ASTRAL:GAS",
+    "CONDUCTIVE:GAS",
+    "SILICATE:SOLID",
+    "NONE"
+  ]
+}

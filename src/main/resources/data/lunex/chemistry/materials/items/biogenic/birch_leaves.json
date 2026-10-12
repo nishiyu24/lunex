@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:birch_leaves",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

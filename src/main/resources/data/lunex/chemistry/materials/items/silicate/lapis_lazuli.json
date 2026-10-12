@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lapis_lazuli",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:LIQUID",
+    "CONDUCTIVE:SOLID",
+    "CONDUCTIVE:LIQUID",
+    "ASTRAL:SOLID",
+    "ASTRAL:LIQUID"
+  ]
+}

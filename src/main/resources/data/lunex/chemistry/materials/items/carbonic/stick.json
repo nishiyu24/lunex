@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:stick",
+  "dna": [
+    "CARBONIC:SOLID",
+    "BIOGENIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

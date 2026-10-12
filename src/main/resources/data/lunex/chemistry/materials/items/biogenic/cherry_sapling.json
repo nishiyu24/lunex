@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:cherry_sapling",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "LUMINOUS:SOLID",
+    "BIOGENIC:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

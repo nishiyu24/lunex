@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:redstone_torch",
+  "dna": [
+    "CONDUCTIVE:SOLID",
+    "CONDUCTIVE:CHARGED",
+    "LUMINOUS:SOLID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

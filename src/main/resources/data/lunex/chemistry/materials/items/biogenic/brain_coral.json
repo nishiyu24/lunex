@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:brain_coral",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "CONDUCTIVE:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

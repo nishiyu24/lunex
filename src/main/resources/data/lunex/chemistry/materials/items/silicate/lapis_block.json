@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lapis_block",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "AQUEOUS:LIQUID",
+    "ASTRAL:SOLID"
+  ]
+}

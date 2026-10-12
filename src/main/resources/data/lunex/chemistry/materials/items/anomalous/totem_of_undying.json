@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:totem_of_undying",
+  "dna": [
+    "METALLIC:SOLID",
+    "METALLIC:LIQUID",
+    "BIOGENIC:LIQUID",
+    "ASTRAL:SOLID",
+    "ASTRAL:CHARGED",
+    "ANOMALOUS:SOLID"
+  ]
+}

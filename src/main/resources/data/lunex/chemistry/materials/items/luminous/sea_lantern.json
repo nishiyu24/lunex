@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sea_lantern",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "LUMINOUS:LIQUID",
+    "LUMINOUS:GAS",
+    "SILICATE:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:LIQUID"
+  ]
+}

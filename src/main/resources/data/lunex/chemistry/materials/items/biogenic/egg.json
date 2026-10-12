@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:egg",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

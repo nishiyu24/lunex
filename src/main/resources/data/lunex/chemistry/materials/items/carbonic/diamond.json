@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:diamond",
+  "dna": [
+    "CARBONIC:SOLID",
+    "CARBONIC:LIQUID",
+    "LUMINOUS:SOLID",
+    "LUMINOUS:GAS",
+    "ASTRAL:SOLID",
+    "ASTRAL:CHARGED"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:zombie_head",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "CONDUCTIVE:CHARGED",
+    "NONE",
+    "NONE"
+  ]
+}

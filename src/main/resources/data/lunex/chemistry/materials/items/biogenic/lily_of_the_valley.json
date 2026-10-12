@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lily_of_the_valley",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "VOLATILE:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

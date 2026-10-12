@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:blue_ice",
+  "dna": [
+    "AQUEOUS:SOLID",
+    "AQUEOUS:SOLID",
+    "LUMINOUS:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:LIQUID",
+    "ASTRAL:GAS"
+  ]
+}

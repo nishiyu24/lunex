@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lingering_potion",
+  "dna": [
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:GAS",
+    "AQUEOUS:GAS",
+    "SILICATE:SOLID",
+    "VOLATILE:GAS",
+    "ANOMALOUS:GAS"
+  ]
+}

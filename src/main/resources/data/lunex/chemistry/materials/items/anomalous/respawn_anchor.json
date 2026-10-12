@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:respawn_anchor",
+  "dna": [
+    "ANOMALOUS:SOLID",
+    "ANOMALOUS:CHARGED",
+    "ASTRAL:CHARGED",
+    "LUMINOUS:CHARGED",
+    "SILICATE:SOLID",
+    "VOLATILE:GAS"
+  ]
+}

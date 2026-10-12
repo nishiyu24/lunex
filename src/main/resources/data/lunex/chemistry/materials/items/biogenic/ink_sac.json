@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:ink_sac",
+  "dna": [
+    "BIOGENIC:LIQUID",
+    "CARBONIC:LIQUID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

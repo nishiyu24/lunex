@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:pink_petals",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "METALLIC:SOLID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

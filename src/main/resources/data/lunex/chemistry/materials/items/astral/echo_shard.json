@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:echo_shard",
+  "dna": [
+    "ASTRAL:SOLID",
+    "ASTRAL:LIQUID",
+    "ASTRAL:GAS",
+    "ASTRAL:CHARGED",
+    "ANOMALOUS:SOLID",
+    "SILICATE:SOLID"
+  ]
+}

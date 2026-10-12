@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:milk_bucket",
+  "dna": [
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "BIOGENIC:LIQUID",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID"
+  ]
+}

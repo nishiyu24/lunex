@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:verdant_froglight",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "LUMINOUS:SOLID",
+    "BIOGENIC:LIQUID",
+    "VOLATILE:GAS",
+    "NONE",
+    "NONE"
+  ]
+}

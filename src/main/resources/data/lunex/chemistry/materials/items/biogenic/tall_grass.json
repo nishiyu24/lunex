@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:tall_grass",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "NONE"
+  ]
+}

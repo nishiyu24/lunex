@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:spore_blossom",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "LUMINOUS:GAS",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

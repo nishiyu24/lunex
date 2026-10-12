@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:purpur_block",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:SOLID",
+    "CARBONIC:SOLID",
+    "NONE"
+  ]
+}

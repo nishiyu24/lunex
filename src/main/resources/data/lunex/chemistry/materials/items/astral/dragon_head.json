@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dragon_head",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:GAS",
+    "ANOMALOUS:SOLID",
+    "VOLATILE:GAS"
+  ]
+}

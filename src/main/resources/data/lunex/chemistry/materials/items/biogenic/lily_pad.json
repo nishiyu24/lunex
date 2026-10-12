@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lily_pad",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "AQUEOUS:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dragon_egg",
+  "dna": [
+    "ANOMALOUS:CHARGED",
+    "ANOMALOUS:SOLID",
+    "ANOMALOUS:LIQUID",
+    "ASTRAL:CHARGED",
+    "ASTRAL:GAS",
+    "BIOGENIC:CHARGED"
+  ]
+}

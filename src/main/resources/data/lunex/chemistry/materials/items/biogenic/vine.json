@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:vine",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

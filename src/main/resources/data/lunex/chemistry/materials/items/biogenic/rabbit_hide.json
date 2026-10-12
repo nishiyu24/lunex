@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:rabbit_hide",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:warped_wart_block",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "VOLATILE:SOLID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

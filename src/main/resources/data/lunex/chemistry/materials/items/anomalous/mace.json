@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:mace",
+  "dna": [
+    "ANOMALOUS:SOLID",
+    "ANOMALOUS:CHARGED",
+    "VOLATILE:GAS",
+    "VOLATILE:CHARGED",
+    "ASTRAL:CHARGED",
+    "METALLIC:SOLID"
+  ]
+}

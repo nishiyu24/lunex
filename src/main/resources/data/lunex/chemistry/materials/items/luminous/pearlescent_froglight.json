@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:pearlescent_froglight",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "LUMINOUS:SOLID",
+    "BIOGENIC:LIQUID",
+    "VOLATILE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

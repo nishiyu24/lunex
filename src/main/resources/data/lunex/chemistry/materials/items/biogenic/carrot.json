@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:carrot",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

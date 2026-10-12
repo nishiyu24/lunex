@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:jungle_sapling",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "BIOGENIC:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

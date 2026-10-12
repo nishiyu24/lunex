@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:rabbit",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "BIOGENIC:LIQUID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

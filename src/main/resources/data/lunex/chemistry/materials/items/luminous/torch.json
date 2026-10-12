@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:torch",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "LUMINOUS:GAS",
+    "CARBONIC:SOLID",
+    "VOLATILE:GAS",
+    "NONE",
+    "NONE"
+  ]
+}

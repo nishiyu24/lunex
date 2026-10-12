@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:deepslate_lapis_ore",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "ASTRAL:SOLID"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:glow_lichen",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "LUMINOUS:SOLID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

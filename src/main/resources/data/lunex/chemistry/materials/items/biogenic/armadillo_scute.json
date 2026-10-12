@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:armadillo_scute",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "CARBONIC:SOLID",
+    "METALLIC:SOLID",
+    "NONE"
+  ]
+}

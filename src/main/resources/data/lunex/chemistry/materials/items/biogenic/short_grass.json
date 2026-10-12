@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:short_grass",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

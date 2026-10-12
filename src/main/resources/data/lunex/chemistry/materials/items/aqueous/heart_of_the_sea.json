@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:heart_of_the_sea",
+  "dna": [
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:GAS",
+    "AQUEOUS:CHARGED",
+    "ASTRAL:SOLID",
+    "LUMINOUS:CHARGED",
+    "ANOMALOUS:SOLID"
+  ]
+}

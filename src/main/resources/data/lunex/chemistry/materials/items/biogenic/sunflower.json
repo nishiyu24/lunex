@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sunflower",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "LUMINOUS:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

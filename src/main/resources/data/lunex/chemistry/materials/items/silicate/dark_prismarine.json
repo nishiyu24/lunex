@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dark_prismarine",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "CARBONIC:SOLID"
+  ]
+}

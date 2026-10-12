@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:nautilus_shell",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

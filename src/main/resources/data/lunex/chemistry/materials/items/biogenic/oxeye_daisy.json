@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:oxeye_daisy",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "NONE"
+  ]
+}

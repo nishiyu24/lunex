@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:cobbled_deepslate",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "METALLIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

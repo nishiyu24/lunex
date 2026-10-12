@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:conduit",
+  "dna": [
+    "ANOMALOUS:CHARGED",
+    "ANOMALOUS:SOLID",
+    "AQUEOUS:CHARGED",
+    "AQUEOUS:LIQUID",
+    "ASTRAL:CHARGED",
+    "SILICATE:SOLID"
+  ]
+}

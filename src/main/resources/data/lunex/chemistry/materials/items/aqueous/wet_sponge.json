@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:wet_sponge",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "ASTRAL:SOLID",
+    "NONE"
+  ]
+}

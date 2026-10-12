@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:tnt",
+  "dna": [
+    "VOLATILE:SOLID",
+    "VOLATILE:SOLID",
+    "VOLATILE:GAS",
+    "SILICATE:SOLID",
+    "CARBONIC:SOLID",
+    "NONE"
+  ]
+}

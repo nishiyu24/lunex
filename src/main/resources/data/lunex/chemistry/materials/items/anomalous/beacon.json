@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:beacon",
+  "dna": [
+    "ANOMALOUS:CHARGED",
+    "ANOMALOUS:SOLID",
+    "LUMINOUS:CHARGED",
+    "LUMINOUS:GAS",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID"
+  ]
+}

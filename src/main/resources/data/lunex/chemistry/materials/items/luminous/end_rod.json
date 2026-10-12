@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:end_rod",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "LUMINOUS:GAS",
+    "LUMINOUS:CHARGED",
+    "ASTRAL:SOLID",
+    "ASTRAL:GAS",
+    "NONE"
+  ]
+}

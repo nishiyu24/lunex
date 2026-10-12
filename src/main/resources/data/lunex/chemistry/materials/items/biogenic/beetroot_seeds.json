@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:beetroot_seeds",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

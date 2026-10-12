@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:water_bucket",
+  "dna": [
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID"
+  ]
+}

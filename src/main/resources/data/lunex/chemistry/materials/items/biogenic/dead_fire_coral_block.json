@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dead_fire_coral_block",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "BIOGENIC:SOLID",
+    "VOLATILE:SOLID"
+  ]
+}

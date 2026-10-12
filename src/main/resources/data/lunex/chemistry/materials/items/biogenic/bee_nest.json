@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:bee_nest",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE"
+  ]
+}

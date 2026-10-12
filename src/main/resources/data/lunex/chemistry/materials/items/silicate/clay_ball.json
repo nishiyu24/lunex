@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:clay_ball",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

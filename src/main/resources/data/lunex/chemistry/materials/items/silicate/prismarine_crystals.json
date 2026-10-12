@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:prismarine_crystals",
+  "dna": [
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "LUMINOUS:SOLID",
+    "LUMINOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

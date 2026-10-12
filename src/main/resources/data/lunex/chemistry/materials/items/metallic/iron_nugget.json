@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:iron_nugget",
+  "dna": [
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:oak_leaves",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

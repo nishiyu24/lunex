@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:poppy",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "METALLIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

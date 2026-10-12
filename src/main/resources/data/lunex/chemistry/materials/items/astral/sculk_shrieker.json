@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sculk_shrieker",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:GAS",
+    "CONDUCTIVE:SOLID",
+    "NONE"
+  ]
+}

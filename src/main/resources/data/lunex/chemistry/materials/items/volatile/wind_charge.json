@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:wind_charge",
+  "dna": [
+    "VOLATILE:GAS",
+    "VOLATILE:GAS",
+    "VOLATILE:GAS",
+    "ASTRAL:GAS",
+    "CONDUCTIVE:GAS",
+    "ASTRAL:CHARGED"
+  ]
+}

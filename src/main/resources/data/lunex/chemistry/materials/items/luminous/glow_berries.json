@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:glow_berries",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "LUMINOUS:SOLID",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

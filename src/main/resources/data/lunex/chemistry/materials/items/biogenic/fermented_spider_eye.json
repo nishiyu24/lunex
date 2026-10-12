@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:fermented_spider_eye",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "VOLATILE:GAS",
+    "NONE"
+  ]
+}

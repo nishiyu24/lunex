@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:calibrated_sculk_sensor",
+  "dna": [
+    "ASTRAL:SOLID",
+    "ASTRAL:CHARGED",
+    "CONDUCTIVE:SOLID",
+    "CONDUCTIVE:CHARGED",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID"
+  ]
+}

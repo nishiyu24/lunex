@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:mangrove_propagule",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sculk_vein",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "ASTRAL:SOLID",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

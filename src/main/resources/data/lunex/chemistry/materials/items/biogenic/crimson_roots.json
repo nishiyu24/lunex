@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:crimson_roots",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "VOLATILE:SOLID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

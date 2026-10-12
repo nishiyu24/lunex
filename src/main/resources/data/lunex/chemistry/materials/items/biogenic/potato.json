@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:potato",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

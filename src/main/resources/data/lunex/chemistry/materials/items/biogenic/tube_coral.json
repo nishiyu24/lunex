@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:tube_coral",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "LUMINOUS:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

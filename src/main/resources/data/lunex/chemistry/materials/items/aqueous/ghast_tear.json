@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:ghast_tear",
+  "dna": [
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:GAS",
+    "BIOGENIC:LIQUID",
+    "VOLATILE:GAS",
+    "ASTRAL:LIQUID",
+    "ASTRAL:GAS"
+  ]
+}

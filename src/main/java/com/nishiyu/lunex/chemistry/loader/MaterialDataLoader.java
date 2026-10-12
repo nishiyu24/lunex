@@ -34,6 +34,7 @@ public class MaterialDataLoader extends SimpleJsonResourceReloadListener {
 
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> resources, ResourceManager resourceManager, ProfilerFiller profiler) {
+        MaterialRegistry.clear();
         resolvedPresets.clear();
         resolvedItems.clear();
         resolvedTags.clear();

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:nether_star",
+  "dna": [
+    "ANOMALOUS:CHARGED",
+    "ANOMALOUS:GAS",
+    "ANOMALOUS:SOLID",
+    "LUMINOUS:CHARGED",
+    "LUMINOUS:GAS",
+    "ASTRAL:CHARGED"
+  ]
+}

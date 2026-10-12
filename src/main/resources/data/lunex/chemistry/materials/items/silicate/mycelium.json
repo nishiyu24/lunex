@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:mycelium",
+  "dna": [
+    "SILICATE:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

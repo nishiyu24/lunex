@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:red_tulip",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "METALLIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

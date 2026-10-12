@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:cherry_log",
+  "dna": [
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "LUMINOUS:SOLID",
+    "NONE"
+  ]
+}

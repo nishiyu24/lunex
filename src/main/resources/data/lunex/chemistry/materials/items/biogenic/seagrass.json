@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:seagrass",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

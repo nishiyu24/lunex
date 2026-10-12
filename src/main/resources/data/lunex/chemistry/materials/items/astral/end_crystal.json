@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:end_crystal",
+  "dna": [
+    "ASTRAL:SOLID",
+    "ASTRAL:CHARGED",
+    "ANOMALOUS:SOLID",
+    "ANOMALOUS:CHARGED",
+    "LUMINOUS:CHARGED",
+    "SILICATE:SOLID"
+  ]
+}

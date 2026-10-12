@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sponge",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "AQUEOUS:SOLID",
+    "ASTRAL:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

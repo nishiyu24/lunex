@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:gunpowder",
+  "dna": [
+    "VOLATILE:SOLID",
+    "VOLATILE:SOLID",
+    "VOLATILE:GAS",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:torchflower",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "LUMINOUS:SOLID",
+    "VOLATILE:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

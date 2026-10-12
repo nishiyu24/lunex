@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:rotten_flesh",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:honeycomb",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

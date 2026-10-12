@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:mushroom_stew",
+  "dna": [
+    "AQUEOUS:LIQUID",
+    "BIOGENIC:LIQUID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dripstone_block",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

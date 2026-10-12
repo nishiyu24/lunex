@@ -5,7 +5,6 @@ import com.mojang.serialization.Codec;
 import com.nishiyu.lunex.api.MainframeComponentRegistry;
 import com.nishiyu.lunex.block.*;
 import com.nishiyu.lunex.blockentity.*;
-import com.nishiyu.lunex.chemistry.MaterialCalculator;
 import com.nishiyu.lunex.chemistry.loader.MaterialDataLoader;
 import com.nishiyu.lunex.datagen.DataGenerators;
 import com.nishiyu.lunex.datagen.Translatable;
@@ -246,8 +245,6 @@ public class Lunex {
 
         // データパックリロードリスナーの登録（JSON読み込み）
         NeoForge.EVENT_BUS.addListener(this::onAddReloadListeners);
-        // サーバー起動完了時の処理（レシピ・データパック読み込み後の化学計算）
-        NeoForge.EVENT_BUS.addListener(this::onServerStarted);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
     }
 
@@ -272,13 +269,6 @@ public class Lunex {
      */
     private void onAddReloadListeners(AddReloadListenerEvent event) {
         event.addListener(new MaterialDataLoader());
-    }
-
-    /**
-     * データパックとレシピが完全に読み込まれた後に化学計算を実行
-     */
-    private void onServerStarted(ServerStartedEvent event) {
-        MaterialCalculator.calculateAll(event.getServer());
     }
 
     private void onServerStopping(net.neoforged.neoforge.event.server.ServerStoppingEvent event) {

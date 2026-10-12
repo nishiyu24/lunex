@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:moss_carpet",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:ender_eye",
+  "dna": [
+    "ASTRAL:SOLID",
+    "ASTRAL:LIQUID",
+    "ASTRAL:CHARGED",
+    "VOLATILE:GAS",
+    "VOLATILE:CHARGED",
+    "LUMINOUS:GAS"
+  ]
+}

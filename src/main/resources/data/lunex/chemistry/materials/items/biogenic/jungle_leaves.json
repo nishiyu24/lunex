@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:jungle_leaves",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "CARBONIC:SOLID",
+    "NONE"
+  ]
+}

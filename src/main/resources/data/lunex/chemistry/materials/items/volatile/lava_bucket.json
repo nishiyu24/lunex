@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lava_bucket",
+  "dna": [
+    "SILICATE:LIQUID",
+    "SILICATE:LIQUID",
+    "VOLATILE:LIQUID",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "METALLIC:SOLID"
+  ]
+}

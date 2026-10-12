@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:fire_charge",
+  "dna": [
+    "VOLATILE:SOLID",
+    "VOLATILE:GAS",
+    "LUMINOUS:GAS",
+    "LUMINOUS:CHARGED",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:stripped_jungle_log",
+  "dna": [
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:gilded_blackstone",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "CARBONIC:SOLID",
+    "VOLATILE:SOLID",
+    "METALLIC:SOLID",
+    "METALLIC:LIQUID"
+  ]
+}

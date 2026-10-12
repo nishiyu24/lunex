@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lightning_rod",
+  "dna": [
+    "METALLIC:SOLID",
+    "METALLIC:SOLID",
+    "CONDUCTIVE:SOLID",
+    "CONDUCTIVE:CHARGED",
+    "VOLATILE:CHARGED",
+    "NONE"
+  ]
+}

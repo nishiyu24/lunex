@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:spider_eye",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "VOLATILE:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

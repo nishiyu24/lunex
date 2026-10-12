@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:wither_skeleton_skull",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "CARBONIC:SOLID",
+    "VOLATILE:GAS",
+    "ANOMALOUS:SOLID",
+    "ANOMALOUS:LIQUID"
+  ]
+}

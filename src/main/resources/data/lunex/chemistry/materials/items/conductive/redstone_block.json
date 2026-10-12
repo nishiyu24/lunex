@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:redstone_block",
+  "dna": [
+    "CONDUCTIVE:SOLID",
+    "CONDUCTIVE:SOLID",
+    "CONDUCTIVE:LIQUID",
+    "CONDUCTIVE:CHARGED",
+    "SILICATE:SOLID",
+    "VOLATILE:SOLID"
+  ]
+}

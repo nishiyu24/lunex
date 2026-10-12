@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dandelion",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:diamond_ore",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "CARBONIC:SOLID",
+    "LUMINOUS:SOLID",
+    "ASTRAL:SOLID",
+    "NONE"
+  ]
+}

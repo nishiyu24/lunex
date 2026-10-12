@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:turtle_egg",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

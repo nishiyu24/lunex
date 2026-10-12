@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:blaze_rod",
+  "dna": [
+    "VOLATILE:SOLID",
+    "VOLATILE:LIQUID",
+    "VOLATILE:GAS",
+    "LUMINOUS:SOLID",
+    "LUMINOUS:GAS",
+    "NONE"
+  ]
+}

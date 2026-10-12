@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:crimson_fungus",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "VOLATILE:SOLID",
+    "VOLATILE:GAS",
+    "NONE",
+    "NONE"
+  ]
+}

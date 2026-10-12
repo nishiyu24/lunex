@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:heavy_core",
+  "dna": [
+    "METALLIC:SOLID",
+    "METALLIC:LIQUID",
+    "METALLIC:GAS",
+    "ASTRAL:SOLID",
+    "ANOMALOUS:SOLID",
+    "CONDUCTIVE:CHARGED"
+  ]
+}

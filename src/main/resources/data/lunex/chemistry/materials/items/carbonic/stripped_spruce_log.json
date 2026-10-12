@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:stripped_spruce_log",
+  "dna": [
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

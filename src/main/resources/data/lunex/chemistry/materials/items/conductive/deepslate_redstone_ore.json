@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:deepslate_redstone_ore",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "CONDUCTIVE:SOLID",
+    "CONDUCTIVE:CHARGED",
+    "LUMINOUS:GAS"
+  ]
+}

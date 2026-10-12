@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:bamboo",
+  "dna": [
+    "CARBONIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

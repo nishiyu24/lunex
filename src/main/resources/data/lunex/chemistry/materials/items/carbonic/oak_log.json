@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:oak_log",
+  "dna": [
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "BIOGENIC:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

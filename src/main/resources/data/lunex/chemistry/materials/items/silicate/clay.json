@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:clay",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

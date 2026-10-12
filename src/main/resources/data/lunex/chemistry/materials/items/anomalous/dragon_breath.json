@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:dragon_breath",
+  "dna": [
+    "ANOMALOUS:GAS",
+    "ANOMALOUS:GAS",
+    "ASTRAL:GAS",
+    "VOLATILE:GAS",
+    "ANOMALOUS:CHARGED",
+    "SILICATE:SOLID"
+  ]
+}

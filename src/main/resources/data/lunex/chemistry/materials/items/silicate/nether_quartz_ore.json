@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:nether_quartz_ore",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "VOLATILE:SOLID",
+    "VOLATILE:GAS",
+    "LUMINOUS:SOLID",
+    "NONE"
+  ]
+}

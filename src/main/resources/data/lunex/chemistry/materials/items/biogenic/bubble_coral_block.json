@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:bubble_coral_block",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:GAS",
+    "NONE"
+  ]
+}

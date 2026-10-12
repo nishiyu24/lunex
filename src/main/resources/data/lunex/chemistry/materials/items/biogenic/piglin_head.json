@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:piglin_head",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "METALLIC:SOLID",
+    "VOLATILE:SOLID",
+    "CONDUCTIVE:CHARGED",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sculk",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "ASTRAL:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

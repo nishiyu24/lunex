@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:coarse_dirt",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "BIOGENIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

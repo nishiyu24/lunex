@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:small_dripleaf",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:recovery_compass",
+  "dna": [
+    "ANOMALOUS:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:CHARGED",
+    "METALLIC:SOLID",
+    "CONDUCTIVE:CHARGED",
+    "NONE"
+  ]
+}

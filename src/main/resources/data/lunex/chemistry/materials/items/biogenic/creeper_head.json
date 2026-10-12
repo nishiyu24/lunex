@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:creeper_head",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "VOLATILE:SOLID",
+    "VOLATILE:GAS",
+    "CONDUCTIVE:CHARGED",
+    "NONE",
+    "NONE"
+  ]
+}

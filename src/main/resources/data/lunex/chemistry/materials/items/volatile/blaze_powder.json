@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:blaze_powder",
+  "dna": [
+    "VOLATILE:SOLID",
+    "VOLATILE:GAS",
+    "VOLATILE:GAS",
+    "LUMINOUS:SOLID",
+    "LUMINOUS:GAS",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:frogspawn",
+  "dna": [
+    "BIOGENIC:LIQUID",
+    "BIOGENIC:LIQUID",
+    "AQUEOUS:LIQUID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:slime_ball",
+  "dna": [
+    "BIOGENIC:LIQUID",
+    "BIOGENIC:LIQUID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

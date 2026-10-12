@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:end_stone",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "ASTRAL:SOLID",
+    "ASTRAL:GAS",
+    "NONE",
+    "NONE"
+  ]
+}

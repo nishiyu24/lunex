@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:warped_fungus",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "ASTRAL:SOLID",
+    "ASTRAL:GAS",
+    "NONE",
+    "NONE"
+  ]
+}

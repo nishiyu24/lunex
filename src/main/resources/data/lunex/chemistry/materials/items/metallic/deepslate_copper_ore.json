@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:deepslate_copper_ore",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "METALLIC:SOLID",
+    "CONDUCTIVE:SOLID",
+    "CONDUCTIVE:LIQUID"
+  ]
+}

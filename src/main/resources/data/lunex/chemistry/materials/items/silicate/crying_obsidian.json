@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:crying_obsidian",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "VOLATILE:SOLID",
+    "ASTRAL:LIQUID",
+    "LUMINOUS:LIQUID"
+  ]
+}

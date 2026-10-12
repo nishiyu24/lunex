@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:cocoa_beans",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

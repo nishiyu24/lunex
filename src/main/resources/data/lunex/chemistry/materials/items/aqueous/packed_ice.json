@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:packed_ice",
+  "dna": [
+    "AQUEOUS:SOLID",
+    "AQUEOUS:SOLID",
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:LIQUID",
+    "NONE"
+  ]
+}

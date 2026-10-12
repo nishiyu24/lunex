@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:azure_bluet",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "CARBONIC:SOLID",
+    "SILICATE:SOLID",
+    "NONE"
+  ]
+}

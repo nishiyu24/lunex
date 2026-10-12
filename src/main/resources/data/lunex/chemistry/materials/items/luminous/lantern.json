@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lantern",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "LUMINOUS:GAS",
+    "METALLIC:SOLID",
+    "METALLIC:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

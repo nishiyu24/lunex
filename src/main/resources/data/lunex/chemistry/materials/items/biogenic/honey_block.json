@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:honey_block",
+  "dna": [
+    "BIOGENIC:LIQUID",
+    "BIOGENIC:LIQUID",
+    "AQUEOUS:LIQUID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

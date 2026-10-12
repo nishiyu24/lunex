@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:rose_bush",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:SOLID",
+    "METALLIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

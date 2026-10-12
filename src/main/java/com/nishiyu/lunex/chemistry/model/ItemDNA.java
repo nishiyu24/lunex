@@ -53,6 +53,11 @@ public class ItemDNA {
     }
 
     @Override
+    public int hashCode() {
+        return Arrays.hashCode(this.sequence);
+    }
+
+    @Override
     public String toString() {
         return Arrays.toString(sequence);
     }

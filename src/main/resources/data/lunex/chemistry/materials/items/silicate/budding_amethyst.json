@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:budding_amethyst",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "LUMINOUS:SOLID",
+    "LUMINOUS:LIQUID",
+    "ASTRAL:SOLID",
+    "ASTRAL:CHARGED"
+  ]
+}

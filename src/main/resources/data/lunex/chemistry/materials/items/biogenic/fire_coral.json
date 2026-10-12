@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:fire_coral",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "AQUEOUS:LIQUID",
+    "VOLATILE:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

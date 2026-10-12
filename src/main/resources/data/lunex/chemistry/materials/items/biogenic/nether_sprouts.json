@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:nether_sprouts",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "VOLATILE:GAS",
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

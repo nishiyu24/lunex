@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:sweet_berries",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

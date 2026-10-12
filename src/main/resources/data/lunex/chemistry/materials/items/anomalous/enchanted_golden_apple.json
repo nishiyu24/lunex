@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:enchanted_golden_apple",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "METALLIC:SOLID",
+    "METALLIC:LIQUID",
+    "LUMINOUS:CHARGED",
+    "ASTRAL:CHARGED",
+    "ANOMALOUS:CHARGED"
+  ]
+}

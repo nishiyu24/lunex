@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:prismarine_shard",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "AQUEOUS:SOLID",
+    "BIOGENIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

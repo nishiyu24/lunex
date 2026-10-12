@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:jack_o_lantern",
+  "dna": [
+    "LUMINOUS:SOLID",
+    "LUMINOUS:GAS",
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}

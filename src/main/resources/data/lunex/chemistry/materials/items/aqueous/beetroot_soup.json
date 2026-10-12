@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:beetroot_soup",
+  "dna": [
+    "AQUEOUS:LIQUID",
+    "BIOGENIC:LIQUID",
+    "BIOGENIC:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE"
+  ]
+}
