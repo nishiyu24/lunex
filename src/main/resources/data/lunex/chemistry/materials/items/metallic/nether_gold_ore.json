@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:nether_gold_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "VOLATILE:SOLID",
-    "VOLATILE:GAS",
-    "METALLIC:SOLID",
-    "METALLIC:LIQUID",
-    "METALLIC:GAS"
+    "SILICATE:CHARGED",
+    "VOLATILE:CHARGED",
+    "METALLIC:CHARGED",
+    "NONE",
+    "NONE",
+    "NONE"
   ]
 }

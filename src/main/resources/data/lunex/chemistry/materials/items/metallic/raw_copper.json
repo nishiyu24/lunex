@@ -2,7 +2,7 @@
   "target_type": "item",
   "target": "minecraft:raw_copper",
   "dna": [
-    "METALLIC:SOLID",
+    "METALLIC:LIQUID",
     "CONDUCTIVE:SOLID",
     "NONE",
     "NONE",

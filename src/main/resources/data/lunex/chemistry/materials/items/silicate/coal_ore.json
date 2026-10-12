@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:coal_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "CARBONIC:SOLID",
-    "CARBONIC:SOLID",
-    "CARBONIC:SOLID",
+    "SILICATE:GAS",
+    "CARBONIC:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

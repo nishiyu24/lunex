@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:crimson_nylium",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "VOLATILE:LIQUID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "NONE"
+  ]
+}

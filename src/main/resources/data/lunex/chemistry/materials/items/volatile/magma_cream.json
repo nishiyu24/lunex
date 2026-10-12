@@ -3,9 +3,9 @@
   "target": "minecraft:magma_cream",
   "dna": [
     "VOLATILE:LIQUID",
-    "VOLATILE:LIQUID",
-    "BIOGENIC:LIQUID",
-    "VOLATILE:GAS",
+    "BIOGENIC:SOLID",
+    "NONE",
+    "NONE",
     "NONE",
     "NONE"
   ]

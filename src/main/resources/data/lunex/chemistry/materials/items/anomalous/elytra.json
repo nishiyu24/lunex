@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:elytra",
+  "dna": [
+    "ANOMALOUS:CHARGED",
+    "ASTRAL:CHARGED",
+    "ASTRAL:GAS",
+    "BIOGENIC:CHARGED",
+    "VOLATILE:GAS",
+    "METALLIC:SOLID"
+  ]
+}

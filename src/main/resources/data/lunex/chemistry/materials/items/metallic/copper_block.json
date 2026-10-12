@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:copper_block",
   "dna": [
-    "METALLIC:SOLID",
-    "METALLIC:SOLID",
-    "METALLIC:LIQUID",
-    "CONDUCTIVE:SOLID",
-    "CONDUCTIVE:LIQUID",
+    "METALLIC:CHARGED",
+    "METALLIC:CHARGED",
+    "METALLIC:CHARGED",
+    "CONDUCTIVE:GAS",
+    "NONE",
     "NONE"
   ]
 }

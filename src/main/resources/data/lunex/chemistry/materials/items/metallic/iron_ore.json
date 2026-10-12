@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:iron_ore",
   "dna": [
+    "SILICATE:GAS",
     "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "METALLIC:SOLID",
-    "METALLIC:SOLID",
-    "METALLIC:LIQUID",
+    "METALLIC:GAS",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

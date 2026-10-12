@@ -2,10 +2,10 @@
   "target_type": "item",
   "target": "minecraft:magma_block",
   "dna": [
-    "SILICATE:LIQUID",
-    "SILICATE:LIQUID",
-    "SILICATE:SOLID",
+    "VOLATILE:CHARGED",
     "VOLATILE:LIQUID",
+    "NONE",
+    "NONE",
     "NONE",
     "NONE"
   ]

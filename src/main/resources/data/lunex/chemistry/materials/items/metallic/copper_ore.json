@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:copper_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "METALLIC:SOLID",
-    "CONDUCTIVE:SOLID",
-    "CONDUCTIVE:LIQUID",
+    "SILICATE:CHARGED",
+    "METALLIC:CHARGED",
+    "CONDUCTIVE:CHARGED",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

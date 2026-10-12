@@ -1,12 +1,12 @@
 {
   "target_type": "item",
-  "target": "minecraft:wet_sponge",
+  "target": "minecraft:magenta_wool",
   "dna": [
     "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
     "BIOGENIC:SOLID",
-    "AQUEOUS:LIQUID",
-    "AQUEOUS:LIQUID",
     "ASTRAL:SOLID",
+    "NONE",
     "NONE"
   ]
 }

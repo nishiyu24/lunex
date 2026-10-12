@@ -2,10 +2,10 @@
   "target_type": "item",
   "target": "minecraft:slime_block",
   "dna": [
-    "BIOGENIC:LIQUID",
-    "BIOGENIC:LIQUID",
-    "BIOGENIC:LIQUID",
-    "AQUEOUS:LIQUID",
+    "BIOGENIC:CHARGED",
+    "BIOGENIC:CHARGED",
+    "BIOGENIC:CHARGED",
+    "AQUEOUS:GAS",
     "NONE",
     "NONE"
   ]

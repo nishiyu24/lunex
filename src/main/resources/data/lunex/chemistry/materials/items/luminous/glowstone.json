@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:glowstone",
   "dna": [
-    "LUMINOUS:SOLID",
-    "LUMINOUS:SOLID",
-    "LUMINOUS:LIQUID",
-    "LUMINOUS:GAS",
-    "SILICATE:SOLID",
+    "LUMINOUS:CHARGED",
+    "LUMINOUS:CHARGED",
+    "NONE",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

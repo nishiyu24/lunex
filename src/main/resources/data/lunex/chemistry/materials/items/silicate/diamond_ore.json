@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:diamond_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "CARBONIC:SOLID",
+    "SILICATE:CHARGED",
+    "CARBONIC:GAS",
     "LUMINOUS:SOLID",
-    "ASTRAL:SOLID",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

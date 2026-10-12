@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:amethyst_block",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "LUMINOUS:SOLID",
-    "LUMINOUS:LIQUID",
+    "ASTRAL:CHARGED",
+    "SILICATE:GAS",
+    "NONE",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

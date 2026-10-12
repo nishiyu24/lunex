@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:shulker_box",
+  "dna": [
+    "ASTRAL:CHARGED",
+    "ASTRAL:CHARGED",
+    "CARBONIC:GAS",
+    "SILICATE:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

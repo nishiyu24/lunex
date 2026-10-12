@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:honeycomb_block",
+  "dna": [
+    "BIOGENIC:CHARGED",
+    "BIOGENIC:CHARGED",
+    "CARBONIC:GAS",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

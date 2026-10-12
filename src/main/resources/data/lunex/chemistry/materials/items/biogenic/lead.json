@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:lead",
+  "dna": [
+    "BIOGENIC:GAS",
+    "CARBONIC:SOLID",
+    "AQUEOUS:SOLID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

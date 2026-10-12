@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:gold_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "METALLIC:SOLID",
-    "METALLIC:LIQUID",
+    "SILICATE:GAS",
+    "SILICATE:LIQUID",
     "METALLIC:GAS",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

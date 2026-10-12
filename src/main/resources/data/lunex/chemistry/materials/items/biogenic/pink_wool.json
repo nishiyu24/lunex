@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:pink_wool",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "BIOGENIC:SOLID",
+    "ASTRAL:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

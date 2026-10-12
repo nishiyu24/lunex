@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:diamond_block",
   "dna": [
-    "CARBONIC:SOLID",
-    "CARBONIC:SOLID",
-    "LUMINOUS:SOLID",
-    "LUMINOUS:GAS",
+    "CARBONIC:CHARGED",
+    "CARBONIC:CHARGED",
+    "LUMINOUS:CHARGED",
     "ASTRAL:CHARGED",
-    "ASTRAL:CHARGED"
+    "NONE",
+    "NONE"
   ]
 }

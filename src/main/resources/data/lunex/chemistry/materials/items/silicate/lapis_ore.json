@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:lapis_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "AQUEOUS:SOLID",
-    "ASTRAL:SOLID",
+    "SILICATE:CHARGED",
+    "SILICATE:CHARGED",
+    "ASTRAL:CHARGED",
+    "ASTRAL:CHARGED",
+    "ASTRAL:GAS",
     "NONE"
   ]
 }

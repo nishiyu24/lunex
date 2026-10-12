@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:iron_block",
   "dna": [
-    "METALLIC:SOLID",
-    "METALLIC:SOLID",
-    "METALLIC:SOLID",
-    "METALLIC:LIQUID",
+    "METALLIC:CHARGED",
+    "METALLIC:CHARGED",
+    "METALLIC:CHARGED",
     "SILICATE:SOLID",
+    "NONE",
     "NONE"
   ]
 }

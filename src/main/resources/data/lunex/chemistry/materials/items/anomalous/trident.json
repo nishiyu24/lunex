@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:trident",
+  "dna": [
+    "ANOMALOUS:CHARGED",
+    "AQUEOUS:CHARGED",
+    "CONDUCTIVE:CHARGED",
+    "METALLIC:GAS",
+    "NONE",
+    "NONE"
+  ]
+}

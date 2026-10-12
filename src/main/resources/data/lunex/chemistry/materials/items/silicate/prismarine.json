@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:prismarine",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "AQUEOUS:SOLID",
-    "BIOGENIC:SOLID",
+    "SILICATE:CHARGED",
+    "AQUEOUS:GAS",
+    "NONE",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

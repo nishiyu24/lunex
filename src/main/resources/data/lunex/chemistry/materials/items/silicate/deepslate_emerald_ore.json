@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:deepslate_emerald_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "LUMINOUS:GAS",
-    "ASTRAL:CHARGED"
+    "SILICATE:CHARGED",
+    "SILICATE:GAS",
+    "LUMINOUS:CHARGED",
+    "METALLIC:LIQUID",
+    "NONE",
+    "NONE"
   ]
 }

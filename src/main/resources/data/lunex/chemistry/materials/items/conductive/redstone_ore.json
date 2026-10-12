@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:redstone_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "CONDUCTIVE:SOLID",
-    "CONDUCTIVE:CHARGED",
-    "LUMINOUS:SOLID",
+    "SILICATE:GAS",
+    "CONDUCTIVE:GAS",
+    "NONE",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }

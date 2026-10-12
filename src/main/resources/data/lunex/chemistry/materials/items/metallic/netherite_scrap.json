@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:netherite_scrap",
   "dna": [
-    "METALLIC:LIQUID",
-    "METALLIC:GAS",
+    "METALLIC:CHARGED",
     "VOLATILE:GAS",
-    "ASTRAL:LIQUID",
-    "ANOMALOUS:SOLID",
-    "ANOMALOUS:LIQUID"
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
   ]
 }

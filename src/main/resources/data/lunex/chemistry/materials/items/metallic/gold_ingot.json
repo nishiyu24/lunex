@@ -2,10 +2,10 @@
   "target_type": "item",
   "target": "minecraft:gold_ingot",
   "dna": [
-    "METALLIC:SOLID",
+    "METALLIC:CHARGED",
     "METALLIC:LIQUID",
-    "METALLIC:LIQUID",
-    "METALLIC:GAS",
+    "SILICATE:SOLID",
+    "NONE",
     "NONE",
     "NONE"
   ]

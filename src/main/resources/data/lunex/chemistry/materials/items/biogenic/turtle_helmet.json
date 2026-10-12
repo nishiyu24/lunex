@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:turtle_helmet",
+  "dna": [
+    "BIOGENIC:CHARGED",
+    "BIOGENIC:GAS",
+    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:deepslate_gold_ore",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "METALLIC:SOLID",
-    "METALLIC:LIQUID",
-    "METALLIC:GAS"
+    "SILICATE:GAS",
+    "SILICATE:GAS",
+    "METALLIC:CHARGED",
+    "NONE",
+    "NONE",
+    "NONE"
   ]
 }

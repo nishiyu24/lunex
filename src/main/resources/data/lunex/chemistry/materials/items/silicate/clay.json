@@ -2,10 +2,10 @@
   "target_type": "item",
   "target": "minecraft:clay",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "AQUEOUS:LIQUID",
-    "AQUEOUS:SOLID",
+    "SILICATE:GAS",
+    "AQUEOUS:GAS",
+    "NONE",
+    "NONE",
     "NONE",
     "NONE"
   ]

@@ -3,9 +3,9 @@
   "target": "minecraft:pointed_dripstone",
   "dna": [
     "SILICATE:SOLID",
-    "CARBONIC:SOLID",
     "AQUEOUS:LIQUID",
-    "AQUEOUS:LIQUID",
+    "NONE",
+    "NONE",
     "NONE",
     "NONE"
   ]

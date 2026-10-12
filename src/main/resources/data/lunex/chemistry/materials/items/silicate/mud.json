@@ -3,9 +3,9 @@
   "target": "minecraft:mud",
   "dna": [
     "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "BIOGENIC:SOLID",
-    "AQUEOUS:LIQUID",
+    "AQUEOUS:SOLID",
+    "CARBONIC:SOLID",
+    "NONE",
     "NONE",
     "NONE"
   ]

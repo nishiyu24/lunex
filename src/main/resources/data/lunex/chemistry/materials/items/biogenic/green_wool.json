@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:green_wool",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "CARBONIC:SOLID",
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

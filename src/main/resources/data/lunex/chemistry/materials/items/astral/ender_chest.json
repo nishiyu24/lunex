@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:ender_chest",
+  "dna": [
+    "ASTRAL:CHARGED",
+    "ASTRAL:GAS",
+    "SILICATE:GAS",
+    "VOLATILE:LIQUID",
+    "NONE",
+    "NONE"
+  ]
+}

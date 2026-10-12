@@ -2,7 +2,7 @@
   "target_type": "item",
   "target": "minecraft:raw_iron",
   "dna": [
-    "METALLIC:SOLID",
+    "METALLIC:LIQUID",
     "SILICATE:SOLID",
     "NONE",
     "NONE",

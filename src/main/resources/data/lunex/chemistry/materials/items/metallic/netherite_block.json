@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:netherite_block",
   "dna": [
-    "METALLIC:SOLID",
-    "METALLIC:CHARGED",
-    "ANOMALOUS:SOLID",
     "ANOMALOUS:CHARGED",
-    "CARBONIC:SOLID",
-    "ASTRAL:SOLID"
+    "ANOMALOUS:CHARGED",
+    "METALLIC:CHARGED",
+    "METALLIC:CHARGED",
+    "CARBONIC:CHARGED",
+    "NONE"
   ]
 }

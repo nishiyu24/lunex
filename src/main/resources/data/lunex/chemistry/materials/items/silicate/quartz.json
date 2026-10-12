@@ -2,10 +2,10 @@
   "target_type": "item",
   "target": "minecraft:quartz",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "VOLATILE:SOLID",
-    "CONDUCTIVE:SOLID",
+    "SILICATE:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE",
     "NONE",
     "NONE"
   ]

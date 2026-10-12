@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:poisonous_potato",
+  "dna": [
+    "BIOGENIC:SOLID",
+    "BIOGENIC:LIQUID",
+    "CARBONIC:SOLID",
+    "VOLATILE:LIQUID",
+    "AQUEOUS:LIQUID",
+    "NONE"
+  ]
+}

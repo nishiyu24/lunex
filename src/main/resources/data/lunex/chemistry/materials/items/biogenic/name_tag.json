@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:name_tag",
+  "dna": [
+    "BIOGENIC:LIQUID",
+    "CARBONIC:LIQUID",
+    "METALLIC:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE"
+  ]
+}

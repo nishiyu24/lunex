@@ -2,10 +2,10 @@
   "target_type": "item",
   "target": "minecraft:amethyst_shard",
   "dna": [
+    "ASTRAL:LIQUID",
     "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "LUMINOUS:SOLID",
-    "LUMINOUS:LIQUID",
+    "NONE",
+    "NONE",
     "NONE",
     "NONE"
   ]

@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:amethyst_cluster",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "LUMINOUS:SOLID",
+    "ASTRAL:CHARGED",
+    "SILICATE:LIQUID",
     "LUMINOUS:LIQUID",
-    "LUMINOUS:GAS",
-    "ASTRAL:SOLID"
+    "NONE",
+    "NONE",
+    "NONE"
   ]
 }

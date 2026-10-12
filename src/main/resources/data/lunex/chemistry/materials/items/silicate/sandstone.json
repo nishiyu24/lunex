@@ -2,10 +2,10 @@
   "target_type": "item",
   "target": "minecraft:sandstone",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "SILICATE:SOLID",
     "SILICATE:GAS",
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE",
     "NONE",
     "NONE"
   ]

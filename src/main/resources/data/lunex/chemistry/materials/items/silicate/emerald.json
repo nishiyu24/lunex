@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:emerald",
   "dna": [
-    "SILICATE:SOLID",
-    "SILICATE:LIQUID",
-    "METALLIC:LIQUID",
-    "LUMINOUS:SOLID",
+    "SILICATE:CHARGED",
     "LUMINOUS:GAS",
-    "ASTRAL:SOLID"
+    "NONE",
+    "NONE",
+    "NONE",
+    "NONE"
   ]
 }

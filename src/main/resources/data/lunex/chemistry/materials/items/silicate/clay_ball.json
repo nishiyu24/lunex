@@ -3,8 +3,8 @@
   "target": "minecraft:clay_ball",
   "dna": [
     "SILICATE:SOLID",
-    "SILICATE:SOLID",
-    "AQUEOUS:LIQUID",
+    "AQUEOUS:SOLID",
+    "NONE",
     "NONE",
     "NONE",
     "NONE"

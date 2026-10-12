@@ -1,0 +1,12 @@
+{
+  "target_type": "item",
+  "target": "minecraft:warped_nylium",
+  "dna": [
+    "SILICATE:SOLID",
+    "SILICATE:SOLID",
+    "VOLATILE:SOLID",
+    "BIOGENIC:SOLID",
+    "ASTRAL:LIQUID",
+    "NONE"
+  ]
+}

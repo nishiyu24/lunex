@@ -2,8 +2,8 @@
   "target_type": "item",
   "target": "minecraft:gold_nugget",
   "dna": [
-    "METALLIC:SOLID",
-    "METALLIC:GAS",
+    "METALLIC:LIQUID",
+    "NONE",
     "NONE",
     "NONE",
     "NONE",

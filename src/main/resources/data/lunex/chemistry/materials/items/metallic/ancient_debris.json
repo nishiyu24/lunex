@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:ancient_debris",
   "dna": [
-    "METALLIC:SOLID",
-    "METALLIC:LIQUID",
-    "CARBONIC:SOLID",
+    "ANOMALOUS:CHARGED",
+    "METALLIC:GAS",
     "VOLATILE:GAS",
-    "ASTRAL:SOLID",
-    "ANOMALOUS:SOLID"
+    "SILICATE:SOLID",
+    "NONE",
+    "NONE"
   ]
 }

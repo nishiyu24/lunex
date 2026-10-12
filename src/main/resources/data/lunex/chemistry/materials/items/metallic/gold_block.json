@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:gold_block",
   "dna": [
-    "METALLIC:SOLID",
-    "METALLIC:SOLID",
-    "METALLIC:LIQUID",
-    "METALLIC:LIQUID",
+    "METALLIC:CHARGED",
+    "METALLIC:CHARGED",
+    "METALLIC:CHARGED",
     "METALLIC:GAS",
+    "NONE",
     "NONE"
   ]
 }

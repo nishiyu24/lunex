@@ -2,10 +2,10 @@
   "target_type": "item",
   "target": "minecraft:snow_block",
   "dna": [
-    "AQUEOUS:SOLID",
-    "AQUEOUS:SOLID",
-    "AQUEOUS:SOLID",
-    "SILICATE:SOLID",
+    "AQUEOUS:GAS",
+    "SILICATE:GAS",
+    "NONE",
+    "NONE",
     "NONE",
     "NONE"
   ]

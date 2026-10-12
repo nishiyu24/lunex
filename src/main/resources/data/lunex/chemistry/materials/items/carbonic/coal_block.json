@@ -2,11 +2,11 @@
   "target_type": "item",
   "target": "minecraft:coal_block",
   "dna": [
-    "CARBONIC:SOLID",
-    "CARBONIC:SOLID",
-    "CARBONIC:SOLID",
-    "CARBONIC:SOLID",
-    "VOLATILE:SOLID",
+    "CARBONIC:CHARGED",
+    "CARBONIC:LIQUID",
+    "NONE",
+    "NONE",
+    "NONE",
     "NONE"
   ]
 }
