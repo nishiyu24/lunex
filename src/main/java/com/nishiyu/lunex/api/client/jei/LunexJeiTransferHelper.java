@@ -8,6 +8,7 @@ import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
@@ -43,18 +44,22 @@ public class LunexJeiTransferHelper {
             @SuppressWarnings("removal")
             @Override
             public @Nullable IRecipeTransferError transferRecipe(@NotNull MainframeOverviewMenu container, @NotNull T recipe, @NotNull IRecipeSlotsView recipeSlots, @NotNull Player player, boolean maxTransfer, boolean doTransfer) {
-                BlockPos pos = MainframeOverviewScreen.lastSelectedPos;
-                if (pos == null) return reg.getTransferHelper().createUserErrorWithTooltip(Component.literal("Select a machine first"));
+                // ★修正: Minecraft.getInstance().screen から現在の画面インスタンスを取得し、選択位置を判定する
+                if (Minecraft.getInstance().screen instanceof MainframeOverviewScreen screen) {
+                    BlockPos pos = screen.getSelectedPos();
+                    if (pos == null) return reg.getTransferHelper().createUserErrorWithTooltip(Component.literal("Select a machine first"));
 
-                BlockEntity be = container.getLevel().getBlockEntity(pos);
-                if (be == null) return reg.getTransferHelper().createInternalError();
+                    BlockEntity be = container.getLevel().getBlockEntity(pos);
+                    if (be == null) return reg.getTransferHelper().createInternalError();
 
-                AbstractRightPanel extension = MainframeUIRegistry.createRightPanel(pos, be);
-                if (!targetUIClass.isInstance(extension)) {
-                    return reg.getTransferHelper().createUserErrorWithTooltip(Component.literal("Selected machine UI does not match the recipe."));
+                    AbstractRightPanel extension = MainframeUIRegistry.createRightPanel(pos, be);
+                    if (!targetUIClass.isInstance(extension)) {
+                        return reg.getTransferHelper().createUserErrorWithTooltip(Component.literal("Selected machine UI does not match the recipe."));
+                    }
+
+                    return action.transfer(pos, be, recipeSlots, doTransfer, reg.getTransferHelper());
                 }
-
-                return action.transfer(pos, be, recipeSlots, doTransfer, reg.getTransferHelper());
+                return reg.getTransferHelper().createInternalError();
             }
         }, type);
     }

@@ -1,10 +1,9 @@
-// 上書き: ClientScriptManager.java
 package com.nishiyu.lunex.program.client;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.nishiyu.lunex.client.renderer.ARGlassesHudRenderer;
+import com.nishiyu.enderframelib.client.renderer.WebHudRenderer;
 import com.nishiyu.lunex.program.client.api.ClientDOMAPI;
 import com.nishiyu.lunex.program.client.api.ClientFetchAPI;
 import com.nishiyu.lunex.program.core.LuaFunction;
@@ -93,14 +92,13 @@ public class ClientScriptManager {
                 CLIENT_VM.executeLocally(() -> {
                     try {
                         if (arg != null) {
-                            // ★ 修正: JavaからLuaへの型変換を厳密に行う (クリック座標などの引数を正しく渡す)
                             LuaValue luaArg;
                             if (arg instanceof String) luaArg = LuaValue.valueOf((String) arg);
                             else if (arg instanceof Integer) luaArg = LuaValue.valueOf((Integer) arg);
                             else if (arg instanceof Double) luaArg = LuaValue.valueOf((Double) arg);
                             else if (arg instanceof Float) luaArg = LuaValue.valueOf((Float) arg);
                             else if (arg instanceof Boolean) luaArg = LuaValue.valueOf((Boolean) arg);
-                            else luaArg = LuaValue.valueOf(arg.toString()); // 未知の型は文字列として渡す
+                            else luaArg = LuaValue.valueOf(arg.toString());
 
                             func.call(luaArg);
                         } else {
@@ -181,6 +179,6 @@ public class ClientScriptManager {
     public static void clearSession(String sessionId) {
         sessionEnvironments.remove(sessionId);
         serverEventListeners.remove(sessionId);
-        ARGlassesHudRenderer.clearSession(sessionId);
+        WebHudRenderer.clearSession(sessionId);
     }
 }

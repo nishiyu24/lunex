@@ -2,31 +2,23 @@ package com.nishiyu.lunex.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
-import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
-import com.nishiyu.lunex.client.ClientScreenManager;
+import com.nishiyu.enderframelib.client.renderer.WebItemRendererHelper;
 import com.nishiyu.lunex.menu.PortableScreenScreen;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import org.joml.Matrix4f;
-
-import java.util.List;
 
 public class PortableScreenItemRenderer extends BlockEntityWithoutLevelRenderer {
 
     private static final ResourceLocation TEXTURE = ResourceLocation.parse("lunex:textures/item/portable_screen.png");
 
-    public PortableScreenItemRenderer(BlockEntityRenderDispatcher blockEntityRenderDispatcher, net.minecraft.client.model.geom.EntityModelSet entityModelSet) {
+    public PortableScreenItemRenderer(BlockEntityRenderDispatcher blockEntityRenderDispatcher, EntityModelSet entityModelSet) {
         super(blockEntityRenderDispatcher, entityModelSet);
     }
 
@@ -57,99 +49,22 @@ public class PortableScreenItemRenderer extends BlockEntityWithoutLevelRenderer 
 
     @Override
     public void renderByItem(ItemStack stack, ItemDisplayContext displayContext, PoseStack poseStack, MultiBufferSource buffer, int packedLight, int packedOverlay) {
-        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-        CompoundTag tag = customData.copyTag();
-        Minecraft mc = Minecraft.getInstance();
-
-        boolean shouldRenderUI = true;
-
-        if (tag.contains("RouterPos") && mc.player != null && mc.level != null) {
-            net.minecraft.core.BlockPos routerPos = net.minecraft.core.BlockPos.of(tag.getLong("RouterPos"));
-            String routerDim = tag.getString("RouterDim");
-            double maxDist = tag.getDouble("RouterRange");
-            boolean isSameDim = mc.level.dimension().location().toString().equals(routerDim);
-
-            if (!isSameDim && maxDist != Double.MAX_VALUE) {
-                shouldRenderUI = false;
-            } else if (isSameDim && maxDist != Double.MAX_VALUE && mc.player.blockPosition().distSqr(routerPos) > (maxDist * maxDist)) {
-                shouldRenderUI = false;
-            }
-        }
-
         poseStack.pushPose();
 
-        if (mc.player != null && (displayContext == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || displayContext == ItemDisplayContext.FIRST_PERSON_LEFT_HAND)) {
-            float pitch = mc.player.getXRot();
-            if (Float.isNaN(pitch)) pitch = 0.0f;
-
-            float lookDownAmount = Mth.clamp(pitch / 90.0f, 0.0f, 1.0f);
-            float yShift = lookDownAmount * 0.3f;
-            float zShift = 0.0f;
-
-            ItemStack mainHand = mc.player.getMainHandItem();
-            ItemStack offHand = mc.player.getOffhandItem();
-
-            boolean holdingBoth = mainHand != null && offHand != null &&
-                    mainHand.getItem() == stack.getItem() &&
-                    offHand.getItem() == stack.getItem();
-
-            if (holdingBoth) {
-                if (displayContext == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) zShift = 0.08f;
-                else if (displayContext == ItemDisplayContext.FIRST_PERSON_LEFT_HAND) zShift = -0.08f;
-            }
-            poseStack.translate(0, yShift, zShift);
-        }
+        WebItemRendererHelper.applyFirstPersonHandShift(stack, displayContext, poseStack);
 
         Matrix4f matrix = poseStack.last().pose();
         VertexConsumer vc = buffer.getBuffer(RenderType.entityCutout(TEXTURE));
         drawJSONBox(vc, matrix, packedLight, packedOverlay);
 
-        if (shouldRenderUI && tag.contains("IPAddress")) {
-            String ip = tag.getString("IPAddress");
-            String networkId = tag.contains("NetworkId") ? tag.getUUID("NetworkId").toString() : "global";
-            String screenKey = networkId + ":" + ip;
+        WebItemRendererHelper.renderWebOnItem(
+                stack, displayContext,
+                poseStack, buffer, packedLight, packedOverlay,
+                (int) PortableScreenScreen.VIRTUAL_WIDTH, (int) PortableScreenScreen.VIRTUAL_HEIGHT,
+                0.499f, 0.5f, 5f / 16f,
+                -90f, 0.375f
+        );
 
-            com.nishiyu.lunex.client.ClientScreenInteractionManager.ensureSynced(screenKey);
-
-            // ★ 修正: メニューを開いていなくてもPortableScreenの解像度に合致させるため、必要なら再計算を行う
-            if (ClientScreenManager.getLastRootW(screenKey) != (int) PortableScreenScreen.VIRTUAL_WIDTH ||
-                    ClientScreenManager.getLastRootH(screenKey) != (int) PortableScreenScreen.VIRTUAL_HEIGHT) {
-                ClientScreenManager.recomputeLayout(screenKey, (int) PortableScreenScreen.VIRTUAL_WIDTH, (int) PortableScreenScreen.VIRTUAL_HEIGHT);
-            }
-
-            List<ScreenBlockEntity.UIElement> elements = ClientScreenManager.getElements(screenKey);
-
-            if (elements != null && !elements.isEmpty()) {
-                poseStack.pushPose();
-                poseStack.translate(0.499f, 0.5f, 5f / 16f);
-                poseStack.mulPose(Axis.YP.rotationDegrees(-90f));
-
-                float logicPixelW = PortableScreenScreen.VIRTUAL_WIDTH;
-                float scale = 0.375f / logicPixelW;
-                poseStack.scale(scale, -scale, scale);
-
-                boolean playAudio = (displayContext == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || displayContext == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || displayContext == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND || displayContext == ItemDisplayContext.THIRD_PERSON_LEFT_HAND);
-
-                int logicWidthBlocks = (int) Math.ceil(PortableScreenScreen.VIRTUAL_WIDTH / ScreenBlockEntity.RESOLUTION);
-                int logicHeightBlocks = (int) Math.ceil(PortableScreenScreen.VIRTUAL_HEIGHT / ScreenBlockEntity.RESOLUTION);
-
-                ScreenRenderCore.renderElements(
-                        elements, logicWidthBlocks, logicHeightBlocks,
-                        poseStack, buffer, packedLight, packedOverlay,
-                        true, true, true,
-                        0.02f, 0.01f,
-                        com.nishiyu.lunex.client.ClientScreenInteractionManager.getHoveredId(screenKey),
-                        0x00000000, false,
-                        mc.level,
-                        playAudio, true, screenKey,
-                        null,
-                        null,
-                        0
-                );
-
-                poseStack.popPose();
-            }
-        }
         poseStack.popPose();
     }
 }

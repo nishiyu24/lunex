@@ -2,7 +2,12 @@ package com.nishiyu.lunex;
 
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
+import com.nishiyu.enderframelib.client.ClientScreenInteractionManager;
+import com.nishiyu.enderframelib.client.renderer.WebHudRenderer;
+import com.nishiyu.enderframelib.client.renderer.WebMediaManager;
+import com.nishiyu.enderframelib.network.EnderFrameNetwork;
 import com.nishiyu.lunex.api.MainframeComponentRegistry;
+import com.nishiyu.lunex.api.MainframeConstants;
 import com.nishiyu.lunex.block.*;
 import com.nishiyu.lunex.blockentity.*;
 import com.nishiyu.lunex.chemistry.loader.MaterialDataLoader;
@@ -18,33 +23,46 @@ import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsMenu;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterMenu;
 import com.nishiyu.lunex.menu.turtle.TurtleBotMenu;
 import com.nishiyu.lunex.menu.turtle.TurtleSettingsMenu;
+import com.nishiyu.lunex.program.client.ClientScriptManager;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import org.slf4j.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Mod(Lunex.MODID)
 public class Lunex {
@@ -239,11 +257,16 @@ public class Lunex {
         modEventBus.addListener(this::registerCapabilities);
         modEventBus.addListener(this::registerEntityAttributes);
 
+        // EnderFrameLib と Lunex 両方のネットワークを登録
+        modEventBus.addListener(EnderFrameNetwork::registerPayloads);
         modEventBus.addListener(com.nishiyu.lunex.network.NetworkHandler::register);
         modEventBus.addListener(MainframeCapabilityHandler::registerCapabilities);
         modEventBus.addListener(DataGenerators::gatherData);
 
-        // データパックリロードリスナーの登録（JSON読み込み）
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            modEventBus.addListener(this::clientSetup);
+        }
+
         NeoForge.EVENT_BUS.addListener(this::onAddReloadListeners);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
     }
@@ -256,6 +279,81 @@ public class Lunex {
         event.enqueueWork(MainframeComponentRegistry::registerCoreComponents);
     }
 
+    private void clientSetup(final FMLClientSetupEvent event) {
+        event.enqueueWork(() -> {
+            EnderFrameNetwork.initCommonCallbacks();
+
+            // 1. クライアントLuaスクリプトのロードとイベント発火を接続
+            ClientScreenInteractionManager.clientEventCallback = (sessionId, elementId, eventName, actionName, value) ->
+                    ClientScriptManager.triggerClientEvent(sessionId, actionName, value);
+
+            // 2. ルーターの有効状態＋距離判定を接続
+            ClientScreenInteractionManager.itemRangeValidator = (mc, stack) -> {
+                if (!ClientScreenInteractionManager.defaultIsItemInRange(mc, stack)) return false;
+                CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+                CompoundTag tag = customData.copyTag();
+                if (!tag.contains("RouterPos")) return true;
+
+                BlockPos routerPos = BlockPos.of(tag.getLong("RouterPos"));
+                String routerDim = tag.getString("RouterDim");
+                boolean isSameDim = mc.level != null && mc.level.dimension().location().toString().equals(routerDim);
+                if (isSameDim && mc.level.isLoaded(routerPos)) {
+                    BlockEntity be = mc.level.getBlockEntity(routerPos);
+                    if (be instanceof SimpleMachineBlockEntity master) {
+                        return master.isMainframeMaster && master.getCore() != null && master.getCore().activeFeatures.contains(MainframeConstants.FEATURE_ROUTER);
+                    }
+                    return false;
+                }
+                return true;
+            };
+
+            // 3. ARグラス装着時のみHUDを描画するようリゾルバを設定
+            WebHudRenderer.activeHudSessionResolver = (mc) -> {
+                if (mc.player == null || mc.options.hideGui) return null;
+                ItemStack headItem = mc.player.getItemBySlot(EquipmentSlot.HEAD);
+                if (headItem.getItem() != AR_GLASSES.get()) return null;
+                return WebHudRenderer.defaultResolveActiveHudSession(mc);
+            };
+
+            // 4. WebMediaManager（動画・音声システム）にLunex固有のブロック・ホットバー情報を提供
+            WebMediaManager.externalContext = new WebMediaManager.IExternalVideoContext() {
+                @Override
+                public boolean isYouTubeSupportEnabled() {
+                    return true;
+                }
+
+                @Override
+                public List<String> getActiveSessionIdsFromHotbar() {
+                    List<String> list = new ArrayList<>();
+                    var mc = net.minecraft.client.Minecraft.getInstance();
+                    if (mc.player == null) return list;
+                    for (int i = 0; i < 9; i++) {
+                        ItemStack stack = mc.player.getInventory().getItem(i);
+                        String sid = ClientScreenInteractionManager.getSessionIdFromItem(stack);
+                        if (sid != null && !sid.isEmpty()) list.add(sid);
+                    }
+                    ItemStack offhand = mc.player.getOffhandItem();
+                    String offSid = ClientScreenInteractionManager.getSessionIdFromItem(offhand);
+                    if (offSid != null && !offSid.isEmpty()) list.add(offSid);
+                    return list;
+                }
+
+                @Override
+                public boolean isScreenOrSpeaker(BlockPos pos) {
+                    var level = net.minecraft.client.Minecraft.getInstance().level;
+                    if (level == null) return false;
+                    BlockEntity be = level.getBlockEntity(pos);
+                    return be instanceof ScreenBlockEntity || be instanceof SpeakerBlockEntity;
+                }
+
+                @Override
+                public float getSpeakerMaxDistance(BlockPos pos) {
+                    return 24.0f;
+                }
+            };
+        });
+    }
+
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, TURTLE_BOT_BE.get(), (be, side) -> be.getCore() != null ? be.getCore().itemHandler : null);
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, TURTLE_BOT_BE.get(), (be, side) -> be.feStorage);
@@ -264,9 +362,6 @@ public class Lunex {
         event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, BIO_PRINTER_BE.get(), (be, side) -> be.energyStorage);
     }
 
-    /**
-     * データパック / JSON リロードリスナーの登録
-     */
     private void onAddReloadListeners(AddReloadListenerEvent event) {
         event.addListener(new MaterialDataLoader());
     }

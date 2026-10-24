@@ -1,11 +1,11 @@
 package com.nishiyu.lunex.menu;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
-import com.nishiyu.lunex.client.ClientScreenInteractionManager;
-import com.nishiyu.lunex.client.ClientScreenManager;
-import com.nishiyu.lunex.client.renderer.ScreenAnimator;
-import com.nishiyu.lunex.client.renderer.ScreenRenderCore;
+import com.nishiyu.enderframelib.client.ClientScreenInteractionManager;
+import com.nishiyu.enderframelib.client.ClientWebManager;
+import com.nishiyu.enderframelib.client.renderer.WebAnimator;
+import com.nishiyu.enderframelib.client.renderer.WebRenderCore;
+import com.nishiyu.enderframelib.core.model.UIElement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -39,7 +39,6 @@ public class PortableScreenScreen extends AbstractContainerScreen<PortableScreen
         this.ip = menu.getIp();
         this.imageWidth = 0;
         this.imageHeight = 0;
-        System.out.println("[Lunex Debug] [Client] 💻 GUI Opened with ID: '" + this.ip + "'");
     }
 
     @Override
@@ -52,7 +51,7 @@ public class PortableScreenScreen extends AbstractContainerScreen<PortableScreen
         super.init();
 
         if (!hasSentResize) {
-            ClientScreenManager.recomputeLayout(this.ip, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+            ClientWebManager.recomputeLayout(this.ip, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
             hasSentResize = true;
         }
 
@@ -78,7 +77,7 @@ public class PortableScreenScreen extends AbstractContainerScreen<PortableScreen
 
         ClientScreenInteractionManager.ensureSynced(this.ip);
 
-        List<ScreenBlockEntity.UIElement> elements = ClientScreenManager.getElements(this.ip);
+        List<UIElement> elements = ClientWebManager.getElements(this.ip);
         if (elements == null) elements = new ArrayList<>();
 
         float logicPixelW = VIRTUAL_WIDTH;
@@ -118,17 +117,17 @@ public class PortableScreenScreen extends AbstractContainerScreen<PortableScreen
 
         MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
 
-        int logicWidthBlocks = (int) Math.ceil((float) VIRTUAL_WIDTH / ScreenBlockEntity.RESOLUTION);
-        int renderHeightBlocks = (int) Math.ceil((float) VIRTUAL_HEIGHT / ScreenBlockEntity.RESOLUTION);
+        int logicWidthBlocks = (int) Math.ceil((float) VIRTUAL_WIDTH / WebRenderCore.RESOLUTION);
+        int renderHeightBlocks = (int) Math.ceil((float) VIRTUAL_HEIGHT / WebRenderCore.RESOLUTION);
 
-        ScreenRenderCore.renderElements(
+        WebRenderCore.renderElements(
                 elements, logicWidthBlocks, renderHeightBlocks,
                 pose, bufferSource, 0xF000F0, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY,
                 true, true, true, 0.02f, 0.01f, hoveredId, 0x00000000, false,
                 Minecraft.getInstance().level, true, true, this.ip,
                 null,
                 null,
-                0 // ★ 追加: renderMode 引数
+                0
         );
 
         bufferSource.endBatch();
@@ -166,7 +165,7 @@ public class PortableScreenScreen extends AbstractContainerScreen<PortableScreen
 
         double[] pixels = getLogicPixels(mouseX, mouseY);
         if (pixels != null) {
-            ScreenBlockEntity.UIElement clickedEl = ClientScreenInteractionManager.handleClick(this.ip, pixels[0], pixels[1]);
+            UIElement clickedEl = ClientScreenInteractionManager.handleClick(this.ip, pixels[0], pixels[1]);
             if (clickedEl != null && "input".equals(clickedEl.type())) {
                 activateInputBox(clickedEl);
                 return true;
@@ -288,13 +287,13 @@ public class PortableScreenScreen extends AbstractContainerScreen<PortableScreen
             this.activeInput.setVisible(false);
             this.activeInputId = null;
             this.setFocused(null);
-            ScreenRenderCore.activeInputId = "";
+            WebRenderCore.activeInputId = "";
         }
     }
 
-    private void activateInputBox(ScreenBlockEntity.UIElement clickedEl) {
+    private void activateInputBox(UIElement clickedEl) {
         this.activeInputId = clickedEl.id();
-        ScreenRenderCore.activeInputId = clickedEl.id();
+        WebRenderCore.activeInputId = clickedEl.id();
         this.activeInput.setValue(clickedEl.text() == null ? "" : clickedEl.text());
         this.activeInput.setBordered(false);
         this.activeInput.setTextColor(0x00000000);
@@ -305,11 +304,11 @@ public class PortableScreenScreen extends AbstractContainerScreen<PortableScreen
 
     private void updateInputBoxPosition(float drawX, float drawY, float drawW, float drawH, float logicPixelW, float logicPixelH) {
         if (this.activeInput.isVisible() && this.activeInputId != null) {
-            ScreenBlockEntity.UIElement clickedEl = ClientScreenManager.getElementById(this.ip, this.activeInputId);
+            UIElement clickedEl = ClientWebManager.getElementById(this.ip, this.activeInputId);
             if (clickedEl != null) {
                 float baseScale = (float) Math.min((this.width * 0.95f) / logicPixelW, (this.height * 0.95f) / logicPixelH);
                 float finalScale = baseScale * this.zoom;
-                ScreenAnimator.AnimatedValues anim = ScreenAnimator.getCurrentValues(this.ip, clickedEl);
+                WebAnimator.AnimatedValues anim = WebAnimator.getCurrentValues(this.ip, clickedEl);
 
                 float logicX = clickedEl.x() + anim.tx() - this.panX;
                 float logicY = clickedEl.y() + anim.ty() - this.panY;

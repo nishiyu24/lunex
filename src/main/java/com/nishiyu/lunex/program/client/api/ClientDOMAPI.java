@@ -1,12 +1,10 @@
-// 上書き: ClientDOMAPI.java
 package com.nishiyu.lunex.program.client.api;
 
-import com.nishiyu.lunex.client.ClientScreenManager;
+import com.nishiyu.enderframelib.client.ClientWebManager;
 import com.nishiyu.lunex.program.client.ClientScriptManager;
 import com.nishiyu.lunex.program.core.LuaFunction;
-import com.nishiyu.lunex.webrender.HtmlNode;
-import com.nishiyu.lunex.client.renderer.ClientMediaManager;
-import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
+import com.nishiyu.enderframelib.core.dom.HtmlNode;
+import com.nishiyu.enderframelib.client.renderer.WebMediaManager;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.Varargs;
@@ -22,10 +20,6 @@ public class ClientDOMAPI {
         this.sessionId = sessionId;
     }
 
-    // --------------------------------------------------
-    // ヘルパー：. と : どちらの呼び出しでも引数を正しく取得する
-    // (第一引数が"id"を持つテーブルならselfとみなしてインデックスをずらす)
-    // --------------------------------------------------
     private LuaValue getArg(Varargs args, int index) {
         if (args.narg() > 0 && args.arg1().istable() && !args.arg1().get("id").isnil()) {
             return args.arg(index + 1);
@@ -40,7 +34,7 @@ public class ClientDOMAPI {
             rets = {"table:element"}
     )
     public LuaTable querySelector(String selector) {
-        HtmlNode vRoot = ClientScreenManager.getVirtualRoot(sessionId);
+        HtmlNode vRoot = ClientWebManager.getVirtualRoot(sessionId);
         if (vRoot == null) return null;
         HtmlNode found = vRoot.querySelector(selector);
         if (found != null && !found.id.isEmpty()) {
@@ -56,7 +50,7 @@ public class ClientDOMAPI {
             rets = {"table:elements"}
     )
     public LuaTable querySelectorAll(String selector) {
-        HtmlNode vRoot = ClientScreenManager.getVirtualRoot(sessionId);
+        HtmlNode vRoot = ClientWebManager.getVirtualRoot(sessionId);
         if (vRoot == null) return new LuaTable();
 
         LuaTable results = new LuaTable();
@@ -167,7 +161,7 @@ public class ClientDOMAPI {
             public Varargs invoke(Varargs args) {
                 String attr = getArg(args, 1).tojstring();
                 String value = getArg(args, 2).tojstring();
-                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, attr, value, false);
+                ClientWebManager.updateNodeAttributeLocally(sessionId, id, attr, value, false);
                 return element;
             }
         });
@@ -176,7 +170,7 @@ public class ClientDOMAPI {
             @Override
             public Varargs invoke(Varargs args) {
                 String attr = getArg(args, 1).tojstring();
-                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, attr, null, true);
+                ClientWebManager.updateNodeAttributeLocally(sessionId, id, attr, null, true);
                 return element;
             }
         });
@@ -198,8 +192,7 @@ public class ClientDOMAPI {
                     actionName = action.tojstring();
                 }
 
-                // ★修正：純粋に仮想DOMへ属性をセットして再レンダリングを待つ
-                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, tempAttrName, actionName, false);
+                ClientWebManager.updateNodeAttributeLocally(sessionId, id, tempAttrName, actionName, false);
                 return element;
             }
         });
@@ -283,14 +276,14 @@ public class ClientDOMAPI {
             @Override
             public Varargs invoke(Varargs args) {
                 String speedStr = getArg(args, 1).tojstring();
-                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, "data-video-speed", speedStr, false);
+                ClientWebManager.updateNodeAttributeLocally(sessionId, id, "data-video-speed", speedStr, false);
 
                 HtmlNode node = findNodeLocally(id);
                 if (node != null && node.attrs.containsKey("src")) {
                     try {
                         float spd = Float.parseFloat(speedStr);
                         String srcUrl = node.attrs.get("src");
-                        ClientMediaManager.VideoTexture tex = ClientMediaManager.getVideoTexture(srcUrl);
+                        WebMediaManager.VideoTexture tex = WebMediaManager.getVideoTexture(srcUrl);
                         if (tex != null) {
                             tex.setPlaybackSpeed(spd);
                         }
@@ -304,14 +297,14 @@ public class ClientDOMAPI {
             @Override
             public Varargs invoke(Varargs args) {
                 String secondsStr = getArg(args, 1).tojstring();
-                ClientScreenManager.updateNodeAttributeLocally(sessionId, id, "data-video-seek", secondsStr, false);
+                ClientWebManager.updateNodeAttributeLocally(sessionId, id, "data-video-seek", secondsStr, false);
 
                 HtmlNode node = findNodeLocally(id);
                 if (node != null && node.attrs.containsKey("src")) {
                     try {
                         double sec = Double.parseDouble(secondsStr);
                         String srcUrl = node.attrs.get("src");
-                        ClientMediaManager.VideoTexture tex = ClientMediaManager.getVideoTexture(srcUrl);
+                        WebMediaManager.VideoTexture tex = WebMediaManager.getVideoTexture(srcUrl);
                         if (tex != null) {
                             tex.seekTo(sec);
                         }
@@ -325,12 +318,12 @@ public class ClientDOMAPI {
     }
 
     private HtmlNode findNodeLocally(String id) {
-        HtmlNode vRoot = ClientScreenManager.getVirtualRoot(sessionId);
+        HtmlNode vRoot = ClientWebManager.getVirtualRoot(sessionId);
         return vRoot != null ? vRoot.getElementById(id) : null;
     }
 
     private void triggerRecompute() {
-        ClientScreenManager.requestRender(sessionId);
+        ClientWebManager.requestRender(sessionId);
     }
 
     private String toCamelCase(String s) {

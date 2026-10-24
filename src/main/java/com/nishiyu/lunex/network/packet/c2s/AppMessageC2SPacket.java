@@ -6,6 +6,7 @@ import com.nishiyu.lunex.blockentity.TurtleBotBlockEntity;
 import com.nishiyu.lunex.mcnet.ScreenSessionManager;
 import com.nishiyu.lunex.server.ServerProgramData;
 import com.nishiyu.lunex.network.packet.s2c.AppMessageS2CPacket;
+import com.nishiyu.lunex.network.packet.s2c.ItemFileListS2CPacket;
 import com.nishiyu.lunex.util.WorkspaceManager;
 import com.nishiyu.lunex.network.packet.s2c.ErrorToastS2CPacket;
 import com.nishiyu.lunex.api.MainframeConstants;
@@ -64,7 +65,11 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                         handleBioMobCommand(player, payload);
                         break;
                     case "editor_request_program":
-                        handleEditorRequest(player, payload);
+                        handleEditorRequest(player, payload, "file_content");
+                        break;
+                    case "ide_request_file":
+                        // ★追加: ゲーム内フルスクリーンIDEからのファイル読み込み要求
+                        handleEditorRequest(player, payload, "ide_file_content");
                         break;
                     case "sync_program":
                         handleSyncProgram(player, payload);
@@ -91,7 +96,6 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                 return turtle.getCore().workspaceId != null && !turtle.getCore().workspaceId.isEmpty() ? turtle.getCore().workspaceId : "default";
             }
             if (be instanceof SimpleMachineBlockEntity sm) {
-                // ★修正: getCore() 経由に変更
                 if (sm.getCore().persistentData != null && sm.getCore().persistentData.contains("WorkspaceId")) {
                     return sm.getCore().persistentData.getString("WorkspaceId");
                 }
@@ -123,6 +127,8 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                 return;
             }
 
+            String wsId = (machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty()) ? "default" : machine.getCore().workspaceId;
+
             switch (cmd) {
                 case "setup":
                     machine.getCore().workspaceId = arg;
@@ -131,13 +137,11 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     ServerProgramData.load(arg);
                     break;
                 case "sync_files":
-                    if (machine.getCore().workspaceId != null && !machine.getCore().workspaceId.isEmpty()) {
-                        ServerProgramData.load(machine.getCore().workspaceId);
-                        machine.getCore().installedPrograms.clear();
-                        machine.getCore().installedPrograms.addAll(ServerProgramData.getPrograms(machine.getCore().workspaceId).keySet());
-                        machine.setChanged();
-                        machine.sync();
-                    }
+                    ServerProgramData.load(wsId);
+                    machine.getCore().installedPrograms.clear();
+                    machine.getCore().installedPrograms.addAll(ServerProgramData.getPrograms(wsId).keySet());
+                    machine.setChanged();
+                    machine.sync();
                     break;
                 case "touch":
                     if (!arg.isEmpty()) {
@@ -146,10 +150,9 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                             player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] Cannot create files starting with '.'§r"), true);
                             break;
                         }
-                        String wsTouch = machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty() ? "default" : machine.getCore().workspaceId;
-                        ServerProgramData.load(wsTouch);
-                        ServerProgramData.getPrograms(wsTouch).putIfAbsent(arg, "-- New File\n");
-                        ServerProgramData.save(wsTouch);
+                        ServerProgramData.load(wsId);
+                        ServerProgramData.getPrograms(wsId).putIfAbsent(arg, "-- " + arg + "\n\n");
+                        ServerProgramData.save(wsId);
                         if (!machine.getCore().installedPrograms.contains(arg)) {
                             machine.getCore().installedPrograms.add(arg);
                             machine.setChanged();
@@ -163,10 +166,9 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                             player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c[Error] Cannot create folders starting with '.'§r"), true);
                             break;
                         }
-                        String wsMkdir = machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty() ? "default" : machine.getCore().workspaceId;
-                        ServerProgramData.load(wsMkdir);
-                        ServerProgramData.getPrograms(wsMkdir).putIfAbsent(arg, "");
-                        ServerProgramData.save(wsMkdir);
+                        ServerProgramData.load(wsId);
+                        ServerProgramData.getPrograms(wsId).putIfAbsent(arg, "");
+                        ServerProgramData.save(wsId);
                         if (!machine.getCore().installedPrograms.contains(arg)) {
                             machine.getCore().installedPrograms.add(arg);
                             machine.setChanged();
@@ -176,30 +178,29 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     break;
                 case "rm":
                     if (!arg.isEmpty()) {
-                        String wsRm = machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty() ? "default" : machine.getCore().workspaceId;
-                        ServerProgramData.load(wsRm);
+                        ServerProgramData.load(wsId);
                         boolean removed = false;
 
-                        if (ServerProgramData.getPrograms(wsRm).remove(arg) != null) {
+                        if (ServerProgramData.getPrograms(wsId).remove(arg) != null) {
                             machine.getCore().installedPrograms.remove(arg);
                             removed = true;
                         }
 
                         String dirPrefix = arg + "/";
                         List<String> keysToRemove = new ArrayList<>();
-                        for (String key : ServerProgramData.getPrograms(wsRm).keySet()) {
+                        for (String key : ServerProgramData.getPrograms(wsId).keySet()) {
                             if (key.equals(dirPrefix) || key.startsWith(dirPrefix)) {
                                 keysToRemove.add(key);
                             }
                         }
                         for (String key : keysToRemove) {
-                            ServerProgramData.getPrograms(wsRm).remove(key);
+                            ServerProgramData.getPrograms(wsId).remove(key);
                             machine.getCore().installedPrograms.remove(key);
                             removed = true;
                         }
 
                         if (removed) {
-                            ServerProgramData.save(wsRm);
+                            ServerProgramData.save(wsId);
                             machine.setChanged();
                             machine.sync();
                         }
@@ -210,11 +211,10 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     if (parts.length == 2) {
                         String oldName = parts[0];
                         String rawNewName = parts[1];
-                        String wsRename = machine.getCore().workspaceId == null || machine.getCore().workspaceId.isEmpty() ? "default" : machine.getCore().workspaceId;
-                        ServerProgramData.load(wsRename);
+                        ServerProgramData.load(wsId);
 
                         boolean isFolder = false;
-                        for (String key : ServerProgramData.getPrograms(wsRename).keySet()) {
+                        for (String key : ServerProgramData.getPrograms(wsId).keySet()) {
                             if (key.equals(oldName + "/") || key.startsWith(oldName + "/")) {
                                 isFolder = true;
                                 break;
@@ -227,9 +227,9 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                         }
                         boolean renamed = false;
 
-                        if (ServerProgramData.getPrograms(wsRename).containsKey(oldName)) {
-                            String content = ServerProgramData.getPrograms(wsRename).remove(oldName);
-                            ServerProgramData.getPrograms(wsRename).put(newName, content);
+                        if (ServerProgramData.getPrograms(wsId).containsKey(oldName)) {
+                            String content = ServerProgramData.getPrograms(wsId).remove(oldName);
+                            ServerProgramData.getPrograms(wsId).put(newName, content);
                             machine.getCore().installedPrograms.remove(oldName);
                             machine.getCore().installedPrograms.add(newName);
                             renamed = true;
@@ -238,22 +238,22 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                         String oldDirPrefix = oldName + "/";
                         String newDirPrefix = newName + "/";
                         List<String> keysToRename = new ArrayList<>();
-                        for (String key : ServerProgramData.getPrograms(wsRename).keySet()) {
+                        for (String key : ServerProgramData.getPrograms(wsId).keySet()) {
                             if (key.equals(oldDirPrefix) || key.startsWith(oldDirPrefix)) {
                                 keysToRename.add(key);
                             }
                         }
                         for (String key : keysToRename) {
-                            String content = ServerProgramData.getPrograms(wsRename).remove(key);
+                            String content = ServerProgramData.getPrograms(wsId).remove(key);
                             String newKey = newDirPrefix + key.substring(oldDirPrefix.length());
-                            ServerProgramData.getPrograms(wsRename).put(newKey, content);
+                            ServerProgramData.getPrograms(wsId).put(newKey, content);
                             machine.getCore().installedPrograms.remove(key);
                             machine.getCore().installedPrograms.add(newKey);
                             renamed = true;
                         }
 
                         if (renamed) {
-                            ServerProgramData.save(wsRename);
+                            ServerProgramData.save(wsId);
                             machine.setChanged();
                             machine.sync();
                         }
@@ -261,12 +261,13 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     break;
                 case "boot":
                 case "reboot":
-                    if (cmd.equals("boot") && !machine.getCore().installedPrograms.contains(arg)) break;
+                    ServerProgramData.load(wsId);
+                    if (cmd.equals("boot") && !machine.getCore().installedPrograms.contains(arg) && !ServerProgramData.getPrograms(wsId).containsKey(arg)) break;
                     String pName = cmd.equals("boot") ? arg : machine.getCore().programName;
                     if (pName != null && !pName.isEmpty()) {
                         if (cmd.equals("boot")) machine.setProgramName(arg);
                         machine.getCore().vm.currentPlayer = player;
-                        machine.getCore().vm.workspaceId = machine.getCore().workspaceId;
+                        machine.getCore().vm.workspaceId = wsId;
                         machine.getCore().vm.restartProgram(pName);
                     } else if (machine.getCore().vm.isRunning) {
                         machine.getCore().vm.stopProgram();
@@ -323,8 +324,15 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("§e[System] Error history cleared.§r"), true);
                     break;
             }
+
+            // ★追加: ファイル関連コマンド実行時に即座にクライアントのIDEへ最新ファイルリストを送信
+            if (cmd.equals("sync_files") || cmd.equals("touch") || cmd.equals("mkdir") || cmd.equals("rm") || cmd.equals("rename") || cmd.equals("setup")) {
+                ServerProgramData.load(wsId);
+                List<String> files = new ArrayList<>(ServerProgramData.getPrograms(wsId).keySet());
+                PacketDistributor.sendToPlayer(player, new ItemFileListS2CPacket(files));
+            }
+
         } else if (be instanceof SimpleMachineBlockEntity master) {
-            // ★修正: getCore() 経由に変更
             if (master.getCore().persistentData.getBoolean("IsPrivateMode")) {
                 if (master.getCore().persistentData.contains("OwnerUUID")) {
                     if (!master.getCore().persistentData.getUUID("OwnerUUID").equals(player.getUUID())) {
@@ -387,7 +395,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
                             leases.putString(mac, ip);
                             master.getCore().persistentData.put("DHCPLeases", leases);
 
-                            CompoundTag pfTag = master.getCore().persistentData.contains("PortForwards") ? master.getCore().persistentData.getCompound("PortForwards") : new CompoundTag();
+                            CompoundTag pfTag = master.getCore().persistentData.contains("PortForwards") ? master.getCore().persistentData.contains("PortForwards") ? master.getCore().persistentData.getCompound("PortForwards") : new CompoundTag() : new CompoundTag();
                             if (!port.isEmpty()) {
                                 pfTag.putString(port, ip);
                             }
@@ -632,17 +640,19 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         }
     }
 
-    private void handleEditorRequest(ServerPlayer player, CompoundTag tag) {
+    private void handleEditorRequest(ServerPlayer player, CompoundTag tag, String responseAction) {
         String pName = tag.getString("programName");
         String wsId = resolveWorkspaceId(player, tag);
 
-        if (pName.contains("/")) {
+        // ★改善: workspaceIdが明示的に指定されていない場合のみ先頭スラッシュをwsIdとして解釈する
+        if (!tag.contains("pos") && !tag.contains("workspaceId") && pName.contains("/")) {
             int idx = pName.indexOf("/");
             wsId = pName.substring(0, idx);
             pName = pName.substring(idx + 1);
         }
 
         pName = enforceValidExtension(pName);
+        ServerProgramData.load(wsId);
 
         String data = ServerProgramData.getPrograms(wsId).get(pName);
         if (data == null) {
@@ -663,7 +673,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         CompoundTag replyTag = new CompoundTag();
         replyTag.putString("programName", pName);
         replyTag.putString("content", data);
-        PacketDistributor.sendToPlayer(player, new AppMessageS2CPacket("global", "file_content", replyTag));
+        PacketDistributor.sendToPlayer(player, new AppMessageS2CPacket("global", responseAction, replyTag));
     }
 
     private void handleSyncProgram(ServerPlayer player, CompoundTag tag) {
@@ -671,7 +681,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         String code = tag.getString("code");
         String wsId = resolveWorkspaceId(player, tag);
 
-        if (pName.contains("/")) {
+        if (!tag.contains("pos") && !tag.contains("workspaceId") && pName.contains("/")) {
             int idx = pName.indexOf("/");
             wsId = pName.substring(0, idx);
             pName = pName.substring(idx + 1);
@@ -680,13 +690,30 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         pName = enforceValidExtension(pName);
         if (isHiddenFile(pName)) return;
 
+        ServerProgramData.load(wsId);
         ServerProgramData.getPrograms(wsId).put(pName, code);
+        ServerProgramData.save(wsId);
+
+        if (tag.contains("pos")) {
+            BlockEntity be = player.level().getBlockEntity(BlockPos.of(tag.getLong("pos")));
+            if (be instanceof TurtleBotBlockEntity machine) {
+                if (!machine.getCore().installedPrograms.contains(pName)) {
+                    machine.getCore().installedPrograms.add(pName);
+                }
+                machine.setChanged();
+                machine.sync();
+            }
+        }
+
         MinecraftServer server = player.getServer();
         if (server != null) {
             try {
                 Path wsDir = WorkspaceManager.getBaseDir(server).resolve(wsId);
-                if (!Files.exists(wsDir)) Files.createDirectories(wsDir);
-                Files.writeString(wsDir.resolve(pName), code);
+                Path targetFile = wsDir.resolve(pName);
+                if (targetFile.getParent() != null && !Files.exists(targetFile.getParent())) {
+                    Files.createDirectories(targetFile.getParent());
+                }
+                Files.writeString(targetFile, code);
             } catch (IOException ignored) {
             }
         }
@@ -696,7 +723,7 @@ public record AppMessageC2SPacket(String sessionId, String action, CompoundTag p
         String pName = tag.getString("programName");
         String wsId = resolveWorkspaceId(player, tag);
 
-        if (pName.contains("/")) {
+        if (!tag.contains("pos") && !tag.contains("workspaceId") && pName.contains("/")) {
             int idx = pName.indexOf("/");
             wsId = pName.substring(0, idx);
             pName = pName.substring(idx + 1);

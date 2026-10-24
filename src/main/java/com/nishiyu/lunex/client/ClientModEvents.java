@@ -1,18 +1,18 @@
 package com.nishiyu.lunex.client;
 
-import com.nishiyu.lunex.Lunex;
+import com.nishiyu.enderframelib.client.renderer.WebBlockRenderer;
 import com.nishiyu.lunex.Config;
+import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.api.client.MainframeBottomTabRegistry;
 import com.nishiyu.lunex.api.client.MainframeUIRegistry;
 import com.nishiyu.lunex.api.client.ui.panel.*;
 import com.nishiyu.lunex.api.client.ui.tabs.NetworkStatusBottomTab;
+import com.nishiyu.lunex.api.client.ui.tabs.SystemStorageBottomTab;
+import com.nishiyu.lunex.client.renderer.*;
 import com.nishiyu.lunex.client.renderer.blocks.PrinterBlockEntityRenderer;
 import com.nishiyu.lunex.client.renderer.blocks.TurtleBotRenderer;
-import com.nishiyu.lunex.api.client.ui.tabs.SystemStorageBottomTab;
-import com.nishiyu.lunex.client.renderer.MachineFrameRenderer;
-import com.nishiyu.lunex.client.renderer.*;
-import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsScreen;
 import com.nishiyu.lunex.menu.*;
+import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsScreen;
 import com.nishiyu.lunex.menu.bioprinter.BioPrinterScreen;
 import com.nishiyu.lunex.menu.turtle.TurtleBotScreen;
 import com.nishiyu.lunex.menu.turtle.TurtleSettingsScreen;
@@ -39,6 +39,7 @@ public class ClientModEvents {
         boolean isWebServerEnabled = Config.ENABLE_WEB_SERVER.get();
         LocalWebSocketServer.start(isWebServerEnabled);
         LocalWebServer.start(isWebServerEnabled);
+        EnderFrameIntegration.initialize();
 
         event.enqueueWork(() -> {
             MainframeBottomTabRegistry.registerGlobal(
@@ -73,7 +74,7 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(Lunex.TURTLE_BOT_BE.get(), TurtleBotRenderer::new);
-        event.registerBlockEntityRenderer(Lunex.SCREEN_BE.get(), ScreenRenderer::new);
+        event.registerBlockEntityRenderer(Lunex.SCREEN_BE.get(), WebBlockRenderer::new);
         event.registerBlockEntityRenderer(Lunex.PRINTER_BE.get(), PrinterBlockEntityRenderer::new);
 
         event.registerBlockEntityRenderer(Lunex.PROBE_BE.get(), MachineFrameRenderer::new);

@@ -1,776 +1,730 @@
 package com.nishiyu.lunex.menu;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.nishiyu.lunex.api.client.*;
+import com.nishiyu.lunex.api.MainframeComponentData;
+import com.nishiyu.lunex.api.MainframeComponentRegistry;
+import com.nishiyu.lunex.api.client.IdeScreenFramework;
+import com.nishiyu.lunex.api.client.MainframeUIRegistry;
 import com.nishiyu.lunex.api.client.ui.panel.AbstractRightPanel;
-import com.nishiyu.lunex.api.client.ui.panel.MachineOverviewUIExtension;
 import com.nishiyu.lunex.blockentity.MainframeAdapterBlockEntity;
-import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.NotNull;
-import org.joml.Matrix4f;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
-import org.joml.Vector4f;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
+/**
+ * マルチブロック（メインフレーム）の概要および構成パーツ一覧を表示・操作するシンプルなリスト形式スクリーン。
+ */
 public class MainframeOverviewScreen extends AbstractContainerScreen<MainframeOverviewMenu> {
 
-    public static BlockPos lastSelectedPos = null;
+    private static final int GUI_WIDTH = 420;
+    private static final int GUI_HEIGHT = 230;
+    private static final int LIST_ITEM_HEIGHT = 26;
+
+    // 検索・フィルタリング
+    private EditBox searchBox;
+    private String filterQuery = "";
+
+    // リストアイテム
+    private final List<PartItem> allItems = new ArrayList<>();
+    private final List<PartItem> filteredItems = new ArrayList<>();
+    private PartItem selectedItem = null;
+
+    // スクロール状態
+    private int scrollOffset = 0;
+    private boolean isDraggingScrollBar = false;
+
+    // 右側設定・詳細パネル
+    private AbstractRightPanel currentRightPanel = null;
     private BlockPos selectedPos = null;
-
-    private final IdeScreenFramework uiFramework;
-    private static final int TOP_BAR_HEIGHT = 22;
-
-    private int virtualWidth;
-    private int virtualHeight;
-    private int startX;
-    private int startY;
-    private int guiWidth;
-    private int guiHeight;
-
-    private static BlockPos lastMasterPos3D = null;
-    private static float savedRenderScale = 30F;
-    private static float savedYaw = 45f, savedPitch = 30f;
-    private static boolean savedIsExploded = false;
-    private static boolean savedScaleInitialized = false;
-
-    private float renderScale;
-    private boolean scaleInitialized;
-    private float yaw, pitch;
-    private boolean isDraggingView = false;
-    private boolean isExploded;
-    private float currentExplodeOffset = 0.0f;
-
-    // 絞り込み用の変数
-    private Block filterBlock = null;
-
-    // プルダウンメニュー用の変数
-    private boolean isDropdownOpen = false;
-    private final List<Block> availableBlocksForFilter = new ArrayList<>();
-
-    public BlockPos getSelectedPos() { return this.selectedPos; }
-    public int getGuiStartX() { return this.startX; }
-    public int getGuiStartY() { return this.startY; }
-    public int getGuiWidth() { return this.guiWidth; }
-    public int getGuiHeight() { return this.guiHeight; }
-    public IdeScreenFramework getUiFramework() { return this.uiFramework; }
-
-    public void setFilterBlock(Block block) { this.filterBlock = block; }
-    public Block getFilterBlock() { return this.filterBlock; }
 
     public MainframeOverviewScreen(MainframeOverviewMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
-        this.uiFramework = new IdeScreenFramework();
+        this.imageWidth = GUI_WIDTH;
+        this.imageHeight = GUI_HEIGHT;
     }
 
-    private int getVpX() { return 0; }
-    private int getVpY() { return TOP_BAR_HEIGHT; }
-    private int getVpWidth() { return this.virtualWidth - uiFramework.rightWidth; }
-    private int getVpHeight() { return this.virtualHeight - TOP_BAR_HEIGHT - uiFramework.bottomHeight; }
+    public BlockPos getSelectedPos() {
+        return this.selectedPos;
+    }
+
+    public int getGuiStartX() {
+        return (this.width - this.imageWidth) / 2;
+    }
+
+    public int getGuiStartY() {
+        return (this.height - this.imageHeight) / 2;
+    }
+
+    private int getListX() { return getGuiStartX() + 8; }
+    private int getListY() { return getGuiStartY() + 48; }
+    private int getListWidth() { return 175; }
+    private int getListHeight() { return this.imageHeight - 56; }
+
+    private int getRightPanelX() { return getGuiStartX() + 190; }
+    private int getRightPanelY() { return getGuiStartY() + 26; }
+    private int getRightPanelWidth() { return this.imageWidth - 198; }
+    private int getRightPanelHeight() { return this.imageHeight - 34; }
 
     @Override
     protected void init() {
+        this.imageWidth = GUI_WIDTH;
+        this.imageHeight = GUI_HEIGHT;
         super.init();
 
-        int maxGuiWidth = 650;
-        int maxGuiHeight = 400;
+        this.leftPos = getGuiStartX();
+        this.topPos = getGuiStartY();
 
-        this.guiWidth = Math.min(maxGuiWidth, this.width - 40);
-        this.guiHeight = Math.min(maxGuiHeight, this.height - 40);
-
-        this.startX = (this.width - this.guiWidth) / 2;
-        this.startY = (this.height - this.guiHeight) / 2;
-
-        IdeScreenFramework.guiOffsetX = this.startX;
-        IdeScreenFramework.guiOffsetY = this.startY;
-        IdeScreenFramework.currentUiScale = 1.0f;
-
-        this.virtualWidth = this.guiWidth;
-        this.virtualHeight = this.guiHeight;
-
-        this.leftPos = this.startX;
-        this.topPos = this.startY;
-        this.imageWidth = this.guiWidth;
-        this.imageHeight = this.guiHeight;
-
-        this.titleLabelX = 9999; this.titleLabelY = 9999;
-        this.inventoryLabelX = 9999; this.inventoryLabelY = 9999;
-
-        if (this.selectedPos == null && lastSelectedPos != null) {
-            this.selectedPos = lastSelectedPos;
+        // プレイヤーインベントリのスロットを画面外へ退避
+        for (net.minecraft.world.inventory.Slot slot : this.menu.slots) {
+            slot.x = -10000;
+            slot.y = -10000;
         }
 
-        this.uiFramework.updateLayoutConstraints(this.virtualWidth, this.virtualHeight);
+        // IdeScreenFrameworkのオフセットを初期化（AbstractRightPanelのシザー座標用）
+        IdeScreenFramework.guiOffsetX = 0;
+        IdeScreenFramework.guiOffsetY = 0;
 
-        if (!this.menu.getMasterPos().equals(lastMasterPos3D)) {
-            lastMasterPos3D = this.menu.getMasterPos();
-            savedRenderScale = 30F;
-            savedYaw = 45f;
-            savedPitch = 30f;
-            savedIsExploded = false;
-            savedScaleInitialized = false;
+        // パーツ検索ボックス
+        int searchX = getGuiStartX() + 8;
+        int searchY = getGuiStartY() + 28;
+        int searchW = 175;
+        this.searchBox = new EditBox(this.font, searchX, searchY, searchW, 16, Component.literal("Search"));
+        this.searchBox.setHint(Component.literal("Search parts...").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+        this.searchBox.setResponder(text -> {
+            this.filterQuery = text;
+            applyFilter();
+        });
+        this.addRenderableWidget(this.searchBox);
+
+        // 閉じるボタン
+        int closeBtnX = getGuiStartX() + this.imageWidth - 22;
+        int closeBtnY = getGuiStartY() + 4;
+        Button closeBtn = Button.builder(Component.literal("✕"), btn -> this.onClose())
+                .bounds(closeBtnX, closeBtnY, 18, 16).build();
+        this.addRenderableWidget(closeBtn);
+
+        // パーツリスト構築
+        refreshPartsList();
+
+        // 初回選択（Overview）
+        if (!this.allItems.isEmpty()) {
+            selectItem(this.allItems.get(0));
         }
-        this.renderScale = savedRenderScale;
-        this.yaw = savedYaw;
-        this.pitch = savedPitch;
-        this.isExploded = savedIsExploded;
-        this.scaleInitialized = savedScaleInitialized;
-        this.currentExplodeOffset = this.isExploded ? 1.0f : 0.0f;
-
-        init3DScale(getVpWidth(), getVpHeight());
-
-        updateAvailableFilters();
-
-        BlockEntity masterBe = this.menu.getLevel().getBlockEntity(this.menu.getMasterPos());
-        this.uiFramework.clearBottomTabs();
-
-        if (masterBe instanceof SimpleMachineBlockEntity master) {
-            List<IdeScreenFramework.IBottomTab> dynamicTabs = MainframeBottomTabRegistry.getTabsFor(master, this.menu.getLevel());
-            for (IdeScreenFramework.IBottomTab tab : dynamicTabs) {
-                this.uiFramework.addBottomTab(tab);
-            }
-        }
-        rebuildUI();
     }
 
-    private void updateAvailableFilters() {
-        this.availableBlocksForFilter.clear();
-        List<BlockPos> parts = get3DParts();
-        for (BlockPos p : parts) {
-            BlockState state = this.menu.getLevel().getBlockState(p);
-            if (state.isAir()) continue;
+    private void refreshPartsList() {
+        this.allItems.clear();
+        BlockPos masterPos = this.menu.getMasterPos();
+        Level level = this.menu.getLevel();
+        BlockEntity masterBe = level.getBlockEntity(masterPos);
+        SimpleMachineBlockEntity master = (masterBe instanceof SimpleMachineBlockEntity m) ? m : null;
 
-            BlockEntity be = this.menu.getLevel().getBlockEntity(p);
-            if (be instanceof MainframeAdapterBlockEntity adapter && adapter.getOriginalState() != null) {
-                state = adapter.getOriginalState();
-            }
+        // 1. 全体概要 (Overview)
+        this.allItems.add(new PartItem(
+                masterPos,
+                true,
+                false,
+                new ItemStack(Blocks.BEACON),
+                Component.literal("★ System Overview"),
+                "Multiblock Summary & Stats",
+                "Overview",
+                null
+        ));
 
-            Block b = state.getBlock();
-            String blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(b).getPath().toLowerCase();
+        // 2. コアマシン
+        BlockState masterState = level.getBlockState(masterPos);
+        ItemStack masterIcon = masterState.getBlock().asItem().getDefaultInstance();
+        if (masterIcon.isEmpty()) masterIcon = new ItemStack(Items.IRON_BLOCK);
+        this.allItems.add(new PartItem(
+                masterPos,
+                false,
+                true,
+                masterIcon,
+                Component.literal("Mainframe Core"),
+                String.format("(%d, %d, %d)", masterPos.getX(), masterPos.getY(), masterPos.getZ()),
+                "Core",
+                masterState
+        ));
 
-            if (!blockId.contains("frame")) {
-                if (!this.availableBlocksForFilter.contains(b)) {
-                    this.availableBlocksForFilter.add(b);
+        // 3. 構成パーツ
+        if (master != null && !master.mainframeParts.isEmpty()) {
+            List<BlockPos> sortedParts = new ArrayList<>(master.mainframeParts);
+            sortedParts.sort(Comparator.comparingInt(BlockPos::getY)
+                    .thenComparingInt(BlockPos::getX)
+                    .thenComparingInt(BlockPos::getZ));
+
+            for (BlockPos p : sortedParts) {
+                if (p.equals(masterPos)) continue;
+
+                BlockState state = level.getBlockState(p);
+                BlockEntity be = level.getBlockEntity(p);
+                BlockState displayState = state;
+                if (be instanceof MainframeAdapterBlockEntity adapter && adapter.getOriginalState() != null) {
+                    displayState = adapter.getOriginalState();
                 }
+
+                Block block = displayState.getBlock();
+                ItemStack icon = block.asItem().getDefaultInstance();
+                if (icon.isEmpty()) {
+                    icon = new ItemStack(Items.IRON_BLOCK);
+                }
+
+                Component name = MainframeUIRegistry.getDisplayBlockName(be);
+                if (name == null || name.getString().isEmpty()) {
+                    name = block.getName();
+                }
+
+                int dx = p.getX() - masterPos.getX();
+                int dy = p.getY() - masterPos.getY();
+                int dz = p.getZ() - masterPos.getZ();
+                String coordText = String.format("Δ[%+d, %+d, %+d] (%d, %d, %d)", dx, dy, dz, p.getX(), p.getY(), p.getZ());
+                String roleTag = determineRoleTag(block);
+
+                this.allItems.add(new PartItem(p, false, false, icon, name, coordText, roleTag, displayState));
             }
         }
+
+        applyFilter();
+    }
+
+    private String determineRoleTag(Block block) {
+        String name = BuiltInRegistries.BLOCK.getKey(block).getPath().toLowerCase(Locale.ROOT);
+        if (name.contains("database")) return "Storage";
+        if (name.contains("crafter")) return "Crafting";
+        if (name.contains("furnace")) return "Smelting";
+        if (name.contains("probe")) return "IO / Port";
+        if (name.contains("screen")) return "Display";
+        if (name.contains("speaker")) return "Audio";
+        if (name.contains("router")) return "Network";
+        if (name.contains("cable")) return "Bus";
+        if (name.contains("frame")) return "Structure";
+        return "Component";
+    }
+
+    private void applyFilter() {
+        this.filteredItems.clear();
+        String query = this.filterQuery.trim().toLowerCase(Locale.ROOT);
+
+        for (PartItem item : this.allItems) {
+            if (query.isEmpty() || item.isOverview) {
+                this.filteredItems.add(item);
+                continue;
+            }
+            boolean match = item.title.getString().toLowerCase(Locale.ROOT).contains(query)
+                    || item.subText.toLowerCase(Locale.ROOT).contains(query)
+                    || item.roleTag.toLowerCase(Locale.ROOT).contains(query);
+            if (match) {
+                this.filteredItems.add(item);
+            }
+        }
+
+        clampScroll();
+
+        if (this.selectedItem != null && !this.filteredItems.contains(this.selectedItem)) {
+            if (!this.filteredItems.isEmpty()) {
+                selectItem(this.filteredItems.get(0));
+            } else {
+                selectItem(null);
+            }
+        }
+    }
+
+    private void selectItem(PartItem item) {
+        this.selectedItem = item;
+
+        if (item == null || item.isOverview) {
+            this.selectedPos = null;
+            this.currentRightPanel = null;
+            return;
+        }
+
+        this.selectedPos = item.pos;
+        BlockEntity be = this.menu.getLevel().getBlockEntity(item.pos);
+        this.currentRightPanel = MainframeUIRegistry.createRightPanel(item.pos, be);
+    }
+
+    private int getMaxListScroll() {
+        return Math.max(0, this.filteredItems.size() * LIST_ITEM_HEIGHT - getListHeight());
+    }
+
+    private void clampScroll() {
+        this.scrollOffset = Mth.clamp(this.scrollOffset, 0, getMaxListScroll());
     }
 
     @Override
     protected void containerTick() {
         super.containerTick();
-        this.currentExplodeOffset += ((isExploded ? 1.0f : 0.0f) - currentExplodeOffset) * 0.2f;
-    }
-
-    public void rebuildUI() {
-        if (this.selectedPos == null) {
-            // 未選択時はマスターブロックの情報を元に SimpleMachineUIExtension を汎用UIとして表示
-            BlockPos masterPos = this.menu.getMasterPos();
-            BlockEntity masterBe = this.menu.getLevel().getBlockEntity(masterPos);
-            this.uiFramework.setRightPanel(new MachineOverviewUIExtension(masterPos, masterBe));
-        } else {
-            // 選択時はそのブロック専用のUIを表示
-            BlockEntity be = this.menu.getLevel().getBlockEntity(this.selectedPos);
-            this.uiFramework.setRightPanel(MainframeUIRegistry.createRightPanel(this.selectedPos, be));
-        }
-    }
-
-    private void selectBlock(BlockPos pos) {
-        this.selectedPos = pos;
-        if (pos != null) {
-            BlockEntity be = this.menu.getLevel().getBlockEntity(pos);
-            // Screenの場合はマスターにリダイレクト
-            if (be instanceof ScreenBlockEntity screenBe && screenBe.masterPos != null) {
-                this.selectedPos = screenBe.masterPos;
-            }
-        }
-        lastSelectedPos = this.selectedPos;
-        rebuildUI();
-    }
-
-    public void renderBackground(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
-    public void renderBackground(GuiGraphics guiGraphics) {}
-
-    // ★追加: スロットを画面外に退避させるメソッド
-    private void hidePlayerSlots() {
-        int startIndex = this.menu.slots.size() - 36;
-        if (startIndex >= 0) {
-            for (int i = startIndex; i < this.menu.slots.size(); i++) {
-                net.minecraft.world.inventory.Slot slot = this.menu.slots.get(i);
-                slot.x = -10000;
-                slot.y = -10000;
-            }
+        BlockEntity be = this.menu.getLevel().getBlockEntity(this.menu.getMasterPos());
+        if (!(be instanceof SimpleMachineBlockEntity master) || !master.isMainframeMaster) {
+            this.onClose();
         }
     }
 
     @Override
     public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        int startX = getGuiStartX();
+        int startY = getGuiStartY();
 
-        hidePlayerSlots();
+        // 1. 全体背景と外枠
+        guiGraphics.fill(startX, startY, startX + this.imageWidth, startY + this.imageHeight, 0xFF1E1E2E);
+        guiGraphics.renderOutline(startX, startY, this.imageWidth, this.imageHeight, 0xFF45475A);
 
-        guiGraphics.fill(0, 0, this.width, this.height, 0x80000000);
+        // 2. ヘッダーバー
+        guiGraphics.fill(startX + 1, startY + 1, startX + this.imageWidth - 1, startY + 24, 0xFF181825);
+        guiGraphics.fill(startX + 1, startY + 24, startX + this.imageWidth - 1, startY + 25, 0xFF45475A);
+        guiGraphics.drawString(this.font, "§lMAINFRAME OVERVIEW", startX + 10, startY + 8, 0xFFCDD6F4);
+        guiGraphics.drawString(this.font, "● ASSEMBLED", startX + 140, startY + 8, 0xFF55FF55);
 
-        guiGraphics.fill(this.startX, this.startY, this.startX + this.guiWidth, this.startY + this.guiHeight, 0xFF1E1E1E);
-        guiGraphics.renderOutline(this.startX - 1, this.startY - 1, this.guiWidth + 2, this.guiHeight + 2, 0xFF555555);
+        // 3. 左右境界線
+        guiGraphics.fill(startX + 186, startY + 25, startX + 187, startY + this.imageHeight - 1, 0xFF45475A);
 
-        guiGraphics.pose().pushPose();
-        guiGraphics.pose().translate(this.startX, this.startY, 0);
+        // 4. 左側パーツリスト
+        renderPartsList(guiGraphics, mouseX, mouseY);
 
-        double relMouseX = mouseX - this.startX;
-        double relMouseY = mouseY - this.startY;
-        int vMouseX = (int) relMouseX;
-        int vMouseY = (int) relMouseY;
+        // 5. 右側パネル（詳細・設定）
+        renderRightPanel(guiGraphics, mouseX, mouseY, partialTick);
 
-        guiGraphics.fill(0, 0, this.virtualWidth, TOP_BAR_HEIGHT, 0xFF3C3C3C);
-        guiGraphics.drawString(this.font, "LUNEX MAINFRAME EDITOR", 10, 6, 0xFFD4D4D4);
-
-        if (!uiFramework.hasCustomCenterPanel()) {
-            render3DView(guiGraphics, getVpX(), getVpY(), getVpWidth(), getVpHeight(), vMouseX, vMouseY);
-            renderFilterDropdown(guiGraphics, vMouseX, vMouseY);
-        }
-
-        uiFramework.render(guiGraphics, vMouseX, vMouseY, partialTick, this.virtualWidth, this.virtualHeight, TOP_BAR_HEIGHT);
-
-        guiGraphics.pose().popPose();
+        // 6. ウィジェット（検索ボックス、閉じるボタン等）の描画
         super.render(guiGraphics, mouseX, mouseY, partialTick);
 
-        if (relMouseX >= 0 && relMouseX <= this.guiWidth && relMouseY >= 0 && relMouseY <= this.guiHeight) {
-            this.renderTooltip(guiGraphics, mouseX, mouseY);
+        // 7. リスト項目のツールチップ
+        renderListTooltips(guiGraphics, mouseX, mouseY);
+    }
 
-            if (!uiFramework.hasCustomCenterPanel()) {
-                int btnX = getVpX() + getVpWidth() - 30;
-                int btnY = getVpY() + 10;
-                if (vMouseX >= btnX && vMouseX <= btnX + 20 && vMouseY >= btnY && vMouseY <= btnY + 20) {
-                    guiGraphics.renderTooltip(this.font, Component.literal(this.isExploded ? "Collapse View" : "Explode View"), mouseX, mouseY);
+    private void renderPartsList(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        int lx = getListX();
+        int ly = getListY();
+        int lw = getListWidth();
+        int lh = getListHeight();
+
+        // リスト背景
+        guiGraphics.fill(lx, ly, lx + lw, ly + lh, 0xFF181825);
+        guiGraphics.renderOutline(lx - 1, ly - 1, lw + 2, lh + 2, 0xFF313244);
+
+        guiGraphics.enableScissor(lx, ly, lx + lw, ly + lh);
+
+        int itemY = ly - this.scrollOffset;
+        for (PartItem item : this.filteredItems) {
+            if (itemY + LIST_ITEM_HEIGHT >= ly && itemY <= ly + lh) {
+                boolean isSelected = (item == this.selectedItem);
+                boolean isHovered = mouseX >= lx && mouseX <= lx + lw && mouseY >= itemY && mouseY < itemY + LIST_ITEM_HEIGHT;
+
+                // 項目背景
+                int bgColor = isSelected ? 0xFF313244 : (isHovered ? 0xFF262738 : 0x00000000);
+                if (bgColor != 0) {
+                    guiGraphics.fill(lx, itemY, lx + lw, itemY + LIST_ITEM_HEIGHT, bgColor);
                 }
+                if (isSelected) {
+                    guiGraphics.fill(lx, itemY, lx + 3, itemY + LIST_ITEM_HEIGHT, 0xFF89B4FA);
+                }
+
+                // アイコン
+                guiGraphics.renderFakeItem(item.icon, lx + 5, itemY + 5);
+
+                // タイトル
+                int textX = lx + 25;
+                int textW = lw - 30;
+                String titleStr = item.title.getString();
+                if (this.font.width(titleStr) > textW - 35) {
+                    titleStr = this.font.plainSubstrByWidth(titleStr, textW - 40) + "...";
+                }
+                guiGraphics.drawString(this.font, titleStr, textX, itemY + 4, isSelected ? 0xFF89B4FA : 0xFFCDD6F4);
+
+                // サブテキスト（座標など）
+                guiGraphics.pose().pushPose();
+                guiGraphics.pose().translate(textX, itemY + 15, 0);
+                guiGraphics.pose().scale(0.72f, 0.72f, 1.0f);
+                guiGraphics.drawString(this.font, item.subText, 0, 0, 0xFFA6ADC8, false);
+                guiGraphics.pose().popPose();
+
+                // ロールタグ
+                if (!item.isOverview && !item.roleTag.isEmpty()) {
+                    int tagW = (int) (this.font.width(item.roleTag) * 0.65f) + 4;
+                    int tagX = lx + lw - tagW - 4;
+                    int tagY = itemY + 4;
+                    guiGraphics.fill(tagX, tagY, tagX + tagW, tagY + 9, 0xFF45475A);
+                    guiGraphics.pose().pushPose();
+                    guiGraphics.pose().translate(tagX + 2, tagY + 1, 0);
+                    guiGraphics.pose().scale(0.65f, 0.65f, 1.0f);
+                    guiGraphics.drawString(this.font, item.roleTag, 0, 0, 0xFFCDD6F4, false);
+                    guiGraphics.pose().popPose();
+                }
+            }
+            itemY += LIST_ITEM_HEIGHT;
+        }
+
+        guiGraphics.disableScissor();
+
+        // スクロールバー
+        int maxScroll = getMaxListScroll();
+        if (maxScroll > 0) {
+            int barTrackX = lx + lw - 3;
+            int barTrackY = ly;
+            int barTrackH = lh;
+            guiGraphics.fill(barTrackX, barTrackY, barTrackX + 3, barTrackY + barTrackH, 0x33000000);
+
+            int thumbH = Math.max(16, (int) ((float) barTrackH * barTrackH / (this.filteredItems.size() * LIST_ITEM_HEIGHT)));
+            int thumbY = barTrackY + (int) ((float) this.scrollOffset / maxScroll * (barTrackH - thumbH));
+            guiGraphics.fill(barTrackX, thumbY, barTrackX + 3, thumbY + thumbH, 0xFF585B70);
+        }
+    }
+
+    private void renderRightPanel(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        int px = getRightPanelX();
+        int py = getRightPanelY();
+        int pw = getRightPanelWidth();
+        int ph = getRightPanelHeight();
+
+        if (this.currentRightPanel != null) {
+            this.currentRightPanel.render(guiGraphics, px, py, pw, ph, mouseX, mouseY, partialTick);
+        } else if (this.selectedItem != null && !this.selectedItem.isOverview) {
+            renderFallbackPartPanel(guiGraphics, px, py, pw, ph);
+        } else {
+            renderSystemOverviewPanel(guiGraphics, px, py, pw, ph);
+        }
+    }
+
+    private void renderSystemOverviewPanel(GuiGraphics guiGraphics, int x, int y, int width, int height) {
+        IdeScreenFramework.drawEditorPanelBackground(guiGraphics, x, y, width, height, "System Overview", false);
+
+        int contentX = x + 10;
+        int contentY = y + 26;
+        int contentW = width - 20;
+
+        BlockEntity be = this.menu.getLevel().getBlockEntity(this.menu.getMasterPos());
+        if (!(be instanceof SimpleMachineBlockEntity master)) {
+            guiGraphics.drawString(this.font, "Mainframe Master not found.", contentX, contentY, 0xFFFF5555);
+            return;
+        }
+
+        // コアステータス
+        guiGraphics.drawString(this.font, "§lMainframe Status", contentX, contentY, 0xFF89B4FA);
+        contentY += 12;
+        guiGraphics.drawString(this.font, "State: §aOnline (Assembled)", contentX + 6, contentY, 0xFFCDD6F4);
+        contentY += 11;
+        guiGraphics.drawString(this.font, "Core Pos: §7" + this.menu.getMasterPos().toShortString(), contentX + 6, contentY, 0xFFCDD6F4);
+        contentY += 11;
+        guiGraphics.drawString(this.font, "Total Blocks: §f" + (master.mainframeParts.size() + 1), contentX + 6, contentY, 0xFFCDD6F4);
+        contentY += 16;
+
+        // エネルギー
+        guiGraphics.drawString(this.font, "§lEnergy Storage", contentX, contentY, 0xFFE5C07B);
+        contentY += 11;
+        long energyStored = master.energyStorage.getEnergyStored();
+        long energyMax = master.energyStorage.getMaxEnergyStored();
+        drawProgressBar(guiGraphics, contentX, contentY, contentW, 12, energyStored, energyMax, 0xFFE5C07B, "FE");
+        contentY += 18;
+
+        // アイテムストレージ
+        guiGraphics.drawString(this.font, "§lItem Storage", contentX, contentY, 0xFF61AFEF);
+        contentY += 11;
+        long itemsStored = master.mainframeStorage.getTotalItems();
+        long itemsMax = master.mainframeStorage.getCapacity();
+        drawProgressBar(guiGraphics, contentX, contentY, contentW, 12, itemsStored, itemsMax, 0xFF61AFEF, "Items");
+        contentY += 18;
+
+        // 有効機能
+        guiGraphics.drawString(this.font, "§lActive Features (" + master.getCore().activeFeatures.size() + ")", contentX, contentY, 0xFFC678DD);
+        contentY += 11;
+        if (master.getCore().activeFeatures.isEmpty()) {
+            guiGraphics.drawString(this.font, "§7None", contentX + 6, contentY, 0xFFA6ADC8);
+            contentY += 12;
+        } else {
+            String features = String.join(", ", master.getCore().activeFeatures);
+            if (this.font.width(features) > contentW) {
+                features = this.font.plainSubstrByWidth(features, contentW - 10) + "...";
+            }
+            guiGraphics.drawString(this.font, "§f" + features, contentX + 6, contentY, 0xFFCDD6F4);
+            contentY += 13;
+        }
+
+        // 有効API
+        guiGraphics.drawString(this.font, "§lLua APIs (" + master.getCore().activeApis.size() + ")", contentX, contentY, 0xFF98C379);
+        contentY += 11;
+        if (master.getCore().activeApis.isEmpty()) {
+            guiGraphics.drawString(this.font, "§7None", contentX + 6, contentY, 0xFFA6ADC8);
+            contentY += 12;
+        } else {
+            String apis = String.join(", ", master.getCore().activeApis);
+            if (this.font.width(apis) > contentW) {
+                apis = this.font.plainSubstrByWidth(apis, contentW - 10) + "...";
+            }
+            guiGraphics.drawString(this.font, "§f" + apis, contentX + 6, contentY, 0xFFCDD6F4);
+            contentY += 13;
+        }
+
+        // コンポーネント内訳
+        if (!master.componentCounts.isEmpty()) {
+            guiGraphics.drawString(this.font, "§lComponents Breakdown", contentX, contentY, 0xFF61AFEF);
+            contentY += 11;
+            int col = 0;
+            for (Map.Entry<String, Integer> entry : master.componentCounts.entrySet()) {
+                ResourceLocation res = ResourceLocation.tryParse(entry.getKey());
+                String blockName = (res != null) ? res.getPath() : entry.getKey();
+                String countStr = "• " + blockName + ": " + entry.getValue();
+                guiGraphics.drawString(this.font, countStr, contentX + 6 + (col % 2) * 100, contentY, 0xFFCDD6F4);
+                if (col % 2 == 1) {
+                    contentY += 10;
+                }
+                col++;
             }
         }
     }
 
-    private void renderFilterDropdown(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        int ddWidth = 130;
-        int ddHeight = 20;
-        int ddX = getVpX() + getVpWidth() - 35 - ddWidth;
-        int ddY = getVpY() + 10;
+    private void renderFallbackPartPanel(GuiGraphics guiGraphics, int x, int y, int width, int height) {
+        String title = (this.selectedItem != null) ? this.selectedItem.title.getString() : "Component Details";
+        IdeScreenFramework.drawEditorPanelBackground(guiGraphics, x, y, width, height, title, false);
 
-        boolean isHovered = mouseX >= ddX && mouseX <= ddX + ddWidth && mouseY >= ddY && mouseY <= ddY + ddHeight;
-        guiGraphics.fill(ddX, ddY, ddX + ddWidth, ddY + ddHeight, isHovered ? 0xFF555555 : 0xFF333333);
-        guiGraphics.renderOutline(ddX, ddY, ddWidth, ddHeight, 0xFF6A6A6A);
+        if (this.selectedItem == null) return;
 
-        String currentName = this.filterBlock == null ? "All Blocks" : this.filterBlock.getName().getString();
-        if (this.font.width(currentName) > ddWidth - 25) {
-            currentName = this.font.plainSubstrByWidth(currentName, ddWidth - 30) + "...";
-        }
-        guiGraphics.drawString(this.font, currentName, ddX + 5, ddY + 6, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, isDropdownOpen ? "▲" : "▼", ddX + ddWidth - 12, ddY + 6, 0xFFAAAAAA);
+        int contentX = x + 10;
+        int contentY = y + 28;
 
-        if (isDropdownOpen) {
-            guiGraphics.pose().pushPose();
-            guiGraphics.pose().translate(0, 0, 500);
+        // アイコン + 名前
+        guiGraphics.renderFakeItem(this.selectedItem.icon, contentX, contentY);
+        guiGraphics.drawString(this.font, this.selectedItem.title, contentX + 22, contentY + 4, 0xFFFFFFFF);
+        contentY += 24;
 
-            int listY = ddY + ddHeight;
-            int itemHeight = 16;
-            int listHeight = (availableBlocksForFilter.size() + 1) * itemHeight;
+        // 座標
+        guiGraphics.drawString(this.font, "§lCoordinates", contentX, contentY, 0xFF89B4FA);
+        contentY += 11;
+        guiGraphics.drawString(this.font, "World: §7" + this.selectedItem.pos.toShortString(), contentX + 6, contentY, 0xFFCDD6F4);
+        contentY += 11;
 
-            guiGraphics.fill(ddX, listY, ddX + ddWidth, listY + listHeight, 0xFF2A2A2A);
-            guiGraphics.renderOutline(ddX, listY, ddWidth, listHeight, 0xFF6A6A6A);
+        BlockPos masterPos = this.menu.getMasterPos();
+        int dx = this.selectedItem.pos.getX() - masterPos.getX();
+        int dy = this.selectedItem.pos.getY() - masterPos.getY();
+        int dz = this.selectedItem.pos.getZ() - masterPos.getZ();
+        guiGraphics.drawString(this.font, String.format("Relative: §7ΔX: %+d, ΔY: %+d, ΔZ: %+d", dx, dy, dz), contentX + 6, contentY, 0xFFCDD6F4);
+        contentY += 16;
 
-            boolean hoverAll = mouseX >= ddX && mouseX <= ddX + ddWidth && mouseY >= listY && mouseY < listY + itemHeight;
-            if (hoverAll) guiGraphics.fill(ddX + 1, listY + 1, ddX + ddWidth - 1, listY + itemHeight - 1, 0xFF555555);
-            guiGraphics.drawString(this.font, "All Blocks", ddX + 5, listY + 4, this.filterBlock == null ? 0xFF00E5FF : 0xFFFFFFFF);
+        // コンポーネント情報
+        Block block = (this.selectedItem.state != null) ? this.selectedItem.state.getBlock() : null;
+        MainframeComponentData data = (block != null) ? MainframeComponentRegistry.get(block) : null;
 
-            for (int i = 0; i < availableBlocksForFilter.size(); i++) {
-                int itemY = listY + itemHeight * (i + 1);
-                Block b = availableBlocksForFilter.get(i);
-                boolean hoverItem = mouseX >= ddX && mouseX <= ddX + ddWidth && mouseY >= itemY && mouseY < itemY + itemHeight;
-                if (hoverItem) guiGraphics.fill(ddX + 1, itemY + 1, ddX + ddWidth - 1, itemY + itemHeight - 1, 0xFF555555);
+        guiGraphics.drawString(this.font, "§lComponent Info", contentX, contentY, 0xFFE5C07B);
+        contentY += 11;
 
-                String bName = b.getName().getString();
-                if (this.font.width(bName) > ddWidth - 10) {
-                    bName = this.font.plainSubstrByWidth(bName, ddWidth - 15) + "...";
-                }
-                guiGraphics.drawString(this.font, bName, ddX + 5, itemY + 4, this.filterBlock == b ? 0xFF00E5FF : 0xFFFFFFFF);
+        if (data != null) {
+            guiGraphics.drawString(this.font, "Category: §f" + this.selectedItem.roleTag, contentX + 6, contentY, 0xFFCDD6F4);
+            contentY += 11;
+            guiGraphics.drawString(this.font, "Max Allowed: §f" + data.getMaxCount(), contentX + 6, contentY, 0xFFCDD6F4);
+            contentY += 11;
+
+            if (!data.getFeatures().isEmpty()) {
+                guiGraphics.drawString(this.font, "Features: §a" + String.join(", ", data.getFeatures()), contentX + 6, contentY, 0xFFCDD6F4);
+                contentY += 11;
             }
-            guiGraphics.pose().popPose();
+            if (!data.getApis().isEmpty()) {
+                guiGraphics.drawString(this.font, "APIs: §b" + String.join(", ", data.getApis()), contentX + 6, contentY, 0xFFCDD6F4);
+                contentY += 11;
+            }
+            if (!data.getResourceCapacities().isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                data.getResourceCapacities().forEach((k, v) -> sb.append(k).append(": +").append(v).append(" "));
+                guiGraphics.drawString(this.font, "Capacities: §e" + sb.toString().trim(), contentX + 6, contentY, 0xFFCDD6F4);
+                contentY += 11;
+            }
+        } else {
+            guiGraphics.drawString(this.font, "Category: §f" + this.selectedItem.roleTag, contentX + 6, contentY, 0xFFCDD6F4);
+            contentY += 11;
+            guiGraphics.drawString(this.font, "§7Structural component", contentX + 6, contentY, 0xFFA6ADC8);
+            contentY += 11;
+        }
+
+        contentY += 8;
+        guiGraphics.drawString(this.font, "§7No configurable settings for this part.", contentX + 6, contentY, 0xFF6C7086);
+    }
+
+    private void drawProgressBar(GuiGraphics guiGraphics, int x, int y, int width, int height, long current, long max, int barColor, String unit) {
+        guiGraphics.fill(x, y, x + width, y + height, 0xFF11111B);
+        guiGraphics.renderOutline(x, y, width, height, 0xFF45475A);
+
+        float pct = (max > 0) ? Mth.clamp((float) current / (float) max, 0.0f, 1.0f) : 0.0f;
+        int barW = (int) ((width - 2) * pct);
+        if (barW > 0) {
+            guiGraphics.fill(x + 1, y + 1, x + 1 + barW, y + height - 1, barColor);
+        }
+
+        String label = String.format("%,d / %,d %s (%.1f%%)", current, max, unit, pct * 100.0f);
+        int textW = this.font.width(label);
+        int textX = x + (width - textW) / 2;
+        int textY = y + (height - 8) / 2;
+        guiGraphics.drawString(this.font, label, textX, textY, 0xFFFFFFFF, true);
+    }
+
+    private void renderListTooltips(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        int lx = getListX();
+        int ly = getListY();
+        int lw = getListWidth();
+        int lh = getListHeight();
+
+        if (mouseX >= lx && mouseX < lx + lw - 6 && mouseY >= ly && mouseY < ly + lh) {
+            int hoveredY = mouseY - ly + this.scrollOffset;
+            int index = hoveredY / LIST_ITEM_HEIGHT;
+            if (index >= 0 && index < this.filteredItems.size()) {
+                PartItem item = this.filteredItems.get(index);
+                List<Component> tooltip = new ArrayList<>();
+                tooltip.add(item.title);
+                if (item.isOverview) {
+                    tooltip.add(Component.literal("Click to view complete system status").withStyle(net.minecraft.ChatFormatting.GRAY));
+                } else {
+                    tooltip.add(Component.literal("Location: " + item.pos.toShortString()).withStyle(net.minecraft.ChatFormatting.DARK_AQUA));
+                    tooltip.add(Component.literal("Category: " + item.roleTag).withStyle(net.minecraft.ChatFormatting.YELLOW));
+                    if (item.isMaster) {
+                        tooltip.add(Component.literal("Role: Core Controller").withStyle(net.minecraft.ChatFormatting.GREEN));
+                    }
+                }
+                guiGraphics.renderComponentTooltip(this.font, tooltip, mouseX, mouseY);
+            }
         }
     }
 
-    private boolean handleDropdownClick(double mouseX, double mouseY, int button) {
-        if (button != 0) return false;
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (super.mouseClicked(mouseX, mouseY, button)) return true;
 
-        int ddWidth = 130;
-        int ddHeight = 20;
-        int ddX = getVpX() + getVpWidth() - 35 - ddWidth;
-        int ddY = getVpY() + 10;
+        // スクロールバードラッグ
+        int maxScroll = getMaxListScroll();
+        if (maxScroll > 0) {
+            int barX = getListX() + getListWidth() - 6;
+            if (mouseX >= barX && mouseX <= barX + 6 && mouseY >= getListY() && mouseY <= getListY() + getListHeight()) {
+                this.isDraggingScrollBar = true;
+                return true;
+            }
+        }
 
-        if (isDropdownOpen) {
-            int listY = ddY + ddHeight;
-            int itemHeight = 16;
-            int listHeight = (availableBlocksForFilter.size() + 1) * itemHeight;
-
-            if (mouseX >= ddX && mouseX <= ddX + ddWidth && mouseY >= listY && mouseY <= listY + listHeight) {
-                int clickedIndex = (int) ((mouseY - listY) / itemHeight);
-                if (clickedIndex == 0) {
-                    setFilterBlock(null);
-                } else if (clickedIndex - 1 < availableBlocksForFilter.size()) {
-                    setFilterBlock(availableBlocksForFilter.get(clickedIndex - 1));
-                }
-                isDropdownOpen = false;
+        // リスト項目クリック
+        if (mouseX >= getListX() && mouseX < getListX() + getListWidth() && mouseY >= getListY() && mouseY < getListY() + getListHeight()) {
+            int clickedY = (int) (mouseY - getListY() + this.scrollOffset);
+            int index = clickedY / LIST_ITEM_HEIGHT;
+            if (index >= 0 && index < this.filteredItems.size()) {
+                selectItem(this.filteredItems.get(index));
                 Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
                 return true;
             }
         }
 
-        if (mouseX >= ddX && mouseX <= ddX + ddWidth && mouseY >= ddY && mouseY <= ddY + ddHeight) {
-            isDropdownOpen = !isDropdownOpen;
-            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-            return true;
+        // 右パネルクリック
+        if (this.currentRightPanel != null) {
+            if (this.currentRightPanel.mouseClicked(getRightPanelX(), getRightPanelY(), getRightPanelWidth(), getRightPanelHeight(), mouseX, mouseY, button)) {
+                return true;
+            }
         }
 
         return false;
     }
 
-    // ==========================================
-    // ▼▼▼ 3D View 組み込み処理 ▼▼▼
-    // ==========================================
-
-    private void save3DState() {
-        savedRenderScale = this.renderScale;
-        savedYaw = this.yaw;
-        savedPitch = this.pitch;
-        savedIsExploded = this.isExploded;
-        savedScaleInitialized = this.scaleInitialized;
-    }
-
-    private List<BlockPos> get3DParts() {
-        List<BlockPos> parts = new ArrayList<>();
-        BlockEntity masterBe = this.menu.getLevel().getBlockEntity(this.menu.getMasterPos());
-        if (masterBe instanceof SimpleMachineBlockEntity master && !master.mainframeParts.isEmpty()) {
-            parts.addAll(master.mainframeParts);
-        }
-        return parts;
-    }
-
-    private void init3DScale(int vpWidth, int vpHeight) {
-        if (this.scaleInitialized) return;
-        List<BlockPos> parts = get3DParts();
-        if (parts.isEmpty()) return;
-        float cx = 0, cy = 0, cz = 0, maxDist = 1.0f;
-        for (BlockPos p : parts) { cx += p.getX(); cy += p.getY(); cz += p.getZ(); }
-        cx /= parts.size(); cy /= parts.size(); cz /= parts.size();
-        for (BlockPos p : parts) {
-            maxDist = Math.max(maxDist, Math.abs(p.getX() - cx));
-            maxDist = Math.max(maxDist, Math.abs(p.getY() - cy));
-            maxDist = Math.max(maxDist, Math.abs(p.getZ() - cz));
-        }
-        maxDist = Math.max(1.0f, maxDist);
-        int minDimension = Math.min(vpWidth, vpHeight);
-        this.renderScale = Mth.clamp(minDimension / (maxDist * 2.5f), 5f, 100f);
-        this.scaleInitialized = true;
-        save3DState();
-    }
-
-    private void render3DView(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY) {
-        List<BlockPos> parts = get3DParts();
-        if (parts.isEmpty()) return;
-
-        float cx = 0, cy = 0, cz = 0;
-        for (BlockPos p : parts) { cx += p.getX(); cy += p.getY(); cz += p.getZ(); }
-        cx /= parts.size(); cy /= parts.size(); cz /= parts.size();
-
-        int absX = this.startX + x;
-        int absY = this.startY + y;
-        guiGraphics.enableScissor(absX, absY, absX + width, absY + height);
-
-        PoseStack poseStack = guiGraphics.pose();
-        poseStack.pushPose();
-        poseStack.translate(x + (width / 2.0f), y + (height / 2.0f), 200);
-        poseStack.scale(renderScale, -renderScale, renderScale);
-        poseStack.mulPose(new Quaternionf().rotateX((float) Math.toRadians(pitch)).rotateY((float) Math.toRadians(yaw)));
-
-        BlockRenderDispatcher renderer = Minecraft.getInstance().getBlockRenderer();
-
-        // ------------------------------------------------------------------
-        // パス1: 対象のブロック（または全て）を通常通り描画
-        // ------------------------------------------------------------------
-        for (BlockPos p : parts) {
-            BlockState state = this.menu.getLevel().getBlockState(p);
-            if (state.isAir()) continue;
-
-            BlockEntity be = this.menu.getLevel().getBlockEntity(p);
-            if (be instanceof MainframeAdapterBlockEntity adapter && adapter.getOriginalState() != null) {
-                state = adapter.getOriginalState();
-            }
-
-            // 絞り込み中であり、かつ対象外のブロックならスキップ (パス2で半透明描画する)
-            boolean isFiltered = this.filterBlock != null && state.getBlock() != this.filterBlock;
-            if (isFiltered) continue;
-
-            float dx = p.getX() - cx;
-            float dy = p.getY() - cy;
-            float dz = p.getZ() - cz;
-            float renderX = dx - 0.5f + (dx * currentExplodeOffset * 0.8f);
-            float renderY = dy - 0.5f + (dy * currentExplodeOffset * 0.8f);
-            float renderZ = dz - 0.5f + (dz * currentExplodeOffset * 0.8f);
-
-            poseStack.pushPose();
-            poseStack.translate(renderX, renderY, renderZ);
-            renderer.renderSingleBlock(state, poseStack, guiGraphics.bufferSource(), 15728880, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, net.neoforged.neoforge.client.model.data.ModelData.EMPTY, null);
-            poseStack.popPose();
-        }
-        guiGraphics.flush();
-
-        // ------------------------------------------------------------------
-        // パス2: 対象外のブロックを強制的に半透明として描画
-        // ------------------------------------------------------------------
-        if (this.filterBlock != null) {
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
-            // 透過度設定（1.0f, 1.0f, 1.0f = 色味変更なし、0.25f = 25%の不透明度）
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 0.25f);
-            // 透過ブロック同士で描画順による欠けを防ぐため深度マスクを無効化
-            RenderSystem.depthMask(false);
-
-            // 強制的に半透明レンダータイプを返すラッパーを用意し、アルファブレンディングを有効にする
-            MultiBufferSource translucentSource = rt -> guiGraphics.bufferSource().getBuffer(RenderType.translucent());
-
-            for (BlockPos p : parts) {
-                BlockState state = this.menu.getLevel().getBlockState(p);
-                if (state.isAir()) continue;
-
-                BlockEntity be = this.menu.getLevel().getBlockEntity(p);
-                if (be instanceof MainframeAdapterBlockEntity adapter && adapter.getOriginalState() != null) {
-                    state = adapter.getOriginalState();
-                }
-
-                boolean isFiltered = state.getBlock() != this.filterBlock;
-                if (!isFiltered) continue;
-
-                float dx = p.getX() - cx;
-                float dy = p.getY() - cy;
-                float dz = p.getZ() - cz;
-                float renderX = dx - 0.5f + (dx * currentExplodeOffset * 0.8f);
-                float renderY = dy - 0.5f + (dy * currentExplodeOffset * 0.8f);
-                float renderZ = dz - 0.5f + (dz * currentExplodeOffset * 0.8f);
-
-                poseStack.pushPose();
-                poseStack.translate(renderX, renderY, renderZ);
-                renderer.renderSingleBlock(state, poseStack, translucentSource, 15728880, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, net.neoforged.neoforge.client.model.data.ModelData.EMPTY, null);
-                poseStack.popPose();
-            }
-
-            // バッチをフラッシュして状態を元に戻す
-            guiGraphics.bufferSource().endBatch(RenderType.translucent());
-            RenderSystem.depthMask(true);
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-            RenderSystem.disableBlend();
-        }
-
-        // ------------------------------------------------------------------
-        // パス3: 選択中ブロックのハイライト枠を描画 (常に最前面へ描画)
-        // ------------------------------------------------------------------
-        if (this.selectedPos != null && parts.contains(this.selectedPos)) {
-            float dx = this.selectedPos.getX() - cx;
-            float dy = this.selectedPos.getY() - cy;
-            float dz = this.selectedPos.getZ() - cz;
-            float renderX = dx - 0.5f + (dx * currentExplodeOffset * 0.8f);
-            float renderY = dy - 0.5f + (dy * currentExplodeOffset * 0.8f);
-            float renderZ = dz - 0.5f + (dz * currentExplodeOffset * 0.8f);
-
-            poseStack.pushPose();
-            poseStack.translate(renderX, renderY, renderZ);
-
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
-            VertexConsumer highlight = guiGraphics.bufferSource().getBuffer(RenderType.gui());
-            for (Direction dir : Direction.values()) {
-                drawFaceHighlightColor(poseStack, highlight, dir, 50, 255, 50, 100);
-            }
-            guiGraphics.flush();
-            RenderSystem.disableBlend();
-
-            poseStack.popPose();
-        }
-
-        poseStack.popPose();
-
-        // ------------------------------------------------------------------
-        // 3Dビュー内ボタンの描画
-        // ------------------------------------------------------------------
-        int btnX = x + width - 30;
-        int btnY = y + 10;
-        boolean isHovered = mouseX >= btnX && mouseX <= btnX + 20 && mouseY >= btnY && mouseY <= btnY + 20;
-
-        guiGraphics.fill(btnX, btnY, btnX + 20, btnY + 20, isHovered ? 0xFF555555 : 0xFF333333);
-        guiGraphics.renderOutline(btnX, btnY, 20, 20, 0xFF6A6A6A);
-
-        int color = isExploded ? 0xFF00E5FF : 0xFFFFFFFF;
-        if (isExploded) {
-            guiGraphics.fill(btnX + 4, btnY + 4, btnX + 8, btnY + 8, color);
-            guiGraphics.fill(btnX + 12, btnY + 4, btnX + 16, btnY + 8, color);
-            guiGraphics.fill(btnX + 4, btnY + 12, btnX + 8, btnY + 16, color);
-            guiGraphics.fill(btnX + 12, btnY + 12, btnX + 16, btnY + 16, color);
-        } else {
-            guiGraphics.fill(btnX + 6, btnY + 6, btnX + 14, btnY + 14, color);
-        }
-
-        guiGraphics.flush();
-        guiGraphics.disableScissor();
-    }
-
-    private BlockPos pick3DBlock(int x, int y, int width, int height, double mouseX, double mouseY) {
-        List<BlockPos> parts = get3DParts();
-        if (parts.isEmpty()) return null;
-
-        float cx = 0, cy = 0, cz = 0;
-        for (BlockPos p : parts) { cx += p.getX(); cy += p.getY(); cz += p.getZ(); }
-        cx /= parts.size(); cy /= parts.size(); cz /= parts.size();
-
-        BlockPos hitPos = null;
-        float maxZ = -Float.MAX_VALUE;
-
-        for (BlockPos p : parts) {
-            BlockState state = this.menu.getLevel().getBlockState(p);
-            if (state.isAir()) continue;
-
-            BlockEntity be = this.menu.getLevel().getBlockEntity(p);
-            if (be instanceof MainframeAdapterBlockEntity adapter && adapter.getOriginalState() != null) {
-                state = adapter.getOriginalState();
-            }
-
-            if (this.filterBlock != null && state.getBlock() != this.filterBlock) {
-                continue;
-            }
-
-            Matrix4f matrix = new Matrix4f();
-            matrix.translate(x + (width / 2.0f), y + (height / 2.0f), 200);
-            matrix.scale(renderScale, -renderScale, renderScale);
-            Quaternionf rotation = new Quaternionf().rotateX((float) Math.toRadians(pitch)).rotateY((float) Math.toRadians(yaw));
-            matrix.rotate(rotation);
-
-            float dx = p.getX() - cx;
-            float dy = p.getY() - cy;
-            float dz = p.getZ() - cz;
-            float renderX = dx - 0.5f + (dx * currentExplodeOffset * 0.8f);
-            float renderY = dy - 0.5f + (dy * currentExplodeOffset * 0.8f);
-            float renderZ = dz - 0.5f + (dz * currentExplodeOffset * 0.8f);
-
-            matrix.translate(renderX, renderY, renderZ);
-
-            for (Direction dir : Direction.values()) {
-                Vector3f[] corners = getFaceCorners(dir);
-                Vector3f[] projected = new Vector3f[4];
-                float avgZ = 0;
-                for (int i = 0; i < 4; i++) {
-                    Vector4f vec = new Vector4f(corners[i].x, corners[i].y, corners[i].z, 1.0f);
-                    matrix.transform(vec);
-                    projected[i] = new Vector3f(vec.x, vec.y, vec.z);
-                    avgZ += vec.z;
-                }
-                avgZ /= 4f;
-
-                if (isPointInQuad(mouseX, mouseY, projected) && avgZ > maxZ) {
-                    maxZ = avgZ;
-                    hitPos = p;
-                }
-            }
-        }
-        return hitPos;
-    }
-
-    private void drawFaceHighlightColor(PoseStack poseStack, VertexConsumer buffer, Direction face, int r, int g, int b, int a) {
-        Matrix4f pose = poseStack.last().pose();
-        float offset = 0.005f;
-        switch (face) {
-            case NORTH -> { addVertex(buffer, pose, 1, 1, -offset, r, g, b, a); addVertex(buffer, pose, 1, 0, -offset, r, g, b, a); addVertex(buffer, pose, 0, 0, -offset, r, g, b, a); addVertex(buffer, pose, 0, 1, -offset, r, g, b, a); }
-            case SOUTH -> { addVertex(buffer, pose, 0, 1, 1 + offset, r, g, b, a); addVertex(buffer, pose, 0, 0, 1 + offset, r, g, b, a); addVertex(buffer, pose, 1, 0, 1 + offset, r, g, b, a); addVertex(buffer, pose, 1, 1, 1 + offset, r, g, b, a); }
-            case WEST -> { addVertex(buffer, pose, -offset, 1, 0, r, g, b, a); addVertex(buffer, pose, -offset, 0, 0, r, g, b, a); addVertex(buffer, pose, -offset, 0, 1, r, g, b, a); addVertex(buffer, pose, -offset, 1, 1, r, g, b, a); }
-            case EAST -> { addVertex(buffer, pose, 1 + offset, 1, 1, r, g, b, a); addVertex(buffer, pose, 1 + offset, 0, 1, r, g, b, a); addVertex(buffer, pose, 1 + offset, 0, 0, r, g, b, a); addVertex(buffer, pose, 1 + offset, 1, 0, r, g, b, a); }
-            case UP -> { addVertex(buffer, pose, 0, 1 + offset, 0, r, g, b, a); addVertex(buffer, pose, 0, 1 + offset, 1, r, g, b, a); addVertex(buffer, pose, 1, 1 + offset, 1, r, g, b, a); addVertex(buffer, pose, 1, 1 + offset, 0, r, g, b, a); }
-            case DOWN -> { addVertex(buffer, pose, 1, -offset, 0, r, g, b, a); addVertex(buffer, pose, 1, -offset, 1, r, g, b, a); addVertex(buffer, pose, 0, -offset, 1, r, g, b, a); addVertex(buffer, pose, 0, -offset, 0, r, g, b, a); }
-        }
-    }
-
-    private void addVertex(VertexConsumer buffer, Matrix4f pose, float x, float y, float z, int r, int g, int b, int a) { buffer.addVertex(pose, x, y, z).setColor(r, g, b, a); }
-
-    private Vector3f[] getFaceCorners(Direction dir) {
-        return switch (dir) {
-            case UP -> new Vector3f[]{new Vector3f(0, 1, 0), new Vector3f(1, 1, 0), new Vector3f(1, 1, 1), new Vector3f(0, 1, 1)};
-            case DOWN -> new Vector3f[]{new Vector3f(0, 0, 0), new Vector3f(0, 0, 1), new Vector3f(1, 0, 1), new Vector3f(1, 0, 0)};
-            case NORTH -> new Vector3f[]{new Vector3f(0, 0, 0), new Vector3f(0, 1, 0), new Vector3f(1, 1, 0), new Vector3f(1, 0, 0)};
-            case SOUTH -> new Vector3f[]{new Vector3f(1, 0, 1), new Vector3f(1, 1, 1), new Vector3f(0, 1, 1), new Vector3f(0, 0, 1)};
-            case WEST -> new Vector3f[]{new Vector3f(0, 0, 0), new Vector3f(0, 0, 1), new Vector3f(0, 1, 1), new Vector3f(0, 1, 0)};
-            case EAST -> new Vector3f[]{new Vector3f(1, 0, 0), new Vector3f(1, 1, 0), new Vector3f(1, 1, 1), new Vector3f(1, 0, 1)};
-        };
-    }
-
-    private boolean isPointInQuad(double px, double py, Vector3f[] corners) {
-        boolean hasPos = false, hasNeg = false;
-        for (int i = 0; i < 4; i++) {
-            Vector3f p1 = corners[i], p2 = corners[(i + 1) % 4];
-            double cross = (px - p1.x) * (p2.y - p1.y) - (py - p1.y) * (p2.x - p1.x);
-            if (cross > 0.001) hasPos = true;
-            if (cross < -0.001) hasNeg = true;
-        }
-        return !(hasPos && hasNeg);
-    }
-
-    // ==========================================
-    // ▼▼▼ マウス・キー入力イベント処理 ▼▼▼
-    // ==========================================
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        double relMouseX = mouseX - this.startX;
-        double relMouseY = mouseY - this.startY;
-
-        if (relMouseX < 0 || relMouseX > this.guiWidth || relMouseY < 0 || relMouseY > this.guiHeight) {
-            if (isDropdownOpen) isDropdownOpen = false;
-            return super.mouseClicked(mouseX, mouseY, button);
-        }
-
-        if (uiFramework.mouseClicked(relMouseX, relMouseY, button, this.virtualWidth, this.virtualHeight, TOP_BAR_HEIGHT)) {
-            if (isDropdownOpen) isDropdownOpen = false;
-            return true;
-        }
-
-        if (!uiFramework.hasCustomCenterPanel()) {
-            if (handleDropdownClick(relMouseX, relMouseY, button)) {
-                return true;
-            }
-
-            if (isDropdownOpen) {
-                isDropdownOpen = false;
-                return true;
-            }
-
-            if (isMouseInViewport(relMouseX, relMouseY)) {
-                int btnX = getVpX() + getVpWidth() - 30;
-                int btnY = getVpY() + 10;
-                if (relMouseX >= btnX && relMouseX <= btnX + 20 && relMouseY >= btnY && relMouseY <= btnY + 20) {
-                    if (button == 0) {
-                        this.isExploded = !this.isExploded;
-                        save3DState();
-                        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                        return true;
-                    }
-                }
-                if (button == 0) this.isDraggingView = true;
-                if (button == 0 || button == 1) {
-                    BlockPos hitPos = pick3DBlock(getVpX(), getVpY(), getVpWidth(), getVpHeight(), relMouseX, relMouseY);
-                    if (hitPos != null) {
-                        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                        selectBlock(hitPos);
-                        return true;
-                    } else {
-                        if (this.selectedPos != null) {
-                            selectBlock(null);
-                        }
-                    }
-                }
-            }
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        double relMouseX = mouseX - this.startX;
-        double relMouseY = mouseY - this.startY;
-
-        if (relMouseX >= 0 && relMouseX <= this.guiWidth && relMouseY >= 0 && relMouseY <= this.guiHeight) {
-            if (uiFramework.mouseReleased(relMouseX, relMouseY, button, this.virtualWidth, this.virtualHeight, TOP_BAR_HEIGHT)) return true;
-            if (!uiFramework.hasCustomCenterPanel() && button == 0) this.isDraggingView = false;
-        }
-        return super.mouseReleased(mouseX, mouseY, button);
-    }
-
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        double relMouseX = mouseX - this.startX;
-        double relMouseY = mouseY - this.startY;
-
-        if (relMouseX >= 0 && relMouseX <= this.guiWidth && relMouseY >= 0 && relMouseY <= this.guiHeight) {
-            if (uiFramework.mouseDragged(relMouseX, relMouseY, button, dragX, dragY, this.virtualWidth, this.virtualHeight, TOP_BAR_HEIGHT)) {
-                rebuildUI();
+        if (this.isDraggingScrollBar) {
+            int maxScroll = getMaxListScroll();
+            if (maxScroll > 0) {
+                float ratio = (float) dragY / (float) getListHeight();
+                this.scrollOffset = Mth.clamp(this.scrollOffset + (int) (ratio * (this.filteredItems.size() * LIST_ITEM_HEIGHT)), 0, maxScroll);
                 return true;
-            }
-            if (!uiFramework.hasCustomCenterPanel() && isMouseInViewport(relMouseX, relMouseY)) {
-                if (this.isDraggingView && button == 0) {
-                    this.yaw += (float) dragX;
-                    this.pitch = Mth.clamp(this.pitch + (float) dragY, -90f, 90f);
-                    save3DState();
-                    return true;
-                }
             }
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        double relMouseX = mouseX - this.startX;
-        double relMouseY = mouseY - this.startY;
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        this.isDraggingScrollBar = false;
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
 
-        if (relMouseX >= 0 && relMouseX <= this.guiWidth && relMouseY >= 0 && relMouseY <= this.guiHeight) {
-            if (uiFramework.mouseScrolled(relMouseX, relMouseY, scrollX, scrollY, this.virtualWidth, this.virtualHeight, TOP_BAR_HEIGHT)) return true;
-            if (!uiFramework.hasCustomCenterPanel() && isMouseInViewport(relMouseX, relMouseY)) {
-                this.renderScale = Mth.clamp(this.renderScale + (float) (scrollY * 2.0f), 5f, 100f);
-                save3DState();
-                return true;
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (mouseX >= getListX() && mouseX <= getListX() + getListWidth() && mouseY >= getListY() && mouseY <= getListY() + getListHeight()) {
+            int maxScroll = getMaxListScroll();
+            this.scrollOffset = Mth.clamp(this.scrollOffset - (int) (scrollY * LIST_ITEM_HEIGHT), 0, maxScroll);
+            return true;
+        }
+
+        if (this.currentRightPanel != null) {
+            if (mouseX >= getRightPanelX() && mouseX <= getRightPanelX() + getRightPanelWidth() && mouseY >= getRightPanelY() && mouseY <= getRightPanelY() + getRightPanelHeight()) {
+                return this.currentRightPanel.mouseScrolled(getRightPanelX(), getRightPanelY(), getRightPanelWidth(), getRightPanelHeight(), mouseX, mouseY, scrollX, scrollY);
             }
         }
+
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (this.uiFramework.keyPressed(keyCode, scanCode, modifiers, this.virtualWidth, this.virtualHeight, TOP_BAR_HEIGHT)) return true;
-        if (this.uiFramework.getRightPanel() instanceof AbstractRightPanel rp && rp.keyPressed(keyCode, scanCode, modifiers)) return true;
+        if (this.searchBox != null && this.searchBox.isFocused() && this.searchBox.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        if (this.currentRightPanel != null && this.currentRightPanel.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        if (this.uiFramework.charTyped(codePoint, modifiers, this.virtualWidth, this.virtualHeight, TOP_BAR_HEIGHT)) return true;
-        if (this.uiFramework.getRightPanel() instanceof AbstractRightPanel rp && rp.charTyped(codePoint, modifiers)) return true;
+        if (this.searchBox != null && this.searchBox.isFocused() && this.searchBox.charTyped(codePoint, modifiers)) {
+            return true;
+        }
+        if (this.currentRightPanel != null && this.currentRightPanel.charTyped(codePoint, modifiers)) {
+            return true;
+        }
         return super.charTyped(codePoint, modifiers);
-    }
-
-    private boolean isMouseInViewport(double mouseX, double mouseY) {
-        return mouseX >= getVpX() && mouseX <= getVpX() + getVpWidth() && mouseY >= getVpY() && mouseY <= getVpY() + getVpHeight();
     }
 
     @Override
     protected void renderLabels(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY) {}
 
     @Override
-    protected void renderBg(@NotNull GuiGraphics guiGraphics, float v, int i, int i1) {
-    }
+    protected void renderBg(@NotNull GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {}
 
-    @Override
-    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop, int mouseButton) {
-        return false;
+    /**
+     * パーツリストの各エントリ用データクラス
+     */
+    public static class PartItem {
+        public final BlockPos pos;
+        public final boolean isOverview;
+        public final boolean isMaster;
+        public final ItemStack icon;
+        public final Component title;
+        public final String subText;
+        public final String roleTag;
+        public final BlockState state;
+
+        public PartItem(BlockPos pos, boolean isOverview, boolean isMaster, ItemStack icon, Component title, String subText, String roleTag, BlockState state) {
+            this.pos = pos;
+            this.isOverview = isOverview;
+            this.isMaster = isMaster;
+            this.icon = icon;
+            this.title = title;
+            this.subText = subText;
+            this.roleTag = roleTag;
+            this.state = state;
+        }
     }
 }

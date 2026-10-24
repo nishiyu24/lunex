@@ -1,18 +1,18 @@
 package com.nishiyu.lunex.program.server.machine.api;
 
+import com.nishiyu.enderframelib.common.UIParser;
+import com.nishiyu.enderframelib.server.ServerPubSubManager;
+import com.nishiyu.enderframelib.server.WebSession;
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.api.MainframeConstants;
 import com.nishiyu.lunex.api.mainframe.IMainframeAPI;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
 import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
-import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
-import com.nishiyu.lunex.mcnet.VirtualStorage;
-import com.nishiyu.lunex.mcnet.ScreenSession;
 import com.nishiyu.lunex.mcnet.ScreenSessionManager;
+import com.nishiyu.lunex.mcnet.VirtualStorage;
 import com.nishiyu.lunex.program.core.LuaFunction;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
-import com.nishiyu.lunex.server.ServerPubSubManager;
-import com.nishiyu.lunex.webrender.UIParser;
+import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import org.luaj.vm2.LuaTable;
@@ -57,14 +57,14 @@ public class ScreenAPI implements AutoCloseable, IMainframeAPI {
     }
 
     public UIParser.Document getDocument(String targetStr) {
-        List<ScreenSession> sessions = sessionManager.resolveSessions(targetStr);
+        List<WebSession> sessions = sessionManager.resolveSessions(targetStr);
         return sessions.isEmpty() ? null : sessions.get(0).getDocument();
     }
 
     public void requestUpdate(String targetStr) {
         if (vm != null && vm.isRunning) {
             vm.mainThreadTasks.add(() -> {
-                for (ScreenSession session : sessionManager.resolveSessions(targetStr)) {
+                for (WebSession session : sessionManager.resolveSessions(targetStr)) {
                     session.requestReRender();
                 }
             });
@@ -76,7 +76,7 @@ public class ScreenAPI implements AutoCloseable, IMainframeAPI {
             args = {}, rets = {"num:width"}, isAsync = false
     )
     public int getWidth(String targetStr) {
-        List<ScreenSession> resolved = sessionManager.resolveSessions(targetStr);
+        List<WebSession> resolved = sessionManager.resolveSessions(targetStr);
         return resolved.isEmpty() ? 0 : resolved.get(0).getWidth();
     }
 
@@ -85,7 +85,7 @@ public class ScreenAPI implements AutoCloseable, IMainframeAPI {
             args = {}, rets = {"num:height"}, isAsync = false
     )
     public int getHeight(String targetStr) {
-        List<ScreenSession> resolved = sessionManager.resolveSessions(targetStr);
+        List<WebSession> resolved = sessionManager.resolveSessions(targetStr);
         return resolved.isEmpty() ? 0 : resolved.get(0).getHeight();
     }
 
@@ -145,9 +145,9 @@ public class ScreenAPI implements AutoCloseable, IMainframeAPI {
         final String finalCss = cssContent;
 
         return vm.executeInMainThreadSync(() -> {
-            List<ScreenSession> resolved = sessionManager.resolveSessions(targetStr);
+            List<WebSession> resolved = sessionManager.resolveSessions(targetStr);
             if (resolved.isEmpty()) return false;
-            for (ScreenSession session : resolved) session.loadWithCss(finalHtml, finalCss);
+            for (WebSession session : resolved) session.loadWithCss(finalHtml, finalCss);
             return true;
         }, 50, true);
     }
@@ -256,9 +256,9 @@ public class ScreenAPI implements AutoCloseable, IMainframeAPI {
     )
     public boolean reload(String targetStr) {
         return vm.executeInMainThreadSync(() -> {
-            List<ScreenSession> resolved = sessionManager.resolveSessions(targetStr);
+            List<WebSession> resolved = sessionManager.resolveSessions(targetStr);
             if (resolved.isEmpty()) return false;
-            for (ScreenSession session : resolved) session.reload();
+            for (WebSession session : resolved) session.reload();
             return true;
         }, 50, true);
     }
@@ -269,7 +269,7 @@ public class ScreenAPI implements AutoCloseable, IMainframeAPI {
     )
     public void clearScreen(String targetStr) {
         vm.executeInMainThreadSync(() -> {
-            for (ScreenSession session : sessionManager.resolveSessions(targetStr)) session.clear();
+            for (WebSession session : sessionManager.resolveSessions(targetStr)) session.clear();
             return null;
         }, 50, true);
     }
@@ -349,7 +349,7 @@ public class ScreenAPI implements AutoCloseable, IMainframeAPI {
     )
     public void broadcastEvent(String targetStr, String eventName, String payload) {
         vm.executeInMainThreadSync(() -> {
-            for (com.nishiyu.lunex.mcnet.ScreenSession session : sessionManager.resolveSessions(targetStr)) {
+            for (WebSession session : sessionManager.resolveSessions(targetStr)) {
                 net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
                 tag.putString("eventName", eventName);
                 tag.putString("json", payload);
@@ -380,7 +380,7 @@ public class ScreenAPI implements AutoCloseable, IMainframeAPI {
 
         Runnable clearTask = () -> {
             for (BlockPos pos : linkedScreenPositions) {
-                if (level.getBlockEntity(pos) instanceof com.nishiyu.lunex.blockentity.ScreenBlockEntity sbe) {
+                if (level.getBlockEntity(pos) instanceof ScreenBlockEntity sbe) {
                     sbe.setLinkedSpeakers(new java.util.ArrayList<>());
                 }
             }

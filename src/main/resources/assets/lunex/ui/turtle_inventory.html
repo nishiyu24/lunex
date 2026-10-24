@@ -1,0 +1,94 @@
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 176px;
+            height: 222px;
+            background-color: #212128;
+            border: 1px solid #454756;
+            border-radius: 2px;
+            color: #d4d4d4;
+        }
+        .title-label {
+            position: absolute;
+            left: 8px;
+            top: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #d4d4d4;
+        }
+        .prog-label {
+            position: absolute;
+            left: 8px;
+            top: 20px;
+            width: 138px;
+            font-size: 10px;
+            color: #858585;
+        }
+        .run-btn {
+            position: absolute;
+            left: 150px;
+            top: 14px;
+            width: 18px;
+            height: 18px;
+            border: 1px solid #454756;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        .btn-start {
+            background-color: #0e639c;
+            border-color: #1177bb;
+            color: #ffffff;
+        }
+        .btn-start:hover {
+            background-color: #1177bb;
+        }
+        .btn-stop {
+            background-color: #4b1d1d;
+            border-color: #8a3333;
+            color: #f48771;
+        }
+        .btn-stop:hover {
+            background-color: #632626;
+        }
+        .energy-bar {
+            position: absolute;
+            left: 8px;
+            top: 37px;
+            width: 160px;
+            height: 6px;
+            background-color: #141418;
+            border: 1px solid #31323d;
+            border-radius: 1px;
+            color: #569cd6;
+        }
+        .inv-label {
+            position: absolute;
+            left: 8px;
+            top: 127px;
+            font-size: 10px;
+            color: #858585;
+        }
+        .slot-box {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background-color: #18181d;
+            border: 1px solid #31323d;
+        }
+    </style>
+</head>
+<body>
+<span class="title-label">{{TITLE}}</span>
+<span id="lbl_program" class="prog-label">Boot Program: None</span>
+<div id="btn_run" class="run-btn btn-start" onclick="toggle_run">▶</div>
+<progress id="energy_bar" class="energy-bar" value="0" min="0" max="100000"></progress>
+<span class="inv-label">Inventory</span>
+{{SLOTS_HTML}}
+</body>
+</html>

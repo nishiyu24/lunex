@@ -1,9 +1,11 @@
 package com.nishiyu.lunex.network.packet.s2c;
 
 import com.nishiyu.lunex.Lunex;
-import com.nishiyu.lunex.client.ClientScreenManager;
+import com.nishiyu.enderframelib.client.ClientWebManager;
 import com.nishiyu.lunex.menu.BioEntity.BioEntitySettingsScreen;
+import com.nishiyu.lunex.menu.turtle.TurtleSettingsScreen;
 import com.nishiyu.lunex.program.client.ClientScriptManager;
+import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -30,7 +32,7 @@ public record AppMessageS2CPacket(String sessionId, String action, CompoundTag p
     public void handle(IPayloadContext context) {
         context.enqueueWork(() -> {
             if ("dom_sync".equals(action)) {
-                ClientScreenManager.handleSyncPacket(sessionId, payload);
+                ClientWebManager.handleSyncPacket(sessionId, payload);
             } else if ("fetch_response".equals(action)) {
                 ClientScriptManager.handleFetchResponse(payload.getString("requestId"), payload.getString("json"));
             } else if ("server_event".equals(action)) {
@@ -45,6 +47,14 @@ public record AppMessageS2CPacket(String sessionId, String action, CompoundTag p
 
                 com.nishiyu.lunex.network.LocalWebSocketServer.handleProgramResponse(programName, content);
 
+            } else if ("ide_file_content".equals(action)) {
+                // ★追加: ゲーム内フルスクリーンIDEへのファイル内容反映
+                String programName = payload.getString("programName");
+                String content = payload.getString("content");
+                if (Minecraft.getInstance().screen instanceof TurtleSettingsScreen turtleScreen) {
+                    turtleScreen.receiveFileContent(programName, content);
+                }
+
             } else if ("file_list".equals(action)) {
                 java.util.List<String> list = new java.util.ArrayList<>();
                 net.minecraft.nbt.ListTag nbtList = payload.getList("files", net.minecraft.nbt.Tag.TAG_STRING);
@@ -52,13 +62,14 @@ public record AppMessageS2CPacket(String sessionId, String action, CompoundTag p
                     list.add(nbtList.getString(i));
                 }
 
-                if (net.minecraft.client.Minecraft.getInstance().screen instanceof BioEntitySettingsScreen bioScreen) {
+                if (Minecraft.getInstance().screen instanceof BioEntitySettingsScreen bioScreen) {
                     bioScreen.receiveItemFiles(list);
+                } else if (Minecraft.getInstance().screen instanceof TurtleSettingsScreen turtleScreen) {
+                    turtleScreen.receiveItemFiles(list);
                 }
-                // ★修正: MachineSettingsScreen への処理を削除
 
             } else if ("bio_info_sync".equals(action)) {
-                if (net.minecraft.client.Minecraft.getInstance().screen instanceof BioEntitySettingsScreen bioScreen) {
+                if (Minecraft.getInstance().screen instanceof BioEntitySettingsScreen bioScreen) {
                     bioScreen.receiveBioInfo(payload);
                 }
             }

@@ -1,0 +1,685 @@
+<html>
+<head>
+    <style>
+        :root {
+            --bg-base: #141418;
+            --bg-mantle: #1b1b21;
+            --bg-crust: #212128;
+            --bg-surface: #2c2d37;
+            --bg-hover: #383946;
+            --border: #31323d;
+            --border-light: #454756;
+            --accent: #569cd6;
+            --green: #6a9955;
+            --warning: #ce9178;
+            --danger: #f44747;
+            --text-main: #d4d4d4;
+            --text-sub: #858585;
+            --text-dark: #141418;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-crust);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top IDE Header Bar */
+        .ide-topbar {
+            height: 32px;
+            background-color: var(--bg-base);
+            border-bottom: 1px solid var(--border);
+            padding: 0 10px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .brand-box {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+        }
+        .brand-icon {
+            width: 16px;
+            height: 16px;
+        }
+        .brand-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+        .status-badge {
+            padding: 2px 6px;
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            background-color: var(--bg-mantle);
+            color: var(--text-sub);
+            font-size: 10px;
+        }
+        .status-running {
+            border-color: var(--green);
+            color: #89d185;
+        }
+        .topbar-controls {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 3-Column IDE Workspace */
+        .ide-workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+
+        /* Left Pane: Explorer */
+        .pane-explorer {
+            width: 184px;
+            background-color: var(--bg-mantle);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+        .pane-header {
+            height: 24px;
+            padding: 0 8px;
+            background-color: var(--bg-base);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .pane-title {
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--text-sub);
+        }
+        .explorer-actions {
+            display: flex;
+            flex-direction: row;
+            gap: 4px;
+        }
+        .path-bar {
+            height: 20px;
+            padding: 0 8px;
+            background-color: var(--bg-crust);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            color: var(--text-sub);
+            font-size: 10px;
+        }
+        .file-list {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 2px 0;
+        }
+        .file-row {
+            height: 22px;
+            padding: 0 8px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .file-row:hover {
+            background-color: var(--bg-surface);
+        }
+        .file-row-selected {
+            background-color: #264f78;
+            border-left: 2px solid var(--accent);
+        }
+        .file-row-selected:hover {
+            background-color: #2b5885;
+        }
+        .file-name-cell {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+        }
+        .file-icon {
+            width: 14px;
+            height: 14px;
+        }
+        .file-name-text {
+            font-size: 11px;
+            color: var(--text-main);
+        }
+        .file-type-text {
+            font-size: 9px;
+            color: var(--text-sub);
+        }
+        .file-empty {
+            padding: 10px;
+            color: var(--text-sub);
+            font-size: 11px;
+        }
+
+        /* Center Pane: Multi-Tab Code Editor & Bottom Console */
+        .pane-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-crust);
+            overflow: hidden;
+        }
+        .editor-tabbar {
+            height: 26px;
+            background-color: var(--bg-base);
+            border-bottom: 1px solid var(--border);
+            padding: 0 6px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tabs-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            overflow-x: auto;
+        }
+        .editor-tab {
+            height: 26px;
+            padding: 0 10px;
+            background-color: var(--bg-mantle);
+            border-top: 2px solid transparent;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-sub);
+            font-size: 11px;
+        }
+        .editor-tab:hover {
+            background-color: var(--bg-crust);
+            color: var(--text-main);
+        }
+        .editor-tab-active {
+            background-color: var(--bg-crust);
+            border-top: 2px solid var(--accent);
+            color: var(--text-main);
+        }
+        .tab-close {
+            font-size: 9px;
+            color: var(--text-sub);
+            padding: 0 2px;
+        }
+        .tab-close:hover {
+            color: var(--danger);
+        }
+        .editor-toolbar {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Native Multi-line Textarea Code Editor */
+        .code-editor-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #18181d;
+            padding: 4px;
+            overflow: hidden;
+        }
+        .code-textarea {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            background-color: #18181d;
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            color: var(--text-main);
+            font-size: 11px;
+        }
+        .code-textarea:focus {
+            border-color: var(--accent);
+        }
+
+        /* Snippet & Cursor Status Bar */
+        .editor-statusbar {
+            height: 24px;
+            background-color: var(--bg-mantle);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 0 8px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .snippet-group {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 4px;
+        }
+        .status-info-group {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+        .cursor-badge {
+            color: var(--text-sub);
+            font-size: 10px;
+        }
+
+        /* Bottom Console / Diagnostics */
+        .console-pane {
+            height: 80px;
+            background-color: var(--bg-base);
+            display: flex;
+            flex-direction: column;
+        }
+        .console-body {
+            flex: 1;
+            padding: 6px 8px;
+            color: var(--text-main);
+            font-size: 11px;
+            overflow-y: auto;
+        }
+
+        /* Right Pane: Telemetry & Machine Settings */
+        .pane-inspector {
+            width: 208px;
+            background-color: var(--bg-mantle);
+            border-left: 1px solid var(--border);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+        }
+        .card {
+            background-color: var(--bg-crust);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .card-title-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-title {
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--text-sub);
+        }
+        .kv-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .kv-key {
+            font-size: 10px;
+            color: var(--text-sub);
+        }
+        .kv-val {
+            font-size: 11px;
+            color: var(--text-main);
+        }
+        .energy-bar {
+            width: 100%;
+            height: 6px;
+            border-radius: 1px;
+            background-color: var(--bg-base);
+            color: var(--accent);
+        }
+        .telemetry-canvas {
+            width: 100%;
+            height: 40px;
+            background-color: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+        }
+        .label-input-row {
+            display: flex;
+            flex-direction: row;
+            gap: 4px;
+            align-items: center;
+        }
+        .label-input {
+            flex: 1;
+            height: 20px;
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            color: var(--text-main);
+            font-size: 11px;
+        }
+        .toggle-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .toggle-btn {
+            height: 20px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }
+        .toggle-btn:hover {
+            background-color: var(--bg-hover);
+        }
+        .toggle-active {
+            background-color: #264f78;
+            border-color: var(--accent);
+            color: #ffffff;
+        }
+
+        /* Standard Flat Buttons */
+        .btn {
+            height: 20px;
+            padding: 0 8px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }
+        .btn:hover {
+            background-color: var(--bg-hover);
+        }
+        .btn-xs {
+            height: 18px;
+            padding: 0 6px;
+            font-size: 10px;
+        }
+        .btn-primary {
+            background-color: #0e639c;
+            border-color: #1177bb;
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #1177bb;
+        }
+        .btn-warning {
+            background-color: #4d3824;
+            border-color: var(--warning);
+            color: #f0d0b8;
+        }
+        .btn-warning:hover {
+            background-color: #61462d;
+        }
+        .btn-danger {
+            background-color: #4b1d1d;
+            border-color: #8a3333;
+            color: #f48771;
+        }
+        .btn-danger:hover {
+            background-color: #632626;
+        }
+        .btn-ok {
+            background-color: #2d5a27;
+            border-color: var(--green);
+            color: #ffffff;
+        }
+
+        /* Context Menu & Modal */
+        .ctx-menu {
+            position: absolute;
+            width: 128px;
+            background-color: var(--bg-mantle);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            display: none;
+            flex-direction: column;
+            z-index: 60;
+            overflow: hidden;
+        }
+        .ctx-item {
+            height: 22px;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+            color: var(--text-main);
+            font-size: 11px;
+        }
+        .ctx-item:hover {
+            background-color: #094771;
+        }
+        .ctx-danger {
+            color: #f48771;
+        }
+
+        .modal-overlay {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-box {
+            width: 250px;
+            background-color: var(--bg-crust);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .modal-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+        .modal-input {
+            width: 100%;
+            height: 22px;
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            color: var(--text-main);
+            font-size: 11px;
+        }
+        .modal-actions {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+    </style>
+</head>
+<body>
+<!-- Top IDE Header -->
+<div class="ide-topbar">
+    <div class="brand-box">
+        <img class="brand-icon" src="item:minecraft:redstone_block"/>
+        <span class="brand-title">Turtle Studio</span>
+        <span class="kv-key">{{machine_id}}</span>
+        <div id="badge_status" class="status-badge" data-class="status-running:is_running">{{status_text}}</div>
+    </div>
+    <div class="topbar-controls">
+        <div id="btn_toggle_run" class="btn" data-class="btn-warning:is_running, btn-primary:!is_running" data-tooltip="Boot or Stop Turtle VM" onclick="toggle_run">{{run_btn_text}}</div>
+        <div class="btn" data-tooltip="Reboot Turtle VM" onclick="reboot">Reboot</div>
+        <div class="btn" data-tooltip="Open Linked External Web IDE" onclick="open_external_editor">Web IDE</div>
+        <div class="btn btn-danger" data-tooltip="Close Studio (Esc)" onclick="close_ide">✕</div>
+    </div>
+</div>
+
+<!-- Main 3-Pane Workspace -->
+<div class="ide-workspace">
+    <!-- 1. Left Explorer Pane -->
+    <div class="pane-explorer">
+        <div class="pane-header">
+            <span class="pane-title">EXPLORER</span>
+            <div class="explorer-actions">
+                <div class="btn btn-xs" data-tooltip="Create New Lua File" onclick="new_file">+File</div>
+                <div class="btn btn-xs" data-tooltip="Create New Directory" onclick="new_folder">+Dir</div>
+                <div class="btn btn-xs" data-tooltip="Synchronize File Tree" onclick="refresh_files">↻</div>
+            </div>
+        </div>
+        <div class="path-bar">{{current_path}}</div>
+        <div id="file_list_body" class="file-list" data-list="files">
+            <template>
+                <div class="{{row_class}}" onclick="file_item:{{name}}">
+                    <div class="file-name-cell">
+                        <img class="file-icon" src="{{icon}}"/>
+                        <span class="file-name-text">{{name}}</span>
+                    </div>
+                    <span class="file-type-text">{{badge}}</span>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- 2. Center Multi-Tab Code Editor + Bottom Console -->
+    <div class="pane-center">
+        <div class="editor-tabbar">
+            <div id="editor_tabs_bar" class="tabs-container" data-list="open_tabs">
+                <template>
+                    <div class="{{tab_class}}" onclick="tab_select:{{path}}">
+                        <span>{{title}}</span>
+                        <span class="tab-close" onclick="tab_close:{{path}}">✕</span>
+                    </div>
+                </template>
+            </div>
+            <div class="editor-toolbar">
+                <div id="btn_save_file" class="btn btn-xs" data-class="btn-ok:save_ok" data-tooltip="Save File to Server (Ctrl+S)" onclick="save_file">{{save_btn_text}}</div>
+                <div class="btn btn-xs btn-primary" data-tooltip="Save, Set Boot &amp; Run (F5)" onclick="run_current_file">Save &amp; Run</div>
+                <div class="btn btn-xs" data-tooltip="Set Current File as Startup Program" onclick="set_boot_current">Set Boot</div>
+            </div>
+        </div>
+
+        <!-- Native Multi-line Lua Code Editor -->
+        <div class="code-editor-wrap">
+            <textarea id="code_editor" class="code-textarea" data-syntax="lua" data-line-numbers="true" value=""></textarea>
+        </div>
+
+        <!-- Quick Lua Snippets & Cursor Position Bar -->
+        <div class="editor-statusbar">
+            <div class="snippet-group">
+                <span class="kv-key">Insert:</span>
+                <div class="btn btn-xs" data-tooltip="Insert turtle.forward()" onclick="snippet:forward">forward()</div>
+                <div class="btn btn-xs" data-tooltip="Insert turtle.dig()" onclick="snippet:dig">dig()</div>
+                <div class="btn btn-xs" data-tooltip="Insert for loop template" onclick="snippet:loop">for..do</div>
+                <div class="btn btn-xs" data-tooltip="Insert function template" onclick="snippet:func">func()</div>
+            </div>
+            <div class="status-info-group">
+                <span class="kv-key">{{editor_status}}</span>
+                <span class="cursor-badge">{{cursor_pos}}</span>
+            </div>
+        </div>
+
+        <!-- Bottom Diagnostics & Error Console -->
+        <div class="console-pane">
+            <div class="pane-header">
+                <span class="pane-title">OUTPUT / DIAGNOSTICS</span>
+                <div class="explorer-actions">
+                    <div class="btn btn-xs" data-tooltip="Clear Log" onclick="error_clear">Clear</div>
+                    <div class="btn btn-xs" data-tooltip="Copy Log to Clipboard" onclick="error_copy">Copy</div>
+                </div>
+            </div>
+            <div id="val_error_log" class="console-body" data-bind="text:error_log, style.color:error_color">No recent errors. Ready.</div>
+        </div>
+    </div>
+
+    <!-- 3. Right Telemetry & Settings Inspector -->
+    <div class="pane-inspector">
+        <div class="card">
+            <div class="card-title-row">
+                <span class="card-title">STATUS</span>
+                <span class="kv-key">{{energy_rate}}</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-key">Pos</span>
+                <span class="kv-val">{{pos_text}}</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-key">LAN IP</span>
+                <span class="kv-val">{{ip_text}}</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-key">Boot</span>
+                <span class="kv-val">{{boot_prog}}</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-key">Energy</span>
+                <span class="kv-val">{{energy_text}}</span>
+            </div>
+            <progress id="bar_energy" class="energy-bar" value="{{energy_val}}" min="0" max="{{energy_max}}"></progress>
+            <canvas id="canvas_telemetry" class="telemetry-canvas"></canvas>
+        </div>
+
+        <div class="card">
+            <span class="card-title">LABEL</span>
+            <div class="label-input-row">
+                <input id="input_label" class="label-input" type="text" placeholder="Label..." value=""/>
+                <div id="btn_label_set" class="btn btn-xs" data-class="btn-ok:label_ok" onclick="label_set">{{label_btn_text}}</div>
+                <div class="btn btn-xs" data-tooltip="Clear Label" onclick="label_clear">Clr</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <span class="card-title">OPTIONS</span>
+            <div class="toggle-grid">
+                <div class="toggle-btn" data-class="toggle-active:opt_private" data-tooltip="Restrict access to owner only" onclick="toggle_private">Private Access</div>
+                <div class="toggle-btn" data-class="toggle-active:opt_wake" data-tooltip="Auto-boot when receiving redstone signal" onclick="toggle_wake">Wake on Redstone</div>
+                <div class="toggle-btn" data-class="toggle-active:opt_debug" data-tooltip="Print VM debug messages to chat" onclick="toggle_debug">Debug Chat Log</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <span class="card-title">SYSTEM</span>
+            <div class="btn btn-danger" data-tooltip="Clear persistent runtime memory" onclick="wipe_memory">Wipe Memory</div>
+        </div>
+    </div>
+</div>
+
+<!-- Context Menu -->
+<div id="ctx_menu" class="ctx-menu"></div>
+
+<!-- File/Folder Modal -->
+<div id="modal_overlay" class="modal-overlay">
+    <div class="modal-box">
+        <span id="modal_title" class="modal-title">Create New File</span>
+        <input id="modal_input" class="modal-input" type="text" value=""/>
+        <div class="modal-actions">
+            <div class="btn" onclick="modal_cancel">Cancel</div>
+            <div id="btn_modal_submit" class="btn btn-primary" onclick="modal_submit">Create</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

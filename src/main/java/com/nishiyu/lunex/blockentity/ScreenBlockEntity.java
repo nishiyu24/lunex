@@ -1,5 +1,7 @@
 package com.nishiyu.lunex.blockentity;
 
+import com.nishiyu.enderframelib.api.IWebScreenBlockEntity;
+import com.nishiyu.enderframelib.client.ClientWebManager;
 import com.nishiyu.lunex.Lunex;
 import com.nishiyu.lunex.block.ScreenBlock;
 import com.nishiyu.lunex.machine.frame.IMainframePart;
@@ -16,7 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.*;
 
-public class ScreenBlockEntity extends BlockEntity implements IMCNetDevice, IMainframePart {
+public class ScreenBlockEntity extends BlockEntity implements IMCNetDevice, IMainframePart, IWebScreenBlockEntity {
     public static final double RESOLUTION = 200.0;
 
     public BlockPos masterPos = null;
@@ -36,10 +38,57 @@ public class ScreenBlockEntity extends BlockEntity implements IMCNetDevice, IMai
         super(Lunex.SCREEN_BE.get(), pos, state);
     }
 
+    // --- IMainframePart 実装 ---
     @Override
     public void setMasterPos(BlockPos pos) { this.mainframeMasterPos = pos; this.setChanged(); }
     @Override
     public BlockPos getMasterPos() { return this.mainframeMasterPos; }
+
+    // --- IWebScreenBlockEntity 実装 ---
+    @Override
+    public boolean isMaster() {
+        return this.isMaster;
+    }
+
+    @Override
+    public BlockPos getScreenMasterPos() {
+        return this.isMaster ? this.worldPosition : (this.masterPos != null ? this.masterPos : this.worldPosition);
+    }
+
+    @Override
+    public Direction getFacing() {
+        BlockState state = this.getBlockState();
+        return state.hasProperty(ScreenBlock.FACING) ? state.getValue(ScreenBlock.FACING) : Direction.NORTH;
+    }
+
+    @Override
+    public int getScreenWidth() {
+        return this.screenWidth;
+    }
+
+    @Override
+    public int getScreenHeight() {
+        return this.screenHeight;
+    }
+
+    @Override
+    public int getLodColor() {
+        return this.lodColor;
+    }
+
+    @Override
+    public List<BlockPos> getLinkedSpeakers() {
+        return this.linkedSpeakers;
+    }
+
+    @Override
+    public String getSessionId() {
+        if (networkId != null) {
+            return networkId.toString();
+        }
+        BlockPos pos = getScreenMasterPos();
+        return "block:" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
+    }
 
     public void updateUnlockTier(int tier) {
         if (!this.isMaster && this.masterPos != null && this.level != null) {
@@ -50,14 +99,6 @@ public class ScreenBlockEntity extends BlockEntity implements IMCNetDevice, IMai
         this.unlockTier = tier;
         this.setChanged();
         this.sync();
-    }
-
-    public String getSessionId() {
-        if (networkId != null) {
-            return networkId.toString();
-        }
-        BlockPos pos = isMaster ? this.worldPosition : (masterPos != null ? masterPos : this.worldPosition);
-        return "block:" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
     }
 
     public void setLinkedSpeakers(List<BlockPos> speakers) {
@@ -224,7 +265,6 @@ public class ScreenBlockEntity extends BlockEntity implements IMCNetDevice, IMai
         if (tag.contains("LodColor")) this.lodColor = tag.getInt("LodColor");
         if (tag.contains("UnlockTier")) this.unlockTier = tag.getInt("UnlockTier");
 
-        // ★ 修正: サーバー側でnullになったらクライアント側も確実にnullへ初期化する（ゴーストNBTバグの防止）
         if (tag.contains("MasterPos")) this.masterPos = BlockPos.of(tag.getLong("MasterPos"));
         else this.masterPos = null;
 
@@ -234,7 +274,6 @@ public class ScreenBlockEntity extends BlockEntity implements IMCNetDevice, IMai
             for (long l : posArray) this.linkedSpeakers.add(BlockPos.of(l));
         }
 
-        // ★ 修正: 同上（破片のUI残存バグの完全解決）
         if (tag.contains("NetworkId")) this.networkId = tag.getUUID("NetworkId");
         else this.networkId = null;
 
@@ -267,18 +306,10 @@ public class ScreenBlockEntity extends BlockEntity implements IMCNetDevice, IMai
 
         if (level != null && level.isClientSide) {
             String newSessionId = this.getSessionId();
-            // ★ 修正: IDやサイズが本当に変わった場合（破壊・再構築）のみ古いUIを破棄する
-            // むやみに破棄すると、スピーカーをリンクした瞬間に画面が真っ暗になる。
             if (!oldSessionId.equals(newSessionId) || oldW != this.screenWidth || oldH != this.screenHeight) {
-                com.nishiyu.lunex.client.ClientScreenManager.clearSession(oldSessionId);
+                ClientWebManager.clearSession(oldSessionId);
             }
         }
-    }
-
-    public record UIElement(String id, String type, int x, int y, int width, int height, String text, int color,
-                            int bgColor, Map<String, String> events, int radius, float opacity, float translateX,
-                            float translateY,
-                            float scaleX, float scaleY, float rotate, int transitionDuration, String animDef) {
     }
 
     private record Rectangle(BlockPos origin, int width, int height) {

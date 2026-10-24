@@ -1,18 +1,19 @@
 package com.nishiyu.lunex.mcnet;
 
-import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
+import com.nishiyu.enderframelib.api.IWebSessionProvider;
+import com.nishiyu.enderframelib.server.WebSession;
+import com.nishiyu.enderframelib.server.WebSessionManager;
 import com.nishiyu.lunex.blockentity.ScreenBlockEntity;
+import com.nishiyu.lunex.blockentity.SimpleMachineBlockEntity;
 import com.nishiyu.lunex.program.server.ServerLuaVM;
 import com.nishiyu.lunex.program.server.machine.CoreMachineServerLuaVM;
 import com.nishiyu.lunex.util.TargetUtil;
-import com.nishiyu.lunex.webrender.HtmlNodeSerializer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,12 +21,12 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ScreenSessionManager {
+public class ScreenSessionManager implements IWebSessionProvider {
     private static final Map<ServerLuaVM, ScreenSessionManager> MANAGERS = new ConcurrentHashMap<>();
 
     private final ServerLuaVM vm;
     private final String fallbackSessionId;
-    private final Map<String, ScreenSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, WebSession> sessions = new ConcurrentHashMap<>();
 
     public ScreenSessionManager(ServerLuaVM vm) {
         this.vm = vm;
@@ -34,12 +35,12 @@ public class ScreenSessionManager {
         if (oldManager != null) {
             oldManager.onShutdown();
         }
+        WebSessionManager.registerProvider(this);
 
         String determinedId = UUID.randomUUID().toString();
 
         SimpleMachineBlockEntity sm = (vm instanceof CoreMachineServerLuaVM cvm) ? cvm.simpleMachine : null;
         if (sm != null) {
-            // ★修正: getCore() 経由に変更
             CompoundTag data = sm.getCore().persistentData;
             if (data.contains("NetworkId")) {
                 determinedId = data.getString("NetworkId");
@@ -55,37 +56,39 @@ public class ScreenSessionManager {
         this.fallbackSessionId = determinedId;
 
         for (ScreenBlockEntity screen : getScreensFast("all")) {
-            ScreenSession session = getSession("all");
+            getSession("all");
             break;
         }
     }
 
-    public static void forceSyncToPlayer(ServerPlayer player, String sessionId) {
-        for (ScreenSessionManager manager : MANAGERS.values()) {
-            if (manager.isSessionMatch(sessionId)) {
-                String targetStr = targetStrFromSessionId(sessionId, manager.getUniversalSessionId());
-                ScreenSession session = manager.getSession(targetStr);
-                if (session != null) {
-                    CompoundTag tag = packDom(session);
-                    PacketDistributor.sendToPlayer(player, new com.nishiyu.lunex.network.packet.s2c.AppMessageS2CPacket(sessionId, "dom_sync", tag));
-                    return;
-                }
-            }
-        }
+    // --- IWebSessionProvider 実装 ---
+    @Override
+    public boolean matchesSession(String clientId) {
+        return isSessionMatch(clientId);
     }
 
-    public static CompoundTag packDom(ScreenSession session) {
-        CompoundTag tag = new CompoundTag();
-        if (session.getDocument() != null && session.getDocument().root != null) {
-            tag.put("DomTree", HtmlNodeSerializer.serialize(session.getDocument().root));
-            tag.putString("CssString", session.getDocument().authorCss != null ? session.getDocument().authorCss : "");
-            tag.putString("ClientScript", session.getDocument().clientScript != null ? session.getDocument().clientScript : "");
-            tag.putInt("RootW", session.getWidth());
-            tag.putInt("RootH", session.getHeight());
-        } else {
-            tag.putBoolean("IsEmpty", true);
-        }
-        return tag;
+    @Override
+    public WebSession getSessionForClient(String sessionId) {
+        String targetStr = targetStrFromSessionId(sessionId, getUniversalSessionId());
+        return getSession(targetStr);
+    }
+
+    @Override
+    public void onFetchRequest(ServerPlayer player, String sessionId, String requestId, String endpoint, String jsonPayload) {
+        this.vm.forceTriggerEvent("on_fetch_request", player.getName().getString(), requestId, endpoint, jsonPayload);
+    }
+
+    @Override
+    public void onClientEvent(ServerPlayer player, String sessionId, String elementId, String eventName, String actionName, String payload) {
+        this.vm.forceTriggerEvent("on_ui_event", player.getName().getString(), elementId, eventName, actionName, payload);
+    }
+
+    public static void forceSyncToPlayer(ServerPlayer player, String sessionId) {
+        WebSessionManager.forceSyncToPlayer(player, sessionId);
+    }
+
+    public static void handleFetchRequest(ServerPlayer player, String sessionId, String requestId, String endpoint, String jsonPayload) {
+        WebSessionManager.handleFetchRequest(player, sessionId, requestId, endpoint, jsonPayload);
     }
 
     private static String targetStrFromSessionId(String sessionId, String universalSessionId) {
@@ -94,19 +97,9 @@ public class ScreenSessionManager {
         return "all";
     }
 
-    public static void handleFetchRequest(ServerPlayer player, String sessionId, String requestId, String endpoint, String jsonPayload) {
-        for (ScreenSessionManager manager : MANAGERS.values()) {
-            if (manager.isSessionMatch(sessionId)) {
-                manager.vm.forceTriggerEvent("on_fetch_request", player.getName().getString(), requestId, endpoint, jsonPayload);
-                return;
-            }
-        }
-    }
-
     public String getUniversalSessionId() {
         SimpleMachineBlockEntity sm = (vm instanceof CoreMachineServerLuaVM cvm) ? cvm.simpleMachine : null;
         if (sm != null && sm.getLevel() != null) {
-            // ★修正: getCore() 経由に変更
             if (sm.getCore().persistentData.contains("RouterPos")) {
                 BlockPos routerPos = BlockPos.of(sm.getCore().persistentData.getLong("RouterPos"));
                 BlockEntity be = sm.getLevel().getBlockEntity(routerPos);
@@ -124,7 +117,7 @@ public class ScreenSessionManager {
         return this.fallbackSessionId;
     }
 
-    public ScreenSession getSession(String targetStr) {
+    public WebSession getSession(String targetStr) {
         String currentUniversalId = getUniversalSessionId();
         String sessionId = currentUniversalId;
         int w = 3 * (int) ScreenBlockEntity.RESOLUTION;
@@ -146,13 +139,13 @@ public class ScreenSessionManager {
         final int finalW = w;
         final int finalH = h;
         return sessions.computeIfAbsent(sessionId, id -> {
-            ScreenSession s = new ScreenSession(id, this);
+            WebSession s = new WebSession(id, WebSessionManager::broadcastDom);
             s.updateSize(finalW, finalH);
             return s;
         });
     }
 
-    public List<ScreenSession> resolveSessions(String targetStr) {
+    public List<WebSession> resolveSessions(String targetStr) {
         if ("all".equals(targetStr)) {
             if (sessions.isEmpty()) {
                 return List.of(getSession("all"));
@@ -177,7 +170,7 @@ public class ScreenSessionManager {
 
         if (clientId.startsWith("block:")) {
             for (ScreenBlockEntity screen : getScreensFast("all")) {
-                BlockPos pos = screen.isMaster ? screen.getBlockPos() : (screen.masterPos != null ? screen.masterPos : screen.getBlockPos());
+                BlockPos pos = screen.getScreenMasterPos();
                 String bId = "block:" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
                 if (clientId.equals(bId)) return true;
             }
@@ -185,13 +178,13 @@ public class ScreenSessionManager {
         return false;
     }
 
-    public void broadcastDom(ScreenSession session) {
-        CompoundTag tag = packDom(session);
-        PacketDistributor.sendToAllPlayers(new com.nishiyu.lunex.network.packet.s2c.AppMessageS2CPacket(session.getSessionId(), "dom_sync", tag));
+    public void broadcastDom(WebSession session) {
+        WebSessionManager.broadcastDom(session);
     }
 
     public void onShutdown() {
-        for (ScreenSession session : sessions.values()) {
+        WebSessionManager.unregisterProvider(this);
+        for (WebSession session : sessions.values()) {
             session.clear();
         }
         sessions.clear();

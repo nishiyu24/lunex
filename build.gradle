@@ -143,6 +143,8 @@ dependencies {
     localRuntime "software.bernie.geckolib:geckolib-neoforge-1.21.1:4.6.6"
     // ==============================================
 
+    implementation files('../enderframelib-1.21.1/build/libs/enderframelib-1.0.2.jar')
+
     // Example optional mod dependency with JEI
     // (以下、既存のコメント類が続きます...)
 }

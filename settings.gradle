@@ -12,3 +12,5 @@ plugins {
 }
 
 rootProject.name = 'lunex'
+
+includeBuild('../enderframelib-1.21.1')

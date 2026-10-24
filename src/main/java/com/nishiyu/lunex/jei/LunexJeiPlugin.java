@@ -38,33 +38,46 @@ public class LunexJeiPlugin implements IModPlugin {
 
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
-        // ★修正: getGuiExtraAreas を削除し、JEI本来の自動配置（GUIの左右の空きスペース判定）に任せます
-
         registration.addGhostIngredientHandler(MainframeOverviewScreen.class, new IGhostIngredientHandler<>() {
             @Override
             public <I> @NotNull List<Target<I>> getTargetsTyped(@NotNull MainframeOverviewScreen screen, @NotNull ITypedIngredient<I> ingredient, boolean doStart) {
                 List<Target<I>> targets = new ArrayList<>();
                 if (ingredient.getIngredient() instanceof ItemStack stack) {
 
-                    int offsetX = screen.getGuiStartX();
-                    int offsetY = screen.getGuiStartY();
+                    // ★修正: getGuiStartX() を直接 0 に設定（全画面UIのため）
+                    int offsetX = 0;
+                    int offsetY = 0;
 
+                    // ★追加: IDEのエディタに対するドロップターゲット (IDを文字として挿入する)
+                    if (screen.codeEditor != null && screen.codeEditor.visible) {
+                        targets.add(new Target<>() {
+                            @Override
+                            public @NotNull Rect2i getArea() {
+                                return new Rect2i(screen.codeEditor.getX(), screen.codeEditor.getY(), screen.codeEditor.getWidth(), screen.codeEditor.getHeight());
+                            }
+                            @Override
+                            public void accept(@NotNull I ing) {
+                                String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+                                // エディタの現在の値の末尾（またはカーソル位置）にIDを挿入
+                                String currentText = screen.codeEditor.getValue();
+                                screen.codeEditor.setValue(currentText + "\"" + itemId + "\"");
+                            }
+                        });
+                    }
+
+                    // (既存のターゲット処理)
                     for (GuiEventListener child : screen.children()) {
                         if (child instanceof CrafterUIExtension.GhostSlotWidget ghostWidget) {
                             targets.add(new Target<>() {
                                 @Override
-                                public @NotNull Rect2i getArea() {
-                                    return new Rect2i(offsetX + ghostWidget.getX(), offsetY + ghostWidget.getY(), ghostWidget.getWidth(), ghostWidget.getHeight());
-                                }
+                                public @NotNull Rect2i getArea() { return new Rect2i(offsetX + ghostWidget.getX(), offsetY + ghostWidget.getY(), ghostWidget.getWidth(), ghostWidget.getHeight()); }
                                 @Override
                                 public void accept(@NotNull I ing) { ghostWidget.acceptDrop(stack); }
                             });
                         } else if (child instanceof FurnaceUIExtension.TargetSlotWidget targetWidget) {
                             targets.add(new Target<>() {
                                 @Override
-                                public @NotNull Rect2i getArea() {
-                                    return new Rect2i(offsetX + targetWidget.getX(), offsetY + targetWidget.getY(), targetWidget.getWidth(), targetWidget.getHeight());
-                                }
+                                public @NotNull Rect2i getArea() { return new Rect2i(offsetX + targetWidget.getX(), offsetY + targetWidget.getY(), targetWidget.getWidth(), targetWidget.getHeight()); }
                                 @Override
                                 public void accept(@NotNull I ing) { targetWidget.acceptDrop(stack); }
                             });
